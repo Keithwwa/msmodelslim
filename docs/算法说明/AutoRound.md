@@ -131,7 +131,7 @@ spec:
 
 ## 层过滤机制
 
-层过滤机制用于指定哪些层需要量化，支持include和exclude模式匹配。详细的过滤规则、匹配模式、示例说明和常见层名模式请参考 [LinearQuantProcess层过滤机制详解](../功能指南/一键量化/features/linear_quant.md#层过滤机制详解)。
+层过滤机制用于指定哪些层需要量化，支持include和exclude模式匹配。详细的过滤规则、匹配模式、示例说明和常见层名模式请参考 [LinearQuantProcess层过滤机制详解](../功能指南/一键量化/线性层量化处理器#层过滤机制详解)。
 
 ## 原理与实现
 
@@ -275,4 +275,4 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
 
 ### 4. 层匹配告警
 
-层匹配告警的处理机制与LinearQuantProcess相同。当`include/exclude`模式未匹配到任何层时，工具会进行告警。详细的常见匹配失败原因和排查步骤请参考 [LinearQuantProcess层匹配告警](../功能指南/一键量化/features/linear_quant.md#层匹配告警)。
+层匹配告警的处理机制与LinearQuantProcess相同。当`include/exclude`模式未匹配到任何层时，工具会进行告警。详细的常见匹配失败原因和排查步骤请参考 [LinearQuantProcess层匹配告警](../功能指南/一键量化/线性层量化处理器#层匹配告警)。

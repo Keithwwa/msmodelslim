@@ -63,7 +63,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 #### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/功能指南/一键量化/使用说明.md#接口说明)。
+该模型的量化已经集成至[一键量化](../../../docs/功能指南/一键量化/使用说明.md#参数说明)。
 
 ```shell
 msmodelslim quant \
@@ -100,7 +100,7 @@ msmodelslim quant \
 
 - [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/功能指南/一键量化/配置协议说明.md#multimodal_vlm_modelslim_v1-量化服务配置详解)
 - [一键量化配置协议说明](../../../docs/功能指南/一键量化/配置协议说明.md)
-- [逐层量化特性说明](../../../docs/功能指南/一键量化/features/layer_wise_quantization.md)
+- [逐层量化特性说明](../../../docs/功能指南/一键量化/逐层量化特性说明)
 - [QuaRot 算法说明](../../../docs/算法说明/QuaRot.md)
 - [Iterative Smooth 算法说明](../../../docs/算法说明/Iterative_Smooth.md)
-- [LinearQuantProcess 线性层量化处理器说明](../../../docs/功能指南/一键量化/features/linear_quant.md)
+- [LinearQuantProcess 线性层量化处理器说明](../../../docs/功能指南/一键量化/线性层量化处理器)
