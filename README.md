@@ -1,35 +1,23 @@
-<div align="center">
+
 
 # msModelSlim
 
-[![说明文档](https://img.shields.io/badge/Documentation-latest-brightgreen.svg?style=flat)](./docs/zh/README.md)
-[![license](https://img.shields.io/badge/License-Apache%202.0-blue)](../LICENSE)
-
-[安装指南](docs/zh/install_guide.md) |
-[快速入门](docs/zh/quick_quantization_quick_start.md) |
-[支持矩阵](docs/zh/foundation_model_support_matrix.md) |
-[功能指南](./docs/zh/README.md#功能指南) |
-[自主量化](docs/zh/custom_quantization/integrating_models.md) |
-[案例集](./docs/zh/README.md#案例集) |
-[FAQ](./docs/zh/FAQ.md)
-
-</div>
 
 ## 最新消息
-- [2025/12/10] 支持 [DeepSeek-V3.2-Exp W4A8](./example/DeepSeek/README.md#deepseek-v32-w4a8) 量化，单卡64G显存，100G内存即可执行。
-- [2025/12/05] 支持 [Qwen3-VL-235B-A22B W8A8](./example/multimodal_vlm/Qwen3-VL-MoE/README.md) 量化。
-- [2025/10/16] 支持 [Qwen3-235B-A22B W4A8](./example/Qwen3-MOE/README.md#qwen3-235b-a22b-w4a8-混合量化)、[Qwen3-30B-A3B W4A8](./example/Qwen3-MOE/README.md#qwen3-30b-a3b-w4a8-混合量化) 量化。vLLM Ascend已支持量化模型推理部署 [部署指导](https://vllm-ascend.readthedocs.io/en/latest/user_guide/feature_guide/quantization.html#)
-- [2025/09/30] 支持 [DeepSeek-V3.2-Exp W8A8](./example/DeepSeek/README.md#deepseek-v32-w8a8) 量化，单卡64G显存，100G内存即可执行
-- [2025/09/18] 现已解决Qwen3-235B-A22B在W8A8量化下频繁出现“游戏副本”等异常token的问题 [Qwen3-MoE 量化推荐实践](./example/Qwen3-MOE/README.md)
-- [2025/09/18] 支持DeepSeek R1 W4A8 per-channel 量化【Prototype】
-- [2025/09/03] 支持大模型量化敏感层分析
-- [2025/08/30] 支持Wan2.1模型一键量化
-- [2025/08/25] 支持大模型逐层量化
+- [2025.12.10] 支持 DeepSeek-V3.2-Exp W4A8 量化，单卡64G显存，100G内存即可执行。
+- [2025.12.05] 支持 Qwen3-VL-235B-A22B W8A8量化。
+- [2025.10.16] 支持 Qwen3-235B-A22B W4A8、Qwen3-30B-A3B W4A8 量化。vLLM Ascend已支持量化模型推理部署 [部署指导](https://vllm-ascend.readthedocs.io/en/latest/user_guide/feature_guide/quantization.html#)
+- [2025.09.30] 支持 DeepSeek-V3.2-Exp W8A8 量化，单卡64G显存，100G内存即可执行
+- [2025.09.18] 现已解决Qwen3-235B-A22B在W8A8量化下频繁出现“游戏副本”等异常token的问题 Qwen3-MoE 量化推荐实践
+- [2025.09.18] 支持DeepSeek R1 W4A8 per-channel 量化【Prototype】
+- [2025.09.03] 支持大模型量化敏感层分析
+- [2025.08.30] 支持Wan2.1模型一键量化
+- [2025.08.25] 支持大模型逐层量化
 
 <details close>
 <summary>Previous News</summary>
 
-- [2025/08/21] 支持大模型SSZ权重量化算法
+- [2025.08.21] 支持大模型SSZ权重量化算法
 
 </details>
 
@@ -100,7 +88,11 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
 
 ## 常见问题
 
-相关FAQ请参考链接：[FAQ](./docs/zh/FAQ.md)
+相关FAQ请参考链接：[FAQ](./docs/zh/FAQ.md)。
+
+## 安全声明
+
+描述msModelSlim产品的安全加固信息、公网地址信息及通信矩阵等内容。详情请参见[msModelSlim工具安全声明](docs/zh/security_statement/security_statement.md)。
 
 ## 免责声明
 
@@ -118,10 +110,10 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
 ### 致数据集所有者
 如果您不希望您的数据集在msModelSlim中的模型被提及，或希望更新msModelSlim中的模型关于您的数据集的描述，请在Gitcode[提issue](https://gitcode.com/Ascend/msmodelslim/issues)，msModelSlim将根据您的issue要求删除或更新您的数据集描述。衷心感谢您对msModelSlim的理解和贡献。
 
-## License
-msModelSlim产品的使用许可证，具体请参见[License](./License)。
+## LICENSE
+msModelSlim产品的使用许可证，具体请参见[LICENSE](LICENSE)。
 
-msModelSlim产品docs目录下的文档适用CC-BY 4.0许可证，具体请参见[License](./docs/zh/License)。
+msModelSlim产品docs目录下的文档适用CC-BY 4.0许可证，具体请参见[LICENSE](docs/zh/LICENSE)。
 
 ## 贡献声明
 
@@ -133,24 +125,17 @@ msModelSlim产品docs目录下的文档适用CC-BY 4.0许可证，具体请参�
   a. Fork本项目的仓库。  
   b. Clone到本地。  
   c. 创建开发分支。  
-  d. 本地自测，提交前请通过所有的已经单元测试，以及为您要解决的问题新增单元测试。  
+  d. 本地测试：提交前必须通过所有单元测试，包括新增的测试用例。  
   e. 提交代码。  
   f. 新建Pull Request。  
-  g. 代码检视，您需要根据评审意见修改代码，并再次推送更新。此过程可能会有多轮。  
+  g. 代码检视：您需要根据评审意见修改代码，并重新提交更新。此流程可能涉及多轮迭代。  
   h. 当您的PR获得足够数量的检视者批准后，Committer会进行最终审核。  
   i. 审核和测试通过后，CI会将您的PR合并入到项目的主干分支。
 
-## 安全声明
-
-描述msModelSlim产品的安全加固信息、公网地址信息及通信矩阵等内容。详情请参见[msModelSlim工具安全声明](./docs/zh/security_statement.md)。
 
 ## 建议与交流
 
-欢迎大家为社区做贡献。如果有任何疑问或建议，请提交issues，我们会尽快回复。感谢您的支持。
-
-[issue提交](https://gitcode.com/Ascend/msmodelslim/issues)
-
-[昇腾论坛](https://www.hiascend.com/forum/forum-0106101385921175006-1.html)
+欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/Ascend/msmodelslim/issues)，我们会尽快回复。感谢您的支持。
 
 ## 致谢
 msModelSlim 由华为公司的下列部门及昇腾生态合作伙伴联合贡献：

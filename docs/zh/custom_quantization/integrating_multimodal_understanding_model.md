@@ -55,7 +55,7 @@ flowchart TD
 
 ### 1. 新建模型适配器目录和文件
 
-建议在 [`msmodelslim/model/`](../../msmodelslim/model/) 下创建独立目录，如 `qwen3_vl_moe/`，包含以下文件：
+建议在 [`msmodelslim/model/`](../../../msmodelslim/model/) 下创建独立目录，如 `qwen3_vl_moe/`，包含以下文件：
 - `model_adapter.py`：模型适配器主文件
 - `__init__.py`：导出适配器类
 - `moe_utils.py`（可选）：MoE融合权重等特殊结构的辅助转换工具

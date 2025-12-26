@@ -11,7 +11,7 @@ Transformers 版本适配说明：ChatGLM2-6B 模型需依赖 4.40.2 版本的 T
 W8A16量化及伪量化测精度过程示例(npu)：  
 参考以下两篇文档完成工具使用前准备工作  
 [安装指南](../install_guide.md)  
-[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/llm_ptq/大模型训练后量化.md)
+[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/foundation_model_post_training_quantization.md)
 ```python
 import os
 import json

@@ -8,6 +8,9 @@ Killed
 [Error] TBE Subprocess[task_distribute] raise error[], main process disappeared!
 ...
 ```
+
+### 解决方法
+
 请先确认你的进程没有被其他用户kill或抢占同一个NPU资源。一般而言，如果不存在其他用户抢占系统资源的情况，那么可能就是NPU显存不足或系统内存不足导致。可通过以下命令查看系统日志、看管系统内存情况、清理系统内存。
 ```shell
 # dmesg查看被内核终止的进程或显存不足终止的进程

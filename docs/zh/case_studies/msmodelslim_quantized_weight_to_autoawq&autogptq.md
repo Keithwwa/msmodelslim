@@ -18,7 +18,7 @@ AutoGPTQ：GPU
 # 1.msModelSlim量化
 环境准备如下：  
 [安装指南](../install_guide.md)  
-[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/llm_ptq/大模型训练后量化.md)  
+[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/foundation_model_post_training_quantization.md)  
 
 ## 1.1 msModelSlim量化
 量化脚本跟正常的量化脚本一样，可以参考：[w8a8精度调优策略](w8a8_accuracy_tuning_policy.md) 。
@@ -54,7 +54,7 @@ quant_config = QuantConfig(
 ```
 c.关于保存的权重文件
 本脚本仅支持未切片的safetensors权重转换，所以使用保存量化权重文件的时候，不要使用分片保存。  
-参考链接：[save()接口说明](../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/PyTorch/save().md)
+参考链接：[save()接口说明](../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)
 ```python
 calibrator.save(output_path, safetensors_name=None, json_name=None, save_type=None, part_file_size=None)
 ```

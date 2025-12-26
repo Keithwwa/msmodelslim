@@ -203,7 +203,7 @@ python3 quant.py
 其他场景样例可参考[此处](../../../case_studies/quantization_and_sparse_quantization_scenario_import_code_examples.md)
 ### 量化后权重文件
 - npy格式
-当[save_type](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/PyTorch/save().md)设置为['numpy']或不设置时，量化权重会保存为npy文件，npy储存格式为字典，其中key值为各层Linear的名字，例如ChatGLM2-6B模型的transformer.encoder.layers.0.self_attention.query_key_value，value值为第0层query_key_value的Linear权重。
+当[save_type](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)设置为['numpy']或不设置时，量化权重会保存为npy文件，npy储存格式为字典，其中key值为各层Linear的名字，例如ChatGLM2-6B模型的transformer.encoder.layers.0.self_attention.query_key_value，value值为第0层query_key_value的Linear权重。
 > 注意：w4a8_dynamic 量化类型不支持 ['numpy'] 格式保存。因此，当 save_type 设置为['numpy']时，会有报错提醒。当 save_type 设置为 ['numpy', 'safe_tensor']时，会保存 `safe_tensor` 格式数据；而对于 `numpy` 格式数据，会跳过保存，并会在日志中输出一个 error 提示。
 ```
 ├── anti_fp_norm.npy   #LLaMA模型且已启用离群抑制功能，具体操作请参见使用离群值抑制功能，将会生成此文件。antioutlier算法生成浮点权重中的norm层权重文件，用于量化层的input和post norm的权重适配
@@ -220,8 +220,8 @@ python3 quant.py
 推理部署时读取上述文件的示例代码：quant_param_dict = np.load("xxx.npy", allow_pickle=True).item()。
 
 - safetensors格式
-当[save_type](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/PyTorch/save().md)设置为['safe_tensor']时，量化权重会保存为safetensors文件和json描述文件。
-**说明**：当用户设置的[part_file_size](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/PyTorch/save().md)值大于0时，会使能PyTorch框架的分片保存功能。msModelSlim工具会统计遍历到的权重文件的大小，若权重文件的大小大于part_file_size值，则将统计到的权重作为一个part，然后重新进行统计。统计完成后，将各个权重分片保存，并生成权重索引文件（xxx.safetensors.index.json）。权重和索引的名称可参照开源模型的权重，例如xxx-0000x-of-0000x.safetensors，当part数大于99999时，权重和索引的名称将会被命名为xxx-x-of-x.safetensors。
+当[save_type](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)设置为['safe_tensor']时，量化权重会保存为safetensors文件和json描述文件。
+**说明**：当用户设置的[part_file_size](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)值大于0时，会使能PyTorch框架的分片保存功能。msModelSlim工具会统计遍历到的权重文件的大小，若权重文件的大小大于part_file_size值，则将统计到的权重作为一个part，然后重新进行统计。统计完成后，将各个权重分片保存，并生成权重索引文件（xxx.safetensors.index.json）。权重和索引的名称可参照开源模型的权重，例如xxx-0000x-of-0000x.safetensors，当part数大于99999时，权重和索引的名称将会被命名为xxx-x-of-x.safetensors。
 
     - safetensors中储存格式为字典，包含量化权重和量化不修改的浮点权重。其中量化权重的key值为各层Linear的名字加上对应权重的名字，module.weight和module.bias对应anti_fp_norm.npy，weight对应quant_weight.npy，quant_bias对应quant_bias.npy等以此类推。例如ChatGLM2-6B模型的transformer.encoder.layers.0.self_attention.query_key_value.deq_scale对应npy格式权重中deq_scale.npy中的transformer.encoder.layers.0.self_attention.query_key_value。
 ```
@@ -257,7 +257,7 @@ python3 quant.py
 > 注意：当使用 w4a8_dynamic 量化类型时，json 描述文件中会多生成一个 model_quant_type_second 和 kv_cache_type_second 的 key 和对应的量化类型 W4A8_DYNAMIC。
 
 - ascendV1格式
-<br>当[save_type](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/PyTorch/save().md)['ascendV1']时，量化权重会保存为safetensors文件和json描述文件。其中，safetensors文件会跟设置的格式不同而有所区别，当设置为['ascendV1']并开启异常值抑制时不会导出*norm.module.bias/weight，而设置为['safe_tensor']时则会导出。json描述文件名从quant_model_description_{quant_type}.json改为quant_model_description.json，并新增了一个version参数。
+<br>当[save_type](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)['ascendV1']时，量化权重会保存为safetensors文件和json描述文件。其中，safetensors文件会跟设置的格式不同而有所区别，当设置为['ascendV1']并开启异常值抑制时不会导出*norm.module.bias/weight，而设置为['safe_tensor']时则会导出。json描述文件名从quant_model_description_{quant_type}.json改为quant_model_description.json，并新增了一个version参数。
 
 > 注意：当使用w4a16量化类型时，默认会对权重进行pack。
 
@@ -287,11 +287,11 @@ python3 quant.py
 在量化权重生成后，可以使用伪量化模型进行推理，检验伪量化精度是否正常。伪量化是指通过torch，通过浮点运算完成量化模型运算逻辑，运算过程中的数据和真实量化的数据差异只在算子精度上，同时可以规避接入推理框架时引入的精度误差。如果伪量化精度不满足预期，真实量化结果也将无法满足预期。在调用Calibrator.run()方法后，构建Calibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，用来测试对话效果。如果伪量化结果不理想，可先使用[精度定位方法](#精度定位方法)进行定位，再可以参考以下手段进行调优。一般来说，W8A16的精度调优较为容易，W8A8和稀疏量化的精度调优相对复杂。
 
 #### 精度定位方法
-（1）将safetensors文件和json描述文件上传至[FakeQuantizeCalibrator接口](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/FakeQuantizeCalibrator.md)，构建FakeQuantizeCalibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，测试对话效果，并调用精度测试接口测试量化后模型权重的精度情况。
+（1）将safetensors文件和json描述文件上传至[FakeQuantizeCalibrator接口](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/FakeQuantizeCalibrator.md)，构建FakeQuantizeCalibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，测试对话效果，并调用精度测试接口测试量化后模型权重的精度情况。
 
 - 说明：支持W8A8（per_channel）、W8A16 per-channel（MinMax、GPTQ、HQQ）场景。
 
-（2）调用[Calibrator.run()](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/PyTorch/run().md/)，构建Calibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，用来测试对话效果。
+（2）调用[Calibrator.run()](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_run().md)，构建Calibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，用来测试对话效果。
 
 
 #### 数据集精度掉点严重，对话乱码或胡言乱语

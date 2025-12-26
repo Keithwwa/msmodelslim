@@ -90,7 +90,7 @@ graph TD
 ```
 
 ### 详细使用步骤
-详细使用接口说明请参考 [DitCache接口文档](../../../../接口说明/Python-API接口说明/多模态推理优化接口/DitCache/) 和 [DitCacheAdaptor](../../../python_api/multimodal_inference_apis/DitCache/DitCacheAdaptor.md)。
+详细使用接口说明请参考 [DitCache接口文档](../../../python_api/multimodal_inference_apis/DitCache) 和 [DitCacheAdaptor](../../../python_api/multimodal_inference_apis/DitCache/DitCacheAdaptor.md)。
 
 #### 1. 准备环境和模型
 

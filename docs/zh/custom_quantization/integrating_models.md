@@ -21,7 +21,7 @@ msModelSlim认识到量化机制和算法都有适用范围和局限性，而新
 
 ## 模型接入
 
-以下内容将以 [`Qwen3-32B`](../../msmodelslim/model/qwen3.py) W8A8动态量化场景（简称“场景示例”）的模型接入为例：
+以下内容将以 [`Qwen3-32B`](../../../msmodelslim/model/qwen3/model_adapter.py) W8A8动态量化场景（简称“场景示例”）的模型接入为例：
 
 1. **新建模型适配器`py`文件**：建议放在[`msmodelslim/model/`](../../../msmodelslim/model/) 下，命名如 `qwen3.py`。
 2. **理清量化过程涉及的组件，以组件接口组合定义适配器类**：模型适配器类必须继承自[

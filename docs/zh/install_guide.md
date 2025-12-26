@@ -6,7 +6,7 @@
 ## 安装前准备
 准备python环境：需要 Python 3.10 或更高版本。
 
-## 命令行安装
+## 安装步骤
 
 注：使用 msmodelslim 命令行工具时，请不要在 msmodelslim 源码目录下执行 msmodelslim 命令，这样做可能会因为 Python 导入模块时源码路径和安装路径冲突，导致命令执行报错。
 
@@ -52,4 +52,10 @@ sudo bash build.sh ${install_path}/ascend-toolkit/latest
 
 # 5.上一步编译操作会得到build文件夹，给build文件夹相关权限
 chmod -R 550 build
+```
+
+## 卸载
+
+```
+pip uninstall msmodelslim -y
 ```

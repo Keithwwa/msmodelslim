@@ -4,7 +4,7 @@
 混合校准集接口，通过CalibrationData类混合指定的数据集，支持用户自定义数据集
 
 ### 接口说明
-请参考 [CalibrationData](../../../../接口说明/Python-API接口说明/大模型压缩接口/大模型量化接口/CalibrationData.md)
+请参考 [CalibrationData](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/CalibrationData.md)
 
 操作步骤：
 1. 前提条件：config文件，用于配置基础数据集的路径，名称包括 boolq、ceval_5_shot、gsm8k、mmlu
