@@ -3,10 +3,10 @@
 ## 概述
 量化工具与MindIE工具关系：msmodelslim作为量化工具提供量化能力，MindIE加速库可以调用量化权重进行推理。
 
-## 环境准备
+## 前期准备
 请参考《[MindIE安装指南](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0001.html)》安装MindIE，并参考《MindIE安装指南》中“配置MindIE > [配置MindIE LLM](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0028.html)”章节配置MindIE LLM。
 
-量化环境安装指南：[安装指南](../install_guide.md)
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 量化权重生成
 
@@ -87,7 +87,7 @@ bash examples/models/llama/generate_quant_weight.sh -src {浮点权重路径} -d
 ```
 
 3.运行推理
-以Llama2-13b-hf为例，您可以使用以下指令执行对话测试，推理内容为"What's deep learning"。
+以Llama2-13b-hf为例，您可以使用以下指令执行对话测试，推理内容为"What's deep learning"。详细可参考昇腾社区开发指南参考链接：https://www.hiascend.com/document/detail/zh/mindie/10RC3/mindiellm/llmdev/mindie_llm0281.html 。
 
 ```
 # 进入加速库路径下
@@ -104,4 +104,3 @@ Question: "What's deep learning"
 Answer: Deep learning is a subset of machine learning that uses artificial neural networks to learn from data.
 ```
 
-昇腾社区开发指南参考链接：https://www.hiascend.com/document/detail/zh/mindie/10RC3/mindiellm/llmdev/mindie_llm0281.html

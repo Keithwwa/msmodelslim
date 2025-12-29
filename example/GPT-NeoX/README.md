@@ -1,11 +1,11 @@
-# GPT-NeoX 量化案例
+# GPT-NeoX 量化说明
 
 ## 模型介绍
 - [GPT-NeoX-20B](https://github.com/EleutherAI/gpt-neox)是一个 200 亿参数的自回归语言模型，在 Pile 数据集上训练。它的架构类似于 GPT-3，并且与 GPT-J-6B 的架构几乎相同。其训练数据集包含大量英语文本，反映了该模型的通用性质。
 
-## 环境配置
+## 使用前准备
 
-- 环境配置请参考[使用说明](../../docs/zh/install_guide.md)
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
 
 ## 支持的模型版本与量化策略
 
@@ -23,7 +23,7 @@
 
 - 量化权重统一使用[quant_gpt_neox.py](./quant_gpt_neox.py)脚本生成，以下提供GPT-NeoX模型量化权重生成快速启动命令。
 
-#### 量化参数说明
+### 量化参数说明
 | 参数名 | 含义 | 默认值 | 使用方法 | 
 | ------ | ---- | --- | -------- | 
 | model_path | 浮点权重路径 | 无默认值 | 必选参数；<br>输入GPT-NeoX权重目录路径。 |
@@ -66,7 +66,7 @@
   以及量化参数配置类 [Calibrator](../../docs/zh/python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)
 
 
-### 使用案例
+## 使用示例
 - 请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。
 - 如果需要使用NPU多卡量化，请先配置环境变量，支持多卡量化：
   ```shell
@@ -75,8 +75,8 @@
   ```
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`让修改后的自定义代码文件能够正确的被加载。(请确保加载的自定义代码文件的安全性)
 
-#### GPT-NeoX-20B模型量化
-##### <span id="gpt-neox-20b-w8a8量化">GPT-NeoX-20B W8A8量化</span>
+### GPT-NeoX-20B模型量化
+#### <span id="gpt-neox-20b-w8a8量化">GPT-NeoX-20B W8A8量化</span>
 - 生成GPT-NeoX-20B模型w8a8量化权重，使用自动混合min-max和histogram的激活值量化方式，SmoothQuant加强版算法，自动回退前34层，在NPU上进行运算
   ```shell
   python3 quant_gpt_neox.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --w_bit 8 --a_bit 8 --device_type npu --anti_method m2  --disable_level L34

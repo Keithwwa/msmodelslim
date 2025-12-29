@@ -9,7 +9,7 @@
     - Atlas 训练系列产品。
     - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件。
 
-- 已参考[安装指南](../../../install_guide.md)完成开发环境配置。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 - 大模型量化工具须执行命令安装如下依赖。
   以下命令如果使用非root用户安装，需要在安装命令后加上--user，例如：pip3 install onnx --user。针对某些开发环境可能存在依赖不完全匹配的情况，请根据界面报错提示自行修改依赖版本。
 ```
@@ -96,7 +96,7 @@ pip3 install transformers==4.43.0 # 参考ChatGLM2-6B仓chatglm2-6b/config.json�
 
 3. 新建模型的quant.py量化脚本，编辑quant.py文件，根据实际的量化场景导入样例代码，并根据实际情况进行修改。
 
-    - W8A8 per_channel量化场景导入的样例代码如下，kvcache、lowbit算法以及per_token算法量化场景导入的代码样例请参考[w8a8量化场景](../../../case_studies/quantization_and_sparse_quantization_scenario_import_code_examples.md)。
+    - W8A8 per_channel量化场景导入的样例代码如下，kvcache、lowbit算法以及per_token算法量化场景导入的代码样例请参考[w8a8量化场景](quantization_and_sparse_quantization_scenario_import_code_examples.md)。
 
 ```
 # 导入相关依赖
@@ -200,7 +200,7 @@ python3 quant.py
 ```
 量化任务完成后，可能会存在模型精度下降的情况，可以参考精度保持策略进行配置优化减少精度损耗。
 ### 量化及稀疏量化场景导入代码样例
-其他场景样例可参考[此处](../../../case_studies/quantization_and_sparse_quantization_scenario_import_code_examples.md)
+其他场景样例可参考[此处](quantization_and_sparse_quantization_scenario_import_code_examples.md)
 ### 量化后权重文件
 - npy格式
 当[save_type](../../../python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md)设置为['numpy']或不设置时，量化权重会保存为npy文件，npy储存格式为字典，其中key值为各层Linear的名字，例如ChatGLM2-6B模型的transformer.encoder.layers.0.self_attention.query_key_value，value值为第0层query_key_value的Linear权重。

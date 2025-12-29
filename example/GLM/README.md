@@ -1,12 +1,12 @@
 
-# GLM 量化案例
+# GLM 量化说明
 
 ## 模型介绍
 - [GLM](https://github.com/THUDM/GLM)是智谱AI推出的最新一代预训练模型GLM-4系列中的开源版本。在语义、数学、推理、代码和知识等多方面的数据集测评中，GLM-4-9B 及其人类偏好对齐的版本GLM-4-9B-Chat均表现出超越 Llama-3-8B的卓越性能。除了能进行多轮对话，GLM-4-9B-Chat还具备网页浏览、代码执行、自定义工具调用（Function Call）和长文本推理（支持最大128K上下文等高级功能）。本代模型增加了多语言支持，支持包括日语，韩语，德语在内的26种语言。我们还推出了支持 1M 上下文长度（约 200 万中文字符）的GLM-4-9B-Chat-1M模型和基于 GLM-4-9B的多模态模型GLM-4V-9B。GLM-4V-9B具备1120 * 1120高分辨率下的中英双语多轮对话能力，在中英文综合能力、感知推理、文字识别、图表理解等多方面多模态评测中，GLM-4V-9B表现出超越GPT-4-turbo-2024-04-09、Gemini 1.0 Pro、Qwen-VL-Max 和 Claude 3 Opus的卓越性能。
 
-## 环境配置
+## 使用前准备
 
-- 环境配置请参考[使用说明](../../docs/zh/install_guide.md)
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
 
 ## 支持的模型版本与量化策略
 
@@ -24,7 +24,7 @@
 
 - 量化权重统一使用[quant_glm.py](./quant_glm.py)脚本生成，以下提供GLM模型量化权重生成快速启动命令。
 
-#### 量化参数说明
+### 量化参数说明
 | 参数名               | 含义                   | 默认值 | 使用方法                                                                                                                    | 
 |-------------------|----------------------| --- |-------------------------------------------------------------------------------------------------------------------------| 
 | model_path        | 浮点权重路径               | 无默认值 | 必选参数；<br>输入GLM权重目录路径。                                                                                              |
@@ -69,7 +69,7 @@
   以及量化参数配置类 [Calibrator](../../docs/zh/python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)
 
 
-### 使用案例
+## 使用示例
 - 请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。
 - 如果需要使用NPU多卡量化，请先配置环境变量，支持多卡量化，但GLM-4-9B量化仅需要单卡：
   ```shell
@@ -78,8 +78,8 @@
   ```
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`让修改后的自定义代码文件能够正确的被加载。(请确保加载的自定义代码文件的安全性)
 
-#### GLM-4-9B模型量化
-##### <span id="glm-4-9b-w8a8c8量化">GLM-4-9B W8A8C8量化</span>
+### GLM-4-9B模型量化
+#### <span id="glm-4-9b-w8a8c8量化">GLM-4-9B W8A8C8量化</span>
 - 生成GLM-4-9B模型w8a8c8量化权重，使用histogram量化方式，在NPU上进行运算
   ```shell
   python3 quant_glm.py --model_path {浮点权重路径} --save_directory {W8A8C8量化权重路径} --device_type npu --act_method 2 --disable_level L0 --w_bit 8 --a_bit 8 --use_kvcache_quant True --calib_file ../common/mix_dataset_glm.json --anti_file ../common/mix_dataset_glm.json --trust_remote_code True

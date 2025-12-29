@@ -4,19 +4,19 @@ msModelSlim 推荐实践集提供了各种大语言模型、多模态理解模�
 
 ## 目录结构
 
-### 大语言模型量化案例
-- **[DeepSeek](./DeepSeek/)** - DeepSeek 系列模型量化案例
-- **[GLM](./GLM/)** - GLM 系列模型量化案例  
-- **[GPT-NeoX](./GPT-NeoX/)** - GPT-NeoX 系列模型量化案例
-- **[HunYuan](./HunYuan/)** - HunYuan 系列模型量化案例
-- **[InternLM2](./InternLM2/)** - InternLM2 系列模型量化案例
-- **[Llama](./Llama/)** - LLaMA 系列模型量化案例
-- **[Qwen](./Qwen/)** - Qwen 系列模型量化案例
-- **[Qwen3-MOE](./Qwen3-MOE/)** - Qwen3-MOE 系列模型量化案例
-- **[Qwen3-Next](./Qwen3-Next/)** - Qwen3-Next 系列模型量化案例
+### 大语言模型量化说明
+- **[DeepSeek](./DeepSeek/)** - DeepSeek 系列模型量化说明
+- **[GLM](./GLM/)** - GLM 系列模型量化说明 
+- **[GPT-NeoX](./GPT-NeoX/)** - GPT-NeoX 系列模型量化说明
+- **[HunYuan](./HunYuan/)** - HunYuan 系列模型量化说明
+- **[InternLM2](./InternLM2/)** - InternLM2 系列模型量化说明
+- **[Llama](./Llama/)** - LLaMA 系列模型量化说明
+- **[Qwen](./Qwen/)** - Qwen 系列模型量化说明
+- **[Qwen3-MOE](./Qwen3-MOE/)** - Qwen3-MOE 系列模型量化说明
+- **[Qwen3-Next](./Qwen3-Next/)** - Qwen3-Next 系列模型量化说明
 
-### 多模态理解模型量化案例
-- **[multimodal_vlm](./multimodal_vlm/)** - 多模态理解模型量化案例
+### 多模态理解模型量化说明
+- **[multimodal_vlm](./multimodal_vlm/)** - 多模态理解模型量化说明
   - LLaVA 系列模型
   - Qwen-VL 系列模型
   - InternVL2 系列模型
@@ -25,8 +25,8 @@ msModelSlim 推荐实践集提供了各种大语言模型、多模态理解模�
   - Qwen3-VL-MoE 系列模型
   - GLM-4.1V 系列模型
 
-### 多模态生成模型量化案例
-- **[multimodal_sd](./multimodal_sd/)** - 多模态生成模型量化案例
+### 多模态生成模型量化说明
+- **[multimodal_sd](./multimodal_sd/)** - 多模态生成模型量化说明
   - Stable Diffusion 系列模型
   - Flux 系列模型
   - HunYuanVideo 系列模型
@@ -40,8 +40,8 @@ msModelSlim 推荐实践集提供了各种大语言模型、多模态理解模�
 
 ## 快速开始
 
-### 环境配置
-- 环境配置请参考[安装指南](../docs/zh/install_guide.md)
+## 使用前准备
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../docs/zh/install_guide.md)。
 - 不同模型系列可能依赖特定的版本，请参考各模型目录下的具体说明。
 
 ### 使用多卡量化功能

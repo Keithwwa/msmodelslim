@@ -8,11 +8,16 @@ W8A16量化精度调优策略是结合msModelSlim量化工具和精度测试工�
 注：
 Transformers 版本适配说明：ChatGLM2-6B 模型需依赖 4.40.2 版本的 Transformers 库，若运行时出现 Transformers 相关报错，可尝试将库版本降至 4.40.2 以解决兼容性问题。
 
-## 环境准备
-W8A16量化及伪量化测精度过程示例(npu)：  
+## 前期准备
+
 参考以下两篇文档完成工具使用前准备工作  
-[安装指南](../install_guide.md)  
-[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/foundation_model_post_training_quantization.md)
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)  
+以及[大模型量化工具依赖安装](../feature_guide/scripts_based_quantization_and_other_features/pytorch/foundation_model_post_training_quantization.md)。
+
+## 代码示例
+
+W8A16量化及伪量化测精度过程示例（NPU）：  
+
 ```python
 import os
 import json
@@ -153,13 +158,9 @@ for idx, item in enumerate(res):
 在调用Calibrator.run()方法后，构建Calibrator时传入的model会被替换为伪量化模型，可以直接调用进行前向推理，用来测试对话效果，如果伪量化结果不理想，可以参考以下的方法进行调优。
 
 
-W8A16量化模型的精度调优步骤：
-1.离群值抑制(AntiOutlier) 
-2.量化参数(QuantConfig)
-3.校准数据(calib_set)
-4.量化回退(disable_names)
+## W8A16量化模型的精度调优步骤
 
-## 1 调整离群值抑制
+### 1 调整离群值抑制
  msModelSlim工具使用AntiOutlierConfig生成离群值抑制配置，以使用离群值抑制功能。原理：通过抑制量化过程当中的异常值，从而提高量化模型的精度。W8A16量化建议使用m3，m3为AWQ算法，也是仅权重量化算法，可以理解为抑制权重中出现的异常值，但逻辑和激活值异常抑制算法是一样的。设置方式为：
 
 ```python
@@ -170,7 +171,7 @@ anti_outlier.process()
 补充：其中anti_method有六种算法，m3是用于权重量化的，另外五种是用于激活值量化的场景，如果是激活值精度调优建议从m1到m6逐一尝试。
 
 
-## 2 量化参数选择
+### 2 量化参数选择
 ```python
 quant_config = QuantConfig(
     a_bit=16,
@@ -191,7 +192,7 @@ GPTQ是一种针对大规模预训练模型的高效后量化算法。
 增加回退层（建议最后进行调整），可以按照一定的经验，通过disable_names手动设置。
 
 
-## 3 校准集调整
+### 3 校准集调整
 1.当算法层面无法提升精度时，可以增大校准数据集(10~50条)。  
 正常情况下，可以增加数据得到精度提升，但是到一定数据后，提高数据对精度影响有限。有些场景下，减少数据反而得到精度提升, 例如长数据场景。
 2.针对特定场景切换成应用场景的数据作为校准集。  
@@ -216,7 +217,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
 ```
 注： [Precision Tool 使用方法说明及数据集下载链接](../feature_guide/scripts_based_quantization_and_other_features/pytorch/fake_quantization_accuracy_testing_tool.md)  
 
-## 4 量化回退
+### 4 量化回退
 量化回退的原因：某些网络层对于量化比较敏感，量化后会带来较大的精度损失，这些层是不太适合量化的，应该使用浮点数进行计算，这个过程称之为回退（回退的都是线性层），可以通过设置disable_names控制哪些层应该被回退。
 为什么回退的都是线性层：大模型中的线性层层数多、权重数量庞大且存在矩阵相乘（计算量大），通过量化线性层的权重和激活值，可以达到降低模型大小，减少计算量，降低内存占用，提升推理速度。  
 怎么判定敏感：终端的日志中会显示每一层算子激活量化输入的range_parm数值，range_parm数值越大越敏感。  
@@ -263,7 +264,7 @@ disable_names=[
 ]
 
 ```
-## 5 KV Cache int8量化
+### 5 KV Cache int8量化
 
 可在QuantConfig后调用kv_quant函数来开启KV Cache int8量化。  
 ```python

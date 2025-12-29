@@ -7,37 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
-
-## 功能介绍
-
-作为 Processor 使用
-
-```yaml
-- type: "fa3_quant" # 固定为 `fa3_quant`，用于指定 Processor。
-  include: # 字符串列表，参与量化的注意力层匹配模式（完整路径，支持 `*` 通配），默认全量。
-    - "*"
-  exclude: # 字符串列表，禁止量化的注意力层匹配模式（完整路径，支持 `*` 通配），默认为空。
-    - "model.layers.0.self_attn"
-```
-
-### YAML配置示例
-
-```yaml
-spec:
-  process:
-    - type: "fa3_quant"
-      include: [ "*" ]                           # 包含的注意力层模式
-      exclude: [ "model.layers.0.self_attn" ]   # 排除的注意力层模式
-```
-
-### YAML配置字段详解
-
-| 字段名  | 作用               | 数据类型      | 默认值 | 说明                                               |
-| ------- | ------------------ | ------------- | ------ | -------------------------------------------------- |
-| type    | 处理器类型标识     | string        | -      | 固定值"fa3_quant"，用于标识该对象为FA3量化处理器。 |
-| include | 包含的注意力层模式 | array[string] | ["*"]  | 支持通配符匹配，指定要执行FA3量化的注意力层。      |
-| exclude | 排除的注意力层模式 | array[string] | []     | 支持通配符匹配，优先级高于 include。               |
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 原理和实现
 
@@ -97,6 +67,56 @@ spec:
      - 调用 `calculate_qparam()` 计算对称量化参数。
      - 创建 IR 替换监听器。
 
+
+## 适用要求
+
+- **模型结构要求**：
+  - 必须有支持 FA3 的模型适配器实现 `FA3QuantAdapterInterface`。
+  - 适用于基于 MLA 的注意力机制。
+  - 需要明确的 Q、K、V 激活计算路径以插入量化节点。
+
+- **量化方式限制**：
+  - 当前仅支持 INT8 对称量化。
+  - 量化参数在校准后固定，尚不支持动态调整。
+
+## 功能介绍
+
+
+### 模型支持
+
+- DeepSeek-R1-0528
+- DeepSeek-V3.1
+
+### 使用说明
+
+作为 Processor 使用
+
+```yaml
+- type: "fa3_quant" # 固定为 `fa3_quant`，用于指定 Processor。
+  include: # 字符串列表，参与量化的注意力层匹配模式（完整路径，支持 `*` 通配），默认全量。
+    - "*"
+  exclude: # 字符串列表，禁止量化的注意力层匹配模式（完整路径，支持 `*` 通配），默认为空。
+    - "model.layers.0.self_attn"
+```
+
+### YAML配置示例
+
+```yaml
+spec:
+  process:
+    - type: "fa3_quant"
+      include: [ "*" ]                           # 包含的注意力层模式
+      exclude: [ "model.layers.0.self_attn" ]   # 排除的注意力层模式
+```
+
+### YAML配置字段详解
+
+| 字段名  | 作用               | 数据类型      | 默认值 | 说明                                               |
+| ------- | ------------------ | ------------- | ------ | -------------------------------------------------- |
+| type    | 处理器类型标识     | string        | -      | 固定值"fa3_quant"，用于标识该对象为FA3量化处理器。 |
+| include | 包含的注意力层模式 | array[string] | ["*"]  | 支持通配符匹配，指定要执行FA3量化的注意力层。      |
+| exclude | 排除的注意力层模式 | array[string] | []     | 支持通配符匹配，优先级高于 include。               |
+
 ## 模型适配
 
 ### 接口与数据结构
@@ -128,19 +148,3 @@ class ModelAdapter(FA3QuantAdapterInterface):
     3. 定位Q、K、V 激活流向 Attention 计算的临界位置，该位置即为需要插入 FA3 量化的节点。
     4. 包裹注意力层的 forward 方法，在定位到的临界位置插入对 FA3 量化的调用。
 
-
-## 已验证模型列表
-
-- DeepSeek-R1-0528
-- DeepSeek-V3.1
-
-## 适用范围与局限性
-
-- **模型结构要求**：
-  - 必须有支持 FA3 的模型适配器实现 `FA3QuantAdapterInterface`。
-  - 适用于基于 MLA 的注意力机制。
-  - 需要明确的 Q、K、V 激活计算路径以插入量化节点。
-
-- **量化方式限制**：
-  - 当前仅支持 INT8 对称量化。
-  - 量化参数在校准后固定，尚不支持动态调整。

@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../../install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide.md)。
 
 ## 功能介绍
 
@@ -20,16 +20,16 @@ msmodelslim quant [ARGS]
 
 用户输入命令后，系统将根据指定需求，在最佳实践库中匹配到最佳配置从而实施量化。
 
-### 注意事项
 
+注：
 1. 最佳实践库中的配置文件放在 `msmodelslim/lab_practice` 中。
 2. 若最佳实践库中未搜寻到最佳配置，系统则会向用户询问是否采用默认配置，即使用 `msmodelslim/lab_practice/default/default.yaml` 实施量化。
 3. 如果需要打印量化运行日志，可通过以下环境变量进行设置。
 
-    | 环境变量                  | 解释        | 是否可选 | 范围             |
-    |-----------------------|-----------|------|----------------|
-    | MSMODELSLIM_LOG_LEVEL | 打印同级及以上日志 | 可选   | INFO(默认),DEBUG |
 
+| 环境变量                  | 解释        | 是否可选 | 范围             |
+|-----------------------|-----------|------|----------------|
+| MSMODELSLIM_LOG_LEVEL | 打印同级及以上日志 | 可选   | INFO(默认),DEBUG |
 
 ### 参数说明
 
@@ -59,6 +59,8 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device $
 ``` bash
 msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen2.5-7B-Instruct --quant_type w8a8 --trust_remote_code True
 ```
+
+
 
 ## 附录
 

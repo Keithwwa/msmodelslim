@@ -56,7 +56,7 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
 
 ## 环境部署
 
-具体安装步骤请查看[安装指南](docs/zh/install_guide.md)。
+具体安装步骤请查看[《msModelSlim工具安装指南》](docs/zh/install_guide.md)。
 
 ## 快速入门
 
@@ -99,39 +99,34 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
     <tr>
       <td rowspan="4"><strong>量化精度调优</strong></td>
       <td>w8a8精度调优策略</td>
-      <td><a href="case_studies/w8a8_accuracy_tuning_policy.md">w8a8精度调优策略指南</a></td>
+      <td><a href="docs/zh/case_studies/w8a8_accuracy_tuning_policy.md">w8a8精度调优策略指南</a></td>
     </tr>
     <tr>
       <td>w8a16精度调优策略</td>
-      <td><a href="case_studies/w8a16_accuracy_tuning_policy.md">w8a16精度调优策略指南</a></td>
+      <td><a href="docs/zh/case_studies/w8a16_accuracy_tuning_policy.md">w8a16精度调优策略指南</a></td>
     </tr>
     <tr>
       <td>v1框架量化精度调优</td>
-      <td><a href="case_studies/quantization_precision_tuning_guide.md">v1框架量化精度调优指南</a></td>
+      <td><a href="docs/zh/case_studies/quantization_precision_tuning_guide.md">v1框架量化精度调优指南</a></td>
     </tr>
     <tr>
       <td>v1框架Qwen3-32B w8a8a精度调优</td>
-      <td><a href="case_studies/qwen3-32B_w8a8_precision_tuning_case.md">v1框架Qwen3-32B w8a8a精度调优案例</a></td>
+      <td><a href="docs/zh/case_studies/qwen3-32B_w8a8_precision_tuning_case.md">v1框架Qwen3-32B w8a8a精度调优案例</a></td>
     </tr>
     <tr>
       <td><strong>稀疏量化调试</strong></td>
       <td>稀疏量化精度调试案例</td>
-      <td><a href="case_studies/sparse_quantization_accuracy_tuning_cases.md">稀疏量化精度调试方法和案例</a></td>
-    </tr>
-    <tr>
-      <td><strong>代码集成</strong></td>
-      <td>量化及稀疏量化场景导入代码样例</td>
-      <td><a href="case_studies/quantization_and_sparse_quantization_scenario_import_code_examples.md">量化和稀疏量化代码集成示例</a></td>
+      <td><a href="docs/zh/case_studies/sparse_quantization_accuracy_tuning_cases.md">稀疏量化精度调试方法和案例</a></td>
     </tr>
     <tr>
       <td><strong>权重转换</strong></td>
       <td>msModelSlim量化权重转AutoAWQ&AutoGPTQ使用指南</td>
-      <td><a href="case_studies/msmodelslim_quantized_weight_to_autoawq&autogptq.md">量化权重格式转换指南</a></td>
+      <td><a href="docs/zh/case_studies/msmodelslim_quantized_weight_to_autoawq_autogptq.md">量化权重格式转换指南</a></td>
     </tr>
     <tr>
       <td><strong>推理部署</strong></td>
       <td>加速库&MindIE-Torch场景下的量化权重使用案例</td>
-      <td><a href="case_studies/quantization_weight_use_cases_in_acceleration_and_mindie_torch.md">推理加速库中量化权重使用方法</a></td>
+      <td><a href="docs/zh/case_studies/quantization_weight_use_cases_in_acceleration_and_mindie_torch.md">推理加速库中量化权重使用方法</a></td>
     </tr>
   </tbody>
 </table>
@@ -149,20 +144,23 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
 
 ### 致msModelSlim使用者
 
-#### 本工具仅供调试和开发之用，使用者需自行承担使用风险，并理解以下内容：
-1. msModelSlim工具依赖的transformers、PyTorch等第三方开源软件，均由第三方社区提供和维护，因第三方开源软件导致的问题的修复依赖相关社区的贡献和反馈。您应理解，msModelSlim仓库不保证第三方开源软件本身的问题进行修复，也不保证会测试或纠正所有第三方开源软件的漏洞和错误。
-2. 在您使用msModelSlim工具时，工具通常会从硬盘中读取您从互联网所下载的模型权重（通过您提供的命令行参数或配置文件）。使用非可信的模型权重可能会导致未知的安全风险，建议您在使用工具前通过SHA256校验等方法，确保模型权重可信后再传递给工具。
-3. 出于安全性及权限最小化角度考虑，您不应以root等高权限账户使用msModelSlim工具，建议您使用普通用户权限安装执行。
-   - 用户须自行保证最小权限原则（如禁止 other 用户可写，常见如禁止 666、777）。
-   - 使用 msModelSlim 工具请确保执行用户的 umask 值大于等于 0027，否则会导致生成的量化模型数据所在目录和文件权限过大。
-     - 若要查看 umask 的值，可执行命令：umask
-     - 若要修改 umask 的值，可执行命令：umask 新的取值
-   - 请确保原始模型数据存放和量化模型数据保存在不含软链接的当前用户目录下，否则可能会引起安全问题。
-4. 免责声明范围：本免责声明适用于所有使用本工具的个人或实体。使用本工具即表示您同意并接受本声明的内容，并愿意承担因使用该功能而产生的风险和责任，如有异议请停止使用本工具。
-5. 在使用本工具之前，请谨慎阅读并理解以上免责声明的内容。对于使用本工具所产生的任何问题或疑问，请及时联系开发者。
+- 本工具仅供调试和开发之用，使用者需自行承担使用风险，并理解以下内容：
+  - msModelSlim工具依赖的transformers、PyTorch等第三方开源软件，均由第三方社区提供和维护，因第三方开源软件导致的问题的修复依赖相关社区的贡献和反馈。您应理解，msModelSlim仓库不保证第三方开源软件本身的问题进行修复，也不保证会测试或纠正所有第三方开源软件的漏洞和错误。
+  - 在您使用msModelSlim工具时，工具通常会从硬盘中读取您从互联网所下载的模型权重（通过您提供的命令行参数或配置文件）。使用非可信的模型权重可能会导致未知的安全风险，建议您在使用工具前通过SHA256校验等方法，确保模型权重可信后再传递给工具。 
+  - 出于安全性及权限最小化角度考虑，您不应以root等高权限账户使用msModelSlim工具，建议您使用普通用户权限安装执行。
+    - 用户须自行保证最小权限原则（如禁止 other 用户可写，常见如禁止 666、777）。
+    - 使用 msModelSlim 工具请确保执行用户的 umask 值大于等于 0027，否则会导致生成的量化模型数据所在目录和文件权限过大。
+      - 若要查看 umask 的值，可执行命令：umask
+      - 若要修改 umask 的值，可执行命令：umask 新的取值
+    - 请确保原始模型数据存放和量化模型数据保存在不含软链接的当前用户目录下，否则可能会引起安全问题。
+  - 数据处理及删除：用户在使用本工具过程中产生的数据属于用户责任范畴。建议用户在使用完毕后及时删除相关数据，以防信息泄露。
+  - 数据保密与传播：使用者了解并同意不得将通过本工具产生的数据随意外发或传播。对于由此产生的信息泄露、数据泄露或其他不良后果，本工具及开发者概不负责。
+  - 用户输入安全性：用户需自行保证输入的命令行的安全性，并承担因输入不当导致的任何安全风险或损失。对于由于输入命令行不当所导致的问题，本工具及其开发者概不负责。
+- 免责声明范围：本免责声明适用于所有使用本工具的个人或实体。使用本工具即表示您同意并接受本声明的内容，并愿意承担因使用该功能而产生的风险和责任，如有异议请停止使用本工具。
+- 在使用本工具之前，请谨慎阅读并理解以上免责声明的内容。对于使用本工具所产生的任何问题或疑问，请及时联系开发者。
 
 ### 致数据所有者
-如果您不希望您的数据集在msModelSlim中的模型被提及，或希望更新msModelSlim中的模型关于您的数据集的描述，请在Gitcode[提issue](https://gitcode.com/Ascend/msmodelslim/issues)，msModelSlim将根据您的issue要求删除或更新您的数据集描述。衷心感谢您对msModelSlim的理解和贡献。
+如果您不希望您的数据集在msModelSlim中的模型被提及，或希望更新msModelSlim中的模型关于您的数据集的描述，请在Gitcode提issue，msModelSlim将根据您的issue要求删除或更新您的数据集描述。衷心感谢您对msModelSlim的理解和贡献。
 
 ## LICENSE
 msModelSlim产品的使用许可证，具体请参见[LICENSE](LICENSE)。

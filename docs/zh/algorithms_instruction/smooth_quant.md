@@ -8,45 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
-
-## 功能介绍
-
-### 作为Processor使用
-
-```yaml
-- type: "smooth_quant"                    # 固定为 `smooth_quant`，用于指定 Processor。
-  alpha: 0.5                              # 浮点数, 0~1, 默认 0.5，平衡参数，控制激活和权重的相对重要性。
-  symmetric: True                         # 布尔型，默认为True，是否启用对称量化，True为对称，False为非对称。
-  include:                                # 字符串列表，参与平滑的层匹配模式（完整路径，支持 `*` 通配），默认全量。
-    - "*"
-  exclude:                                # 字符串列表，禁止平滑的层匹配模式（完整路径，支持 `*` 通配），默认为空。
-    - "*self_attn*"
-```
-
-**注意**：SmoothQuant 仅支持 `norm-linear` 子图类型，不支持其他子图类型（如 `ov`、`up-down`、`linear-linear`），因而不支持指定 `enable_subgraph_type` 字段。
-
-### YAML配置示例
-
-```yaml
-spec:
-  process:
-    - type: "smooth_quant"
-      alpha: 0.5                           # 平衡参数，控制激活和权重的相对重要性，默认0.5。
-      symmetric: True                      # 是否启用对称量化，默认True。
-      include: ["*"]                       # 包含的层模式，支持通配符。
-      exclude: ["*self_attn*"]             # 排除的层模式，支持通配符。
-```
-
-### YAML配置字段详解
-
-| 字段名 | 作用      | 说明 |
-|--------|---------|------|
-| type | 处理器类型标识 | 固定值"smooth_quant"，用于标识这是一个SmoothQuant处理器。|
-| alpha | 平衡参数    | 0~1之间的浮点数，控制激活和权重的相对重要性，默认0.5。 |
-| symmetric | 是否对称量化  | 布尔值，True为对称，False为非对称，默认True。 |
-| include | 包含的层模式  | 字符串列表，支持通配符匹配，默认为["*"]（全量）。 |
-| exclude | 排除的层模式  | 字符串列表，支持通配符匹配，默认为空。|
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 原理和实现
 
@@ -132,6 +94,55 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 - 清理所有安装的统计钩子
 - 释放统计信息内存
 - 恢复模型原始状态
+
+## 适用要求
+
+- **模型架构要求**：模型必须支持 `SmoothQuantInterface` 接口，并正确配置子图映射关系。
+- **模块命名要求**：模块名称必须与 `named_modules()` 返回的完整路径完全一致。
+- **子图类型支持**：SmoothQuant 仅支持 `norm-linear` 子图类型。
+- **模块属性要求**：目标模块必须存在且具备可写的 `weight`（以及可选 `bias`）。
+- **模型结构假设**：算法基于标准的Transformer架构设计，对于非标准结构需要谨慎评估适用性。
+
+## 功能介绍
+
+### 使用说明
+
+作为 Processor 使用
+
+```yaml
+- type: "smooth_quant"                    # 固定为 `smooth_quant`，用于指定 Processor。
+  alpha: 0.5                              # 浮点数, 0~1, 默认 0.5，平衡参数，控制激活和权重的相对重要性。
+  symmetric: True                         # 布尔型，默认为True，是否启用对称量化，True为对称，False为非对称。
+  include:                                # 字符串列表，参与平滑的层匹配模式（完整路径，支持 `*` 通配），默认全量。
+    - "*"
+  exclude:                                # 字符串列表，禁止平滑的层匹配模式（完整路径，支持 `*` 通配），默认为空。
+    - "*self_attn*"
+```
+
+**注意**：SmoothQuant 仅支持 `norm-linear` 子图类型，不支持其他子图类型（如 `ov`、`up-down`、`linear-linear`），因而不支持指定 `enable_subgraph_type` 字段。
+
+### YAML配置示例
+
+```yaml
+spec:
+  process:
+    - type: "smooth_quant"
+      alpha: 0.5                           # 平衡参数，控制激活和权重的相对重要性，默认0.5。
+      symmetric: True                      # 是否启用对称量化，默认True。
+      include: ["*"]                       # 包含的层模式，支持通配符。
+      exclude: ["*self_attn*"]             # 排除的层模式，支持通配符。
+```
+
+### YAML配置字段详解
+
+| 字段名 | 作用      | 说明 |
+|--------|---------|------|
+| type | 处理器类型标识 | 固定值"smooth_quant"，用于标识这是一个SmoothQuant处理器。|
+| alpha | 平衡参数    | 0~1之间的浮点数，控制激活和权重的相对重要性，默认0.5。 |
+| symmetric | 是否对称量化  | 布尔值，True为对称，False为非对称，默认True。 |
+| include | 包含的层模式  | 字符串列表，支持通配符匹配，默认为["*"]（全量）。 |
+| exclude | 排除的层模式  | 字符串列表，支持通配符匹配，默认为空。|
+
 
 ## 模型适配
 
@@ -222,28 +233,20 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
     return adapter_config
 ```
 
-## 适用要求
-
-- **模型架构要求**：模型必须支持 `SmoothQuantInterface` 接口，并正确配置子图映射关系。
-- **模块命名要求**：模块名称必须与 `named_modules()` 返回的完整路径完全一致。
-- **子图类型支持**：SmoothQuant 仅支持 `norm-linear` 子图类型。
-- **模块属性要求**：目标模块必须存在且具备可写的 `weight`（以及可选 `bias`）。
-- **模型结构假设**：算法基于标准的Transformer架构设计，对于非标准结构需要谨慎评估适用性。
-
-## 常见问题排查
+## FAQ
 
 ### 1. 模块名称不匹配
-**现象**: `include/exclude` 未命中时，日志提示未匹配模式。
+**现象**: `include/exclude` 未命中时，日志提示未匹配模式。  
 **解决方案**: 核对完整模块名称是否与 `named_modules()` 返回的路径一致。
 
 ### 2. 子图配置错误
-**现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。
+**现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。  
 **解决方案**: 检查配置中的 `source` 和 `targets` 字段是否正确。
 
 ### 3. 模块不存在
-**现象**: 配置中指定的模块名称在模型中不存在。
+**现象**: 配置中指定的模块名称在模型中不存在。  
 **解决方案**: 通过 `model.named_modules()` 验证模块是否确实存在。
 
 ### 5. 映射关系错误
-**现象**: `MappingConfig` 中的 `source` 和 `targets` 指向错误的模块。
+**现象**: `MappingConfig` 中的 `source` 和 `targets` 指向错误的模块。  
 **解决方案**: 检查 `MappingConfig` 中的 `source` 是否为归一化层，`targets` 是否为其后续的线性层。

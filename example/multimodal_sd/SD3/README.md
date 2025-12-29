@@ -2,6 +2,10 @@
 
 当前仅支持对SD3模型的transformer部分进行W8A8静态量化。
 
+## 使用前准备
+
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
+
 ## 支持的模型版本与量化策略
 
 | 模型系列 | 模型版本 | HuggingFace链接 | W8A8 | W8A16 | W4A16 | W4A4 | 时间步量化 | FA3量化 | 异常值抑制量化 | 量化命令 |
@@ -13,7 +17,7 @@
 - 空格表示该量化策略暂未通过msModelSlim官方验证，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证。
 - 点击量化命令列中的链接可跳转到对应的具体量化命令
 
-## 量化命令和示例代码
+## 使用示例
 
 ### <span id="sd3-medium-w8a8量化">SD3-Medium W8A8量化</span>
 
@@ -34,7 +38,7 @@ python /the/absolute/path/of/example/multimodal_sd/SD3/sd3_inference.py \
     --quant_type "w8a8"
 ```
 
-### 校准数据Dump和量化的示例代码
+#### 校准数据Dump和量化的示例代码
 
 ```python
 # 导入模型库
@@ -119,7 +123,9 @@ session_cfg.model_validate(session_cfg)
 quant_model(model, session_cfg)
 ```
 
-## 运行参数说明
+## 附录
+
+### 运行参数说明
 以下是使用[SD3/sd3_inference.py](./sd3_inference.py)进行SD3模型推理量化时的参数说明。
 
 | 参数名 | 含义 | 使用限制 |

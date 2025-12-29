@@ -3,9 +3,11 @@
 ## 概述
 本文将会提供稀疏量化的示例代码，并介绍稀疏量化的调优策略。
 
-## 环境准备
+## 前期准备
 
-- 代码示例中额外使用了`precision_tool`工具，可以参考该文档进行配置 ：[精度测试工具](../feature_guide/scripts_based_quantization_and_other_features/pytorch/fake_quantization_accuracy_testing_tool.md)
+代码示例中额外使用了`precision_tool`工具，可以参考该文档进行配置 ：[精度测试工具](../feature_guide/scripts_based_quantization_and_other_features/pytorch/fake_quantization_accuracy_testing_tool.md)。
+
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 代码示例
 
@@ -150,7 +152,7 @@ precision_test = PrecisionTest(model, tokenizer, "boolq", args.batch_size, "npu"
 precision_test.test()
 ```
 
-# MsModelSlim稀疏量化精度调试指导
+# msModelSlim稀疏量化精度调试指导
 
 ## 基本精度调优策略
 

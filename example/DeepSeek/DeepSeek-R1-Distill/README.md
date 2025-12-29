@@ -1,6 +1,6 @@
-# DeepSeek R1 Distill 量化案例
+# DeepSeek R1 Distill 量化说明
 
-## 环境配置
+## 使用前准备
 
 - 使用 MindIE1.0版本 [官方镜像](https://gitcode.com/Ascend/ascend-docker-image/tree/dev/mindie#%E5%90%AF%E5%8A%A8%E5%AE%B9%E5%99%A8)，如1.0.0-800I-A2-py311-openeuler24.03-lts
 
@@ -21,7 +21,7 @@
 - 点击量化命令列中的链接可跳转到对应的具体量化命令
 - **注意：** Atlas 300I DUO目前仅支持单片量化，请先确保待量化模型的大小可适配单片容量，以保证量化过程正常进行。
 
-## 量化
+## 量化权重生成
 - 如果需要使用NPU多卡量化，请先配置环境变量，支持多卡量化：
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -29,15 +29,16 @@
   ```
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`让修改后的自定义代码文件能够正确的被加载。(请确保加载的自定义代码文件的安全性)
 
-#### DeepSeek-R1-Distill-Llama 量化
-##### <span id="deepseek-r1-distill-llama-8b-w8a8量化">DeepSeek-R1-Distill-Llama-8B W8A8量化</span>
+## 使用示例
+### DeepSeek-R1-Distill-Llama 量化
+#### <span id="deepseek-r1-distill-llama-8b-w8a8量化">DeepSeek-R1-Distill-Llama-8B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Llama
   python3 quant_llama.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl  --device_type npu --anti_method m1 --trust_remote_code True
   ```
 
-##### <span id="deepseek-r1-distill-llama-8b-稀疏量化">DeepSeek-R1-Distill-Llama-8B 稀疏量化</span>
+#### <span id="deepseek-r1-distill-llama-8b-稀疏量化">DeepSeek-R1-Distill-Llama-8B 稀疏量化</span>
 Atlas 300I DUO  使用以下方法稀疏量化
 - 稀疏量化
 ```shell
@@ -52,15 +53,15 @@ Atlas 300I DUO  使用以下方法稀疏量化
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
 ```
 
-##### <span id="deepseek-r1-distill-llama-70b-w8a8量化">DeepSeek-R1-Distill-Llama-70B W8A8量化</span>
+#### <span id="deepseek-r1-distill-llama-70b-w8a8量化">DeepSeek-R1-Distill-Llama-70B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Llama
   python3 quant_llama.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl  --device_type npu --disable_level L5 --anti_method m4 --act_method 3 --trust_remote_code True
   ```
 
-#### DeepSeek-R1-Distill-Qwen 量化
-##### <span id="deepseek-r1-distill-qwen-15b-w8a8量化">DeepSeek-R1-Distill-Qwen-1.5B W8A8量化</span>
+### DeepSeek-R1-Distill-Qwen 量化
+#### <span id="deepseek-r1-distill-qwen-15b-w8a8量化">DeepSeek-R1-Distill-Qwen-1.5B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Qwen
@@ -74,7 +75,7 @@ OrangePi
 cd msit/msmodelslim/example/Qwen
 python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl  --device_type npu --disable_names "lm_head" --anti_method m4 --trust_remote_code True
 ```
-##### <span id="deepseek-r1-distill-qwen-15b-稀疏量化">DeepSeek-R1-Distill-Qwen-1.5B 稀疏量化</span>
+#### <span id="deepseek-r1-distill-qwen-15b-稀疏量化">DeepSeek-R1-Distill-Qwen-1.5B 稀疏量化</span>
 Atlas 300I DUO 使用以下方法稀疏量化
 - 稀疏量化
 ```shell
@@ -90,13 +91,13 @@ python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8S�
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
 ```
 
-##### <span id="deepseek-r1-distill-qwen-7b-w8a8量化">DeepSeek-R1-Distill-Qwen-7B W8A8量化</span>
+#### <span id="deepseek-r1-distill-qwen-7b-w8a8量化">DeepSeek-R1-Distill-Qwen-7B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Qwen
   python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl --w_bit 8 --a_bit 8 --device_type npu --trust_remote_code True
   ```
-##### <span id="deepseek-r1-distill-qwen-7b-稀疏量化">DeepSeek-R1-Distill-Qwen-7B 稀疏量化</span>
+#### <span id="deepseek-r1-distill-qwen-7b-稀疏量化">DeepSeek-R1-Distill-Qwen-7B 稀疏量化</span>
 Atlas 300I DUO 使用以下方法稀疏量化
 - 稀疏量化
 ```shell
@@ -112,14 +113,14 @@ python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8S�
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
 ```
 
-##### <span id="deepseek-r1-distill-qwen-14b-w8a8量化">DeepSeek-R1-Distill-Qwen-14B W8A8量化</span>
+#### <span id="deepseek-r1-distill-qwen-14b-w8a8量化">DeepSeek-R1-Distill-Qwen-14B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Qwen
   python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl --w_bit 8 --a_bit 8 --device_type npu --trust_remote_code True
   ```
 
-##### <span id="deepseek-r1-distill-qwen-14b-稀疏量化">DeepSeek-R1-Distill-Qwen-14B 稀疏量化</span>
+#### <span id="deepseek-r1-distill-qwen-14b-稀疏量化">DeepSeek-R1-Distill-Qwen-14B 稀疏量化</span>
 
 - 稀疏量化
 Atlas 300I DUO 使用以下方法稀疏量化
@@ -137,14 +138,14 @@ python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8S�
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --multiprocess_num 4 --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
 ```
 
-##### <span id="deepseek-r1-distill-qwen-32b-w8a8量化">DeepSeek-R1-Distill-Qwen-32B W8A8量化</span>
+#### <span id="deepseek-r1-distill-qwen-32b-w8a8量化">DeepSeek-R1-Distill-Qwen-32B W8A8量化</span>
 Atlas 800I A2 w8a8量化
   ```shell
   cd msit/msmodelslim/example/Qwen
   python3 quant_qwen.py --model_path {浮点权重路径} --save_directory {W8A8量化权重路径} --calib_file ../common/boolq.jsonl --w_bit 8 --a_bit 8 --device_type npu --trust_remote_code True
   ```
 
-##### <span id="deepseek-r1-distill-qwen-32b-稀疏量化">DeepSeek-R1-Distill-Qwen-32B 稀疏量化</span>
+#### <span id="deepseek-r1-distill-qwen-32b-稀疏量化">DeepSeek-R1-Distill-Qwen-32B 稀疏量化</span>
 
 - 稀疏量化
 Atlas 300I DUO 使用以下方法稀疏量化

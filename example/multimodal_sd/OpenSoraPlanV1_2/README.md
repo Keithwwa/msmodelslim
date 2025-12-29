@@ -2,6 +2,10 @@
 
 Open-Sora-Plan V1.2的推理量化依赖于推理工程仓：[MindIE/open_sora_planv1_2](https://modelers.cn/models/MindIE/open_sora_planv1_2)，根据该工程仓完成配置后，使用以下示例代码进行量化。
 
+## 使用前准备
+
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
+
 ## 支持的模型版本与量化策略
 
 | 模型系列 | 模型版本 | HuggingFace链接 | W8A8 | W8A16 | W4A16 | W4A4 | 稀疏量化 | KV Cache | Attention | 时间步量化 | FA3量化 | 异常值抑制量化 | 量化命令 |
@@ -13,9 +17,9 @@ Open-Sora-Plan V1.2的推理量化依赖于推理工程仓：[MindIE/open_sora_p
 - 空格表示该量化策略暂未通过msModelSlim官方验证，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证。
 - 点击量化命令列中的链接可跳转到对应的具体量化命令
 
-## <span id="open-sora-plan-v12-w8a8静态量化">Open-Sora-Plan V1.2 W8A8静态量化</span>
+## 使用示例
 
-### 量化命令和示例代码
+### <span id="open-sora-plan-v12-w8a8静态量化">Open-Sora-Plan V1.2 W8A8静态量化</span>
 
 #### 量化启动命令
 
@@ -130,8 +134,9 @@ session_cfg.model_validate(session_cfg)
 quant_model(model, session_cfg)
 
 ```
+## 附录
 
-## 运行参数说明
+### 运行参数说明
 
 以下是使用[OpenSoraPlanV1_2/inference.py](./inference.py)进行Open-Sora-Plan V1.2模型推理量化时的参数说明。量化启动命令未涉及参数对应的说明请见Open-Sora-Plan V1.2推理工程仓[MindIE/open_sora_planv1_2](https://modelers.cn/models/MindIE/open_sora_planv1_2)
 

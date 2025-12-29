@@ -9,7 +9,7 @@
 
 ### 1.安装msModelSlim
 
-根据[安装指南](install_guide.md)完成开发环境配置。
+根据[《msModelSlim安装指南》](install_guide.md)完成开发环境配置。
 
 ### 2.下载大模型原始浮点权重
 

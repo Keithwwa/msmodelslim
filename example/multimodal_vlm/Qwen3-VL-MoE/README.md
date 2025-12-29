@@ -9,9 +9,10 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 - **大规模参数**: 提供 30B-A3B 和 235B-A22B 两种规格，其中 "A" 代表激活参数量
 - **3D 融合专家权重**: 专家层权重以 3D 张量形式融合存储，需要特殊的量化处理
 
-## 环境配置
+## 使用前准备
 
-- 基础环境配置请参考[安装指南](../../../docs/zh/install_guide.md)，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为2.7.1版本
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
+- 注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为2.7.1版本
 - 针对 Qwen3-VL-MoE，transformers 版本需要 4.57.1：
   ```bash
   pip install transformers==4.57.1
@@ -59,9 +60,9 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ## 生成量化权重
 
-### 使用案例
+## 使用示例
 
-#### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
+### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
 
 该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization/usage.md#参数说明)。
 
@@ -76,7 +77,7 @@ msmodelslim quant \
 ```
 
 
-## 常见问题
+## FAQ
 
 ### Q1: 为什么 MoE experts 使用动态量化？
 
@@ -96,7 +97,8 @@ msmodelslim quant \
 
 建议使用与实际应用场景相似的图像作为校准集，数量一般不超过30张。
 
-## 相关资源
+## 附录
+### 相关资源
 
 - [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization/configuration_protocols.md#multimodal_vlm_modelslim_v1-量化服务配置详解)
 - [一键量化配置协议说明](../../../docs/zh/feature_guide/quick_quantization/configuration_protocols.md)

@@ -8,9 +8,38 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
+
+## 原理和实现
+
+### 原理
+
+直方图激活值量化算法的核心思想是通过分析输入张量的分布直方图，自动搜索最优的截断区间（clip_min, clip_max），以避免量化范围过大。
+
+### 实现
+
+- 算法在 `msmodelslim/quant/quantizer/impl/histogram.py` 和 `msmodelslim/quant/observer/histogram.py` 中实现，处理流程分4步。
+
+1. **直方图统计**：
+   - 将输入张量的值域划分为固定数量的bins（默认2048）。
+   - 统计每个bin中数值的频次，构建分布直方图。
+   - 支持上采样（upsample_rate=16）以减少量化误差。
+
+2. **截断值搜索**：
+   - 每次移动固定的百分位数（stepsize=1e-5），逐步调整截断区间。
+   - 通过计算量化误差评估候选区间的质量，在量化误差不再减小或越界时停止搜索。
+
+3. **量化误差度量**：
+   - **L2范数误差**：默认量化误差，计算量化前后分布的L2范数差异。
+   - **KL散度误差**：计算量化前后分布的KL散度，目前精度性能低于L2范数方法，通过一键量化yaml配置时，暂无入口。
+
+4. **量化参数计算**：
+   - 以最优截断区间的上下界为max/min，计算并保存scale和zero_point。
+   - 执行伪量化操作，返回量化后的张量。
 
 ## 功能介绍
+
+### 使用说明
 
 作为量化器使用，支持per_tensor量化粒度的int8对称和非对称量化，通过配置一键量化yaml中的qconfig.act.method部分启用。下面以W8A8的linear为例，也可适配其他存在激活值量化的场景，具体请查看对应的quantizer配置中是否使用了AutoActQuantizer。
 
@@ -56,33 +85,6 @@ spec:
 | dtype | 量化数据类型 | `"int8"`, `"int4"` | 8位/4位整数量化 | `"int8"` |
 | symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `false` |
 | method | 量化方法 | `"histogram"` | histogram: 直方图量化 | `"histogram"` |
-
-## 原理和实现
-
-### 原理
-
-直方图激活值量化算法的核心思想是通过分析输入张量的分布直方图，自动搜索最优的截断区间（clip_min, clip_max），以避免量化范围过大。
-
-### 实现
-
-- 算法在 `msmodelslim/quant/quantizer/impl/histogram.py` 和 `msmodelslim/quant/observer/histogram.py` 中实现，处理流程分4步。
-
-1. **直方图统计**：
-   - 将输入张量的值域划分为固定数量的bins（默认2048）。
-   - 统计每个bin中数值的频次，构建分布直方图。
-   - 支持上采样（upsample_rate=16）以减少量化误差。
-
-2. **截断值搜索**：
-   - 每次移动固定的百分位数（stepsize=1e-5），逐步调整截断区间。
-   - 通过计算量化误差评估候选区间的质量，在量化误差不再减小或越界时停止搜索。
-
-3. **量化误差度量**：
-   - **L2范数误差**：默认量化误差，计算量化前后分布的L2范数差异。
-   - **KL散度误差**：计算量化前后分布的KL散度，目前精度性能低于L2范数方法，通过一键量化yaml配置时，暂无入口。
-
-4. **量化参数计算**：
-   - 以最优截断区间的上下界为max/min，计算并保存scale和zero_point。
-   - 执行伪量化操作，返回量化后的张量。
 
 ## 核心组件
 
@@ -243,7 +245,7 @@ class SearchMethod(str, Enum):
     KL_DIVERGENCE = "kl_divergence"  # KL散度搜索
 ```
 
-## 常见问题排查
+## FAQ
 
 ### 1. 配置错误
 

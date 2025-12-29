@@ -53,7 +53,7 @@ flowchart TD
 - **视觉部分**：完整加载（包含所有blocks、mergers等），作为一个整体进行处理和量化
 - **语言部分**：逐层加载和处理，节省内存
 
-**注**：不同模型可根据实际情况选择不同策略。例如，如果视觉部分需要更细粒度的控制，也可以采用逐层方案。
+**注**：不同模型可根据实际情况选择不同策略。例如，如果视觉部分需要更细粒度的控制，也可以采用逐层方案。如果需要接入其他算法可以见[附录-可用算法接口适配指导](#可用算法接口适配指导)。
 
 ### 1. 新建模型适配器目录和文件
 
@@ -90,7 +90,7 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,  # 提供多模态通用能力
 将校准数据（`VlmCalibSample`）转换为多模态理解模型支持的输入，`VlmCalibSample`的定义可参考[`vlm_dataset_loader.py`](../../../msmodelslim/infra/vlm_dataset_loader.py)：
 
 **关键点**：
-- 使用 `VlmCalibSample` 结构体统一数据格式，校准数据支持的格式参考：[校准数据准备](#校准数据准备)
+- 使用 `VlmCalibSample` 结构体统一数据格式，校准数据支持的格式参考：[校准数据准备](#5-校准数据准备)
 - **加载processor或tokenizer**：主流多模态理解模型（如Qwen3-VL）一般使用processor对数据做预处理，但以InternVL2-8B为例的模型则使用tokenizer对数据做预处理，需要根据模型官方给出的推理示例进行设置
 - **构建messages**：使用processor对数据做预处理的多模态理解模型，一般有自己特定的messages形式，需要参考模型官方给出的推理示例实现定义
 - 使用 `_collect_inputs_to_device` 批量移动tensor到目标设备
@@ -473,7 +473,73 @@ qwen3_vl_moe = Qwen3-VL-30B-A3B, Qwen3-VL-235B-A22B
 qwen3_vl_moe = msmodelslim.model.qwen3_vl_moe.model_adapter:Qwen3VLMoeModelAdapter
 ```
 
-### 5. 准备量化配置
+### 5. 校准数据准备
+
+#### 类型1：纯图像（默认文本prompt）
+
+用户可通过在yaml配置文件的dataset字段传入图像目录，以及设置default_text字段作为所有图像统一的默认文本prompt。
+
+**格式**：图片目录，无 `.json`/`.jsonl` 文件
+
+```
+calibImages/
+├── img1.jpg
+├── img2.png
+└── img3.jpeg
+```
+
+**配置**：
+```yaml
+dataset: calibImages
+default_text: "Describe this image in detail."
+```
+
+#### 类型2：纯图像（自定义文本prompt）
+
+用户可通过在yaml配置文件的dataset字段传入图像目录，并通过符合要求的单个 `.json`/`.jsonl` 文件设置每个图像独立的文本prompt。
+
+**格式**：图片目录 + 单个 `.json`/`.jsonl` 文件
+
+**图片目录 + 单个 `.jsonl` 文件**
+```
+calibImages/
+├── img1.jpg
+├── img2.png
+├── img3.jpeg
+└── calib_data.jsonl
+```
+
+**calib_data.jsonl**：
+```json
+{"image": "img1.jpg", "text": "What objects are in this image?"}
+{"image": "img2.png", "text": "Describe the scene."}
+{"image": "img3.jpeg", "text": "What is the main subject?"}
+```
+
+**图片目录 + 单个 `.json` 文件**
+```
+calibImages/
+├── img1.jpg
+├── img2.png
+├── img3.jpeg
+└── calib_data.json
+```
+
+**calib_data.json**：
+```json
+[
+{"image": "img1.jpg", "text": "What objects are in this image?"},
+{"image": "img2.png", "text": "Describe the scene."},
+{"image": "img3.jpeg", "text": "What is the main subject?"}
+]
+```
+
+**配置**：
+```yaml
+dataset: calibImages
+```
+
+### 6. 准备量化配置
 
 创建量化配置文件（YAML），例如 `qwen3_vl_moe_w8a8.yaml`：
 
@@ -536,72 +602,6 @@ spec:
   default_text: "Describe this image in detail."  # 图片默认的文本prompt
 ```
 
-## 校准数据准备
-
-### 类型1：纯图像（默认文本prompt）
-
-用户可通过在yaml配置文件的dataset字段传入图像目录，以及设置default_text字段作为所有图像统一的默认文本prompt。
-
-**格式**：图片目录，无 `.json`/`.jsonl` 文件
-
-```
-calibImages/
-├── img1.jpg
-├── img2.png
-└── img3.jpeg
-```
-
-**配置**：
-```yaml
-dataset: calibImages
-default_text: "Describe this image in detail."
-```
-
-### 类型2：纯图像（自定义文本prompt）
-
-用户可通过在yaml配置文件的dataset字段传入图像目录，并通过符合要求的单个 `.json`/`.jsonl` 文件设置每个图像独立的文本prompt。
-
-**格式**：图片目录 + 单个 `.json`/`.jsonl` 文件
-
-**图片目录 + 单个 `.jsonl` 文件**
-```
-calibImages/
-├── img1.jpg
-├── img2.png
-├── img3.jpeg
-└── calib_data.jsonl
-```
-
-**calib_data.jsonl**：
-```json
-{"image": "img1.jpg", "text": "What objects are in this image?"}
-{"image": "img2.png", "text": "Describe the scene."}
-{"image": "img3.jpeg", "text": "What is the main subject?"}
-```
-
-**图片目录 + 单个 `.json` 文件**
-```
-calibImages/
-├── img1.jpg
-├── img2.png
-├── img3.jpeg
-└── calib_data.json
-```
-
-**calib_data.json**：
-```json
-[
-{"image": "img1.jpg", "text": "What objects are in this image?"},
-{"image": "img2.png", "text": "Describe the scene."},
-{"image": "img3.jpeg", "text": "What is the main subject?"}
-]
-```
-
-**配置**：
-```yaml
-dataset: calibImages
-```
-
 ## 量化自有模型
 
 完成模型适配器编写、注册、配置文件和校准数据准备后，即可执行量化：
@@ -618,7 +618,7 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 **参数说明**：
 请注意`trust_remote_code`为`True`时可能执行浮点模型权重中代码文件，请确保浮点模型来源安全可靠。其中\${MODEL_PATH}为原始浮点权重路径，\${SAVE_PATH}为用户自定义的量化权重保存路径，\${MODEL_TYPE}为注册的模型名称，\${CONFIG_PATH}为YAML配置文件路径。
 
-## 常见问题与注意事项
+## FAQ
 
 ### 1. 量化过程报错 Out Of Memory (OOM) 问题
 
@@ -651,12 +651,14 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 **原因**：校准数据格式不符合要求或模型不支持该类型
 
 **解决**：
-- 检查数据格式是否符合: [校准数据准备](#校准数据准备)
+- 检查数据格式是否符合: [校准数据准备](#5-校准数据准备)
 - 确保图片路径可访问、格式正确（.jpg/.png/.jpeg）
 
-## 高级特性
+## 附录
 
-### 支持IterSmooth离群值抑制算法
+### 可用算法接口适配指导
+
+#### 支持IterSmooth离群值抑制算法
 
 如果需要支持IterSmooth算法（用于抑制激活值离群值），需要实现 `IterSmoothInterface`：
 
@@ -708,7 +710,7 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
 
 详见：[Iterative Smooth 适配](../algorithms_instruction/iterative_smooth.md#模型适配)
 
-### 支持QuaRot旋转离群值抑制算法
+#### 支持QuaRot旋转离群值抑制算法
 
 如果需要支持QuaRot算法（基于旋转变换显著平滑数据的分布），需要实现旋转矩阵的初始化和应用：
 
@@ -743,7 +745,7 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
 
 详见：[QuaRot 适配](../algorithms_instruction/quarot.md#模型适配)
 
-## 参考资料
+### 参考资料
 - [模型接入指南](integrating_models.md)：大模型基础接入指导
 - [Qwen3-VL-MoE模型适配器](../../../msmodelslim/model/qwen3_vl_moe/model_adapter.py)：完整实现示例
 - [VLM数据集加载器](../../../msmodelslim/infra/vlm_dataset_loader.py)：校准数据加载处理

@@ -315,7 +315,7 @@ multimodal_vlm_modelslim_v1是专门为多模态视觉语言模型（VLM）设�
 - 默认使用layer_wise（逐层量化）模式，针对大规模多模态模型优化
 - 继承modelslim_v1的所有处理器和保存器配置
 
-### 配参数说明
+### 参数说明
 
 multimodal_vlm_modelslim_v1量化服务的具体配置位于spec字段下。该服务基于modelslim_v1框架构建，处理器配置字段与modelslim_v1保持一致，以下仅说明有区别或特有的配置字段。
 

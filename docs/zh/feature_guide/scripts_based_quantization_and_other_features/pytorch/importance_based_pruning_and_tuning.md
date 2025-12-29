@@ -6,7 +6,8 @@ msModelSlim工具提供了基于重要性评估的模型剪枝调优API，用户
 
 ## 使用前准备
 
-目前支持PyTorch框架下的模型剪枝调优，执行剪枝调优前，请先参考[安装指南](../../../install_guide.md)完成开发环境配置。
+目前支持PyTorch框架下的模型剪枝调优。  
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 
 - 注意：该功能仅支持 PyTorch 2.0.0 以上版本。
 

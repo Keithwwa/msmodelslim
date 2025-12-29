@@ -1,13 +1,13 @@
-# GLM-4.1V 量化案例
+# GLM-4.1V 量化说明
 
 ## 模型介绍
 
 - [GLM-4.1V-9B-Thinking](https://github.com/zai-org/GLM-V) 是由智谱 AI 联合清华大学团队推出的多模态大模型，该模型引入思考范式，并通过课程采样强化学习 RLCS（Reinforcement Learning with Curriculum Sampling）全面提升模型能力。
 
 
-## 环境配置
+## 使用前准备
 
-- 基础环境配置请参考[安装指南](../../../docs/zh/install_guide.md)
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
 - 针对GLM-4.1V，transformers版本需要安装为4.53.0：
     - pip install transformers==4.53.0
 
@@ -21,7 +21,7 @@
 
 - 量化权重统一使用[quant_glm41v.py](./quant_glm41v.py)脚本生成，以下提供GLM-4.1V-9B-Thinking模型量化权重生成快速启动命令。
 
-### 使用案例
+## 使用示例
 - 如果需要使用NPU多卡量化，请先配置多卡环境变量（Atlas 300I Duo 系列产品不支持多卡量化）：
   ```shell
   export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -30,8 +30,8 @@
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`，让修改后的自定义代码文件能够正确地被加载。（请确保加载的自定义代码文件的安全性）
   
 
-#### 1. GLM-4.1V系列
-##### <span id="glm-4.1v-w8a8sc">1.1 GLM-4.1V-9B-Thinking W8A8SC量化 异常值抑制算法使用m2</span>
+### 1. GLM-4.1V系列
+#### <span id="glm-4.1v-w8a8sc">1.1 GLM-4.1V-9B-Thinking W8A8SC量化 异常值抑制算法使用m2</span>
 该示例在NPU上生成GLM-4.1V-9B-Thinking模型的量化权重。使用m2算法进行异常值抑制。
 
 请将{浮点权重路径}和{W8A8S量化权重路径}替换为用户实际路径。{校准集图片路径}默认为"../calibImages"，以当前"../calibImages"目录中2张图片为例，实际量化时为保证精度需要从COCO数据集中扩充到30张图片。此外，用户可根据实际场景替换为其他图片。
@@ -62,6 +62,7 @@ Atlas 300I DUO 使用以下方法稀疏量化
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
   ```
 
+## 附录
 ### 量化参数说明
 | 参数名 | 含义 | 默认值 | 使用方法 | 
 | ------ | ---- | --- | -------- | 

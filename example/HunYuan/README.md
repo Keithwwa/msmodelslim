@@ -1,10 +1,11 @@
-# Hunyuan 量化案例
+# Hunyuan 量化说明
 
 ## 模型介绍
 - [Tencent-Hunyuan-Large](https://github.com/Tencent/Tencent-Hunyuan-Large) 目前业界开源的基于 Transformer 的最大 MoE 模型，拥有 3890 亿个参数、520 亿个活跃参数，且其具备高质量合成数据增强训练、KV 缓存压缩、专家特定学习率缩放、长上下文处理能力强（预训练模型支持 256K 文本序列，Instruct 模型支持 128K）。
 
-## 环境配置
-- 环境配置请参考[使用说明](../../docs/zh/install_guide.md)
+## 使用前准备
+
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
 - transformers版本需要配置>=4.48.2
 
 ## 支持的模型版本与量化策略
@@ -23,7 +24,7 @@
 
 - 量化权重可使用 [quant_hunyuan.py](./quant_hunyuan.py) 脚本生成，以下提供Hunyuan模型量化权重生成快速启动命令。
 
-#### quant_hunyuan.py 量化参数说明
+### quant_hunyuan.py 量化参数说明
 | 参数名 | 含义 | 默认值 | 使用方法 | 
 | ------ | ---- | --- | -------- | 
 | model_path | 浮点权重路径 | 无默认值 | 必选参数；<br>输入HunYuan权重目录路径。 |
@@ -63,7 +64,7 @@
   以及量化参数配置类 [Calibrator](../../docs/zh/python_api/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)
 
 
-### 使用案例
+## 使用示例
 - 请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。
 - 如果需要使用NPU多卡量化，请先配置环境变量，支持多卡量化：
   ```shell
@@ -73,19 +74,19 @@
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`让修改后的自定义代码文件能够正确的被加载。(请确保加载的自定义代码文件的安全性)
 
 
-#### Hunyuan-Large
+### Hunyuan-Large
 
-##### 运行前必检
+#### 运行前必检
 Hunyuan-Large模型较大，且存在需要手动适配的点，为了避免浪费时间，还请在运行脚本前，请根据以下必检项对相关内容进行更改。
 
 - 1、需安装更新transformers版本（>=4.48.2）
 
-##### <span id="hunyuan-large-w8a8-混合量化-experts层-w8a8-dynamic量化其余层-w8a8量化">Hunyuan-Large W8A8 混合量化 (experts层: W8A8 Dynamic量化，其余层: W8A8量化)</span>
+#### <span id="hunyuan-large-w8a8-混合量化-experts层-w8a8-dynamic量化其余层-w8a8量化">Hunyuan-Large W8A8 混合量化 (experts层: W8A8 Dynamic量化，其余层: W8A8量化)</span>
 注：需进入当前脚本目录下执行命令行
 - 生成Hunyuan-Large模型 W8A8 混合量化权重
   ```shell
   python3 quant_hunyuan.py --model_path {浮点权重路径} --save_directory {量化权重路径} --anti_method m4 --trust_remote_code True
   ```
-##### Hunyuan-Large量化QA
+#### Hunyuan-Large量化QA
 - Q：modeling_utils.py报错 if metadata.get("format") not in ["pt", "tf", "flax", "mix"]: AttributeError: "NoneType" object has no attribute 'get';
 - A：说明输入的权重中缺少metadata字段，需安装更新transformers版本（>=4.48.2）

@@ -7,7 +7,41 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
+
+## 原理和实现
+
+### 原理
+
+- 平滑 KVCache 的激活值 `key_states` ，实现方式是把缩放系数 s 融合进 RoPE 之前的 Q/K 投影或归一化权重：
+    - `K' = K / s`
+    - `Q' = Q × s`
+    - 有 `Q'K'^T = QK^T`，注意力分数保持不变，同时 K 的动态范围被压缩，量化更稳健。
+- 离群值从 `key_states` 迁移到 `query_states`。由于推理时仅对写入 KVCache 的 `key_states` 做量化，而不量化 `query_states`
+  ，该迁移是可接受的，不会引入额外的量化误差。
+- RoPE 将通道成对旋转，通道维度呈两两配对关系。算法先在配对通道间取最大，之后再恢复到配对结构进行缩放。
+
+### 实现
+
+- 算法在 `msmodelslim/quant/processor/kv_smooth` 中实现，处理流程分两阶段：
+    1. **观察阶段（preprocess）**：
+        - 通过注入观察器封装 `past_key_values`，在注意力模块调用 `Cache.update()` 时捕获 `key_states`。
+        - 使用观测器在维度 [batch, seq] 上聚合 min/max，得到每层每通道的绝对值的最大值，作为缩放的统计基准。
+    2. **平滑阶段（postprocess）**：
+        - 根据统计到的 `|key_states|` 最大值计算缩放向量，按融合方式重写位于 RoPE 之前的相应模块的 `weight`（和可选 `bias`
+          ），使 RoPE 之后写入 KVCache 的 key_states 被平滑；同时，query_states 则相应放大：
+            - `state-rope-linear`：沿 `Linear → RoPE → KVCache` 的通路，将缩放折叠进 `k_proj`/`q_proj`。
+            - `state-rope-norm`：沿 `Norm → RoPE → KVCache` 的通路，将缩放折叠进 `k_norm`/`q_norm`。
+
+## 适用要求
+
+- **校准集数据依赖**：需要推理标定以观测抑制缩放尺度，若校准集数据分布偏离实际业务，将影响效果。
+- **模型实现限制**：注意力前向必须接受并使用 `past_key_values` 或  `past_key_value`，否则无法观测抑制缩放尺度。
+- **融合点限制**：目前支持 `Linear/Norm → RoPE → KVCache` 两类通路的融合。
+- **融合模块限制**：目标Linear或Norm子模块必须存在且具备可写的 `weight`（以及可选 `bias`），其他自定义模块暂不支持。
+- **RoPE假设**：默认按 RoPE 成对通道规约/还原，非 RoPE 结构需谨慎评估与验证。
+- **量化方式假设**：算法基于仅量化 KVCache 的 `key_states`/`value_states`，不量化 `query_states` 的假设，若对
+  `query_states` 做量化，请谨慎评估该方法的适用性。
 
 ## 功能介绍
 
@@ -38,30 +72,6 @@ spec:
 - `smooth_factor` 必须大于 0
 - `include` 和 `exclude` 支持通配符匹配，如 `"model.layers.*.self_attn"`
 - `exclude` 的优先级高于 `include`，即如果模块同时匹配 include 和 exclude，则会被排除
-
-## 原理和实现
-
-### 原理
-
-- 平滑 KVCache 的激活值 `key_states` ，实现方式是把缩放系数 s 融合进 RoPE 之前的 Q/K 投影或归一化权重：
-    - `K' = K / s`
-    - `Q' = Q × s`
-    - 有 `Q'K'^T = QK^T`，注意力分数保持不变，同时 K 的动态范围被压缩，量化更稳健。
-- 离群值从 `key_states` 迁移到 `query_states`。由于推理时仅对写入 KVCache 的 `key_states` 做量化，而不量化 `query_states`
-  ，该迁移是可接受的，不会引入额外的量化误差。
-- RoPE 将通道成对旋转，通道维度呈两两配对关系。算法先在配对通道间取最大，之后再恢复到配对结构进行缩放。
-
-### 实现
-
-- 算法在 `msmodelslim/quant/processor/kv_smooth` 中实现，处理流程分两阶段：
-    1. **观察阶段（preprocess）**：
-        - 通过注入观察器封装 `past_key_values`，在注意力模块调用 `Cache.update()` 时捕获 `key_states`。
-        - 使用观测器在维度 [batch, seq] 上聚合 min/max，得到每层每通道的绝对值的最大值，作为缩放的统计基准。
-    2. **平滑阶段（postprocess）**：
-        - 根据统计到的 `|key_states|` 最大值计算缩放向量，按融合方式重写位于 RoPE 之前的相应模块的 `weight`（和可选 `bias`
-          ），使 RoPE 之后写入 KVCache 的 key_states 被平滑；同时，query_states 则相应放大：
-            - `state-rope-linear`：沿 `Linear → RoPE → KVCache` 的通路，将缩放折叠进 `k_proj`/`q_proj`。
-            - `state-rope-norm`：沿 `Norm → RoPE → KVCache` 的通路，将缩放折叠进 `k_norm`/`q_norm`。
 
 ## 模型适配
 
@@ -114,17 +124,7 @@ class KVSmoothFusedInterface(ABC):
         - `fused_type`：融合方式枚举，StateViaRopeToNorm 或 StateViaRopeToLinear。
     3. 提供模型全局结构信息：`get_head_dim()`、`get_num_key_value_heads()`、`get_num_key_value_groups()`。
 
-## 适用范围与局限性
-
-- **校准集数据依赖**：需要推理标定以观测抑制缩放尺度，若校准集数据分布偏离实际业务，将影响效果。
-- **模型实现限制**：注意力前向必须接受并使用 `past_key_values` 或  `past_key_value`，否则无法观测抑制缩放尺度。
-- **融合点限制**：目前支持 `Linear/Norm → RoPE → KVCache` 两类通路的融合。
-- **融合模块限制**：目标Linear或Norm子模块必须存在且具备可写的 `weight`（以及可选 `bias`），其他自定义模块暂不支持。
-- **RoPE假设**：默认按 RoPE 成对通道规约/还原，非 RoPE 结构需谨慎评估与验证。
-- **量化方式假设**：算法基于仅量化 KVCache 的 `key_states`/`value_states`，不量化 `query_states` 的假设，若对
-  `query_states` 做量化，请谨慎评估该方法的适用性。
-
-## 常见问题排查
+## FAQ
 
 1. **回退未命中**
     - **现象**：日志告警 `are not matched any module`

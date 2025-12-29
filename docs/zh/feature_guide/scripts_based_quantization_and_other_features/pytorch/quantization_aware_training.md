@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-已参考[安装指南](../../../install_guide.md)完成开发环境配置。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 量化感知训练前须执行命令安装依赖。
 如下命令如果使用非root用户安装，需要在安装命令后加上--user，例如：pip3 install onnx --user。
 

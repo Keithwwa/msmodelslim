@@ -8,52 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
-
-## 功能介绍
-
-作为Processor使用
-
-```yaml
-- type: "dynamic_cache" # 固定为 `dynamic_cache`，用于指定 Processor。
-  qconfig: # 量化配置，支持 per_channel 量化
-    scope: "per_channel" # 量化粒度：仅支持per_channel
-    dtype: "int8" # 量化数据类型，目前支持 int8
-    symmetric: True # 对称量化，默认 True
-    method: "minmax" # 量化方法，目前支持 minmax
-  include: # 字符串列表，参与量化的 attention 匹配模式（完整路径，支持 `*` 通配），默认全量。
-    - "*"
-  exclude: # 字符串列表，禁止量化的 attention 匹配模式（完整路径，支持 `*` 通配），默认为空。
-    - "model.layers.0.self_attn"
-```
-
-### YAML配置示例
-
-```yaml
-spec:
-  process:
-    - type: "dynamic_cache"
-      qconfig:
-        scope: "per_channel"    # 量化粒度：仅支持per_channel。
-        dtype: "int8"          # 量化数据类型，目前支持int8。
-        symmetric: true        # 是否使用对称量化，默认True。
-        method: "minmax"       # 量化方法，目前支持minmax。
-      include: [ "*" ]           # 包含的注意力层模式。
-      exclude: [ "model.layers.0.self_attn" ] # 排除的注意力层模式。
-```
-
-### YAML配置字段详解
-
-| 字段名 | 作用 | 数据类型 | 默认值 | 说明 |
-|--------|------|----------|--------|------|
-| type | 处理器类型标识 | string | - | 固定值"dynamic_cache"，用于标识该对象为KVCache量化处理器。 |
-| qconfig | KVCache量化配置 | object | - | 包含KVCache的量化参数配置。 |
-| scope | 量化粒度 | string | "per_channel" | 量化粒度设置，当前仅支持配置为"per_channel"，表示按隐藏层维度计算量化参数。 |
-| dtype | 量化数据类型 | string | "int8" | 量化后的数据类型，当前仅支持配置为"int8"。 |
-| symmetric | 对称量化开关 | boolean | true | 是否使用对称量化。true表示使用对称量化，false表示使用非对称量化。 |
-| method | 量化方法 | string | "minmax" | 量化算法方法，当前仅支持"minmax"算法。 |
-| include | 包含的注意力层模式 | array[string] | ["*"] | 支持通配符匹配，指定要执行KVCache量化的注意力层。 |
-| exclude | 排除的注意力层模式 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 原理和实现
 
@@ -113,37 +68,7 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
         return x_q_dq
 ```
 
-## 缓存兼容性
-
-### 支持的缓存类型
-
-- **DynamicCache**：Transformers 标准动态缓存，完全支持。
-- **自定义Cache**：需要实现 `update(key_states, value_states, layer_idx)` 接口。
-
-## 已验证模型列表
-- Qwen2.5系列
-- Qwen3系列
-
-## 新缓存类接入步骤
-
-1. **接口要求**：
-   ```python
-   class CustomCache:
-       def update(self, key_states: torch.Tensor, value_states: torch.Tensor, 
-                  layer_idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-           # 返回更新后的 key_states 和 value_states
-           pass
-   ```
-
-2. **钩子注册**：
-   - 缓存对象必须作为参数传递给注意力模块的 `forward` 方法。
-   - 系统会自动检测 `cache.update` 调用并注册量化钩子。
-
-3. **参数传递**：
-   - 注意力模块需要通过 `layer_idx` 参数指示当前层索引。
-   - 支持嵌套调用和递归量化。
-
-## 适用范围与局限性
+## 适用要求
 
 - **模型结构限制**：
   - 注意力模块forward函数必须接受一个DynamicCache对象并调用 `cache.update()`。
@@ -158,7 +83,76 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
   - 伪量化阶段仍需原精度内存，真实内存节省需要底层算子支持。
   - 量化参数本身占用少量额外内存。
 
-## 常见问题排查
+- **缓存类型限制**：
+  - **DynamicCache**：Transformers 标准动态缓存，完全支持。
+  - **自定义Cache**：自定义模型内部需要实现 `update(key_states, value_states, layer_idx)` 接口，要求如下：
+  1. **接口要求**：
+   ```python
+   class CustomCache:
+       def update(self, key_states: torch.Tensor, value_states: torch.Tensor, 
+                  layer_idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+           # 返回更新后的 key_states 和 value_states
+           pass
+   ```
+  2. **钩子注册**：
+     - 缓存对象必须作为参数传递给注意力模块的 `forward` 方法。
+     - 系统会自动检测 `cache.update` 调用并注册量化钩子。
+
+  3. **参数传递**：
+     - 注意力模块需要通过 `layer_idx` 参数指示当前层索引。
+     - 支持嵌套调用和递归量化。
+  
+## 功能介绍
+### 使用说明
+
+作为 Processor 使用
+
+```yaml
+- type: "dynamic_cache" # 固定为 `dynamic_cache`，用于指定 Processor。
+  qconfig: # 量化配置，支持 per_channel 量化
+    scope: "per_channel" # 量化粒度：仅支持per_channel
+    dtype: "int8" # 量化数据类型，目前支持 int8
+    symmetric: True # 对称量化，默认 True
+    method: "minmax" # 量化方法，目前支持 minmax
+  include: # 字符串列表，参与量化的 attention 匹配模式（完整路径，支持 `*` 通配），默认全量。
+    - "*"
+  exclude: # 字符串列表，禁止量化的 attention 匹配模式（完整路径，支持 `*` 通配），默认为空。
+    - "model.layers.0.self_attn"
+```
+
+### YAML配置示例
+
+```yaml
+spec:
+  process:
+    - type: "dynamic_cache"
+      qconfig:
+        scope: "per_channel"    # 量化粒度：仅支持per_channel。
+        dtype: "int8"          # 量化数据类型，目前支持int8。
+        symmetric: true        # 是否使用对称量化，默认True。
+        method: "minmax"       # 量化方法，目前支持minmax。
+      include: [ "*" ]           # 包含的注意力层模式。
+      exclude: [ "model.layers.0.self_attn" ] # 排除的注意力层模式。
+```
+
+### YAML配置字段详解
+
+| 字段名 | 作用 | 数据类型 | 默认值 | 说明 |
+|--------|------|----------|--------|------|
+| type | 处理器类型标识 | string | - | 固定值"dynamic_cache"，用于标识该对象为KVCache量化处理器。 |
+| qconfig | KVCache量化配置 | object | - | 包含KVCache的量化参数配置。 |
+| scope | 量化粒度 | string | "per_channel" | 量化粒度设置，当前仅支持配置为"per_channel"，表示按隐藏层维度计算量化参数。 |
+| dtype | 量化数据类型 | string | "int8" | 量化后的数据类型，当前仅支持配置为"int8"。 |
+| symmetric | 对称量化开关 | boolean | true | 是否使用对称量化。true表示使用对称量化，false表示使用非对称量化。 |
+| method | 量化方法 | string | "minmax" | 量化算法方法，当前仅支持"minmax"算法。 |
+| include | 包含的注意力层模式 | array[string] | ["*"] | 支持通配符匹配，指定要执行KVCache量化的注意力层。 |
+| exclude | 排除的注意力层模式 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
+
+## 已验证模型列表
+- Qwen2.5系列
+- Qwen3系列
+
+## FAQ
 
 1. 缓存未被量化
 

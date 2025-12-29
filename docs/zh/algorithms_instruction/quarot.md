@@ -9,68 +9,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../install_guide.md)。
-
-## 功能介绍
-
-### 昇腾AI处理器支持情况
-
-| 产品系列                               | 支持 |
-|------------------------------------|----|
-| Atlas A3 训练系列产品/Atlas A3 推理系列产品    | ✓  |
-| Atlas A2 训练系列产品/Atlas 800I A2 推理产品 | ✓  |
-| Atlas 推理系列产品                       | ✗  |
-
-### 模型支持
-
-QuaRot算法目前支持以下模型系列：
-
-| 模型系列                 | 具体模型                                                                                                     | 基础旋转 | 在线旋转 | 备注                        |
-|----------------------|----------------------------------------------------------------------------------------------------------|------|------|---------------------------|
-| **Qwen3 Dense系列**    | Qwen3-8B<br>Qwen3-14B<br>Qwen3-32B                                                                       | ✓    | ✓    | 支持完整的QuaRot功能，包括基础旋转和在线旋转 |
-| **Qwen3 MOE系列**      | Qwen3-30B<br>Qwen3-235B                                                                                  | ✓    | ✗    | 支持基础旋转功能                  |
-| **DeepSeek-V3/R1系列** | DeepSeek-V3<br>DeepSeek-V3-0324<br>DeepSeek-R1<br>DeepSeek-R1-0528<br>DeepSeek-V3.1<br>DeepSeek-V3.2-Exp | ✓    | ✗    | 支持基础旋转功能                  |
-| **Qwen3-VL-MoE系列** | Qwen3-VL-235B-A22B<br>Qwen3-VL-30B-A3B | ✓    | ✗    | 支持基础旋转功能                  |
-
-**说明**：
-
-- **基础旋转**：所有支持的模型都实现了`QuaRotInterface`接口，支持基础旋转功能。
-- **在线旋转**：目前仅Qwen3 Dense系列模型实现了`QuaRotOnlineInterface`接口，支持在线旋转功能。如需使用在线旋转，请配置
-  `online: True`。
-- 对于未实现在线旋转接口的模型，配置`online: True`会导致错误。
-
-
-### 作为Processor使用
-
-```yaml
-- type: "quarot"                         # 固定为 `quarot`，用于指定 Processor 类型。
-  online: False                          # 控制是否启用在线旋转，默认为 False。
-  block_size: -1                         # 整数, 取值范围为-1或大于0的2的幂，表示启用块对角矩阵时每个块的大小，若为-1，表示不进行块对角矩阵处理。
-  max_tp_size: 4                         # 整数，默认为4，该配置项仅在启用在线旋转时生效。最大张量并行大小，必须大于0且为2的幂或等于1，拉起模型时设置的tp值必须<=max_tp_size。
-  down_proj_online_layers: [ ]            # 整数列表，默认为空。用于指定哪些层的down_proj使用在线旋转。
-```
-
-### YAML配置示例
-
-```yaml
-spec:
-  process:
-    - type: "quarot"
-      online: False                      # 控制是否启用在线旋转，默认为 False。
-      block_size: -1                     # 旋转矩阵启用块对角矩阵时每个块的大小, 取值范围为-1或2的幂次方，如果大于0必须为2的幂，若为-1，表示不进行块对角矩阵处理
-      max_tp_size: 4                     # 最大张量并行大小，默认为4，仅在启用在线旋转时生效，必须大于0且为2的幂，拉起模型时设置的tp值必须<=max_tp_size
-      down_proj_online_layers: [ ]        # 用于指定哪些层的down_proj使用在线旋转，默认为空
-```
-
-### YAML配置字段详解
-
-| 字段名                     | 作用             | 类型           | 说明                                          | 默认值        |
-|-------------------------|----------------|--------------|---------------------------------------------|------------|
-| type                    | 处理器类型标识        | `string`     | 固定值，用于标识这是一个QuaRot量化处理器                     | `"quarot"` |
-| online                  | 在线旋转开关         | `bool`       | 是否启用在线旋转，True表示使用在线旋转，False表示不使用            | `False`    |
-| block_size              | 旋转矩阵的对角块大小     | `int`        | 旋转矩阵的对角块大小，取值范围为-1或大于0的2的幂，若为-1表示不进行块对角矩阵处理 | `-1`       |
-| max_tp_size             | 最大张量并行大小       | `int`        | 该配置项仅在启用在线旋转时生效，最大张量并行大小，必须大于0且为2的幂或等于1     | `4`        |
-| down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide.md)。
 
 ## 原理和实现
 
@@ -92,7 +31,7 @@ spec:
 
 算法在 `msmodelslim/quant/processor/quarot/quarot.py` 中实现，处理流程如下：
 
-#### 处理流程时序图
+**处理流程时序图**
 
 以下时序图展示了QuaRot算法的完整处理流程，包括Runner、QuaRotProcessor、ModelAdapter和QuaRotOnlineProcessor之间的交互：
 
@@ -163,6 +102,77 @@ post_run阶段在Runner结束调度后执行，主要完成以下操作：
 - 执行剩余的融合、bake和旋转操作（处理`self.fused_map`、`self.bake_names`和`self.rotate_commands`中剩余的内容）。
 - 清理状态，清空所有保存的映射和命令列表。
 - 如果启用了在线旋转，调用`online_processor.post_run()`，将HookIR转换为WrapperIR。
+
+## 适用要求
+
+- **模型结构限制**：当前的适配器已支持Qwen3 Dense模型系列、Qwen3 MOE模型系列、DeepSeek-V3/R1系列。
+- **张量并行限制**：若在配置中启用了在线旋转，在使用推理引擎以TP并行的方式进行部署时，需要保证`tp_size`为2的幂，并且`tp_size`需要小于等于QuaRot的配置参数`max_tp_size`，否则必然导致精度异常。
+- **在线旋转限制**：使用在线旋转通常可以获得更好的精度，但需要在部署时插入在线旋转的算子，这依赖于推理框架的支持，也会一定程度降低性能，在推理引擎都支持的背景下，用户需要自行权衡精度与性能。
+
+## 功能介绍
+
+### 昇腾AI处理器支持情况
+
+| 产品系列                               | 支持 |
+|------------------------------------|----|
+| Atlas A3 训练系列产品/Atlas A3 推理系列产品    | ✓  |
+| Atlas A2 训练系列产品/Atlas 800I A2 推理产品 | ✓  |
+| Atlas 推理系列产品                       | ✗  |
+
+### 模型支持
+
+QuaRot算法目前支持以下模型系列：
+
+| 模型系列                 | 具体模型                                                                                                     | 基础旋转 | 在线旋转 | 备注                        |
+|----------------------|----------------------------------------------------------------------------------------------------------|------|------|---------------------------|
+| **Qwen3 Dense系列**    | Qwen3-8B<br>Qwen3-14B<br>Qwen3-32B                                                                       | ✓    | ✓    | 支持完整的QuaRot功能，包括基础旋转和在线旋转 |
+| **Qwen3 MOE系列**      | Qwen3-30B<br>Qwen3-235B                                                                                  | ✓    | ✗    | 支持基础旋转功能                  |
+| **DeepSeek-V3/R1系列** | DeepSeek-V3<br>DeepSeek-V3-0324<br>DeepSeek-R1<br>DeepSeek-R1-0528<br>DeepSeek-V3.1<br>DeepSeek-V3.2-Exp | ✓    | ✗    | 支持基础旋转功能                  |
+| **Qwen3-VL-MoE系列** | Qwen3-VL-235B-A22B<br>Qwen3-VL-30B-A3B | ✓    | ✗    | 支持基础旋转功能                  |
+
+**说明**：
+
+- **基础旋转**：所有支持的模型都实现了`QuaRotInterface`接口，支持基础旋转功能。
+- **在线旋转**：目前仅Qwen3 Dense系列模型实现了`QuaRotOnlineInterface`接口，支持在线旋转功能。如需使用在线旋转，请配置
+  `online: True`。
+- 对于未实现在线旋转接口的模型，配置`online: True`会导致错误。
+
+
+### 使用说明
+
+作为 Processor 使用
+
+```yaml
+- type: "quarot"                         # 固定为 `quarot`，用于指定 Processor 类型。
+  online: False                          # 控制是否启用在线旋转，默认为 False。
+  block_size: -1                         # 整数, 取值范围为-1或大于0的2的幂，表示启用块对角矩阵时每个块的大小，若为-1，表示不进行块对角矩阵处理。
+  max_tp_size: 4                         # 整数，默认为4，该配置项仅在启用在线旋转时生效。最大张量并行大小，必须大于0且为2的幂或等于1，拉起模型时设置的tp值必须<=max_tp_size。
+  down_proj_online_layers: [ ]            # 整数列表，默认为空。用于指定哪些层的down_proj使用在线旋转。
+```
+
+### YAML配置示例
+
+```yaml
+spec:
+  process:
+    - type: "quarot"
+      online: False                      # 控制是否启用在线旋转，默认为 False。
+      block_size: -1                     # 旋转矩阵启用块对角矩阵时每个块的大小, 取值范围为-1或2的幂次方，如果大于0必须为2的幂，若为-1，表示不进行块对角矩阵处理
+      max_tp_size: 4                     # 最大张量并行大小，默认为4，仅在启用在线旋转时生效，必须大于0且为2的幂，拉起模型时设置的tp值必须<=max_tp_size
+      down_proj_online_layers: [ ]        # 用于指定哪些层的down_proj使用在线旋转，默认为空
+```
+
+### YAML配置字段详解
+
+| 字段名                     | 作用             | 类型           | 说明                                          | 默认值        |
+|-------------------------|----------------|--------------|---------------------------------------------|------------|
+| type                    | 处理器类型标识        | `string`     | 固定值，用于标识这是一个QuaRot量化处理器                     | `"quarot"` |
+| online                  | 在线旋转开关         | `bool`       | 是否启用在线旋转，True表示使用在线旋转，False表示不使用            | `False`    |
+| block_size              | 旋转矩阵的对角块大小     | `int`        | 旋转矩阵的对角块大小，取值范围为-1或大于0的2的幂，若为-1表示不进行块对角矩阵处理 | `-1`       |
+| max_tp_size             | 最大张量并行大小       | `int`        | 该配置项仅在启用在线旋转时生效，最大张量并行大小，必须大于0且为2的幂或等于1     | `4`        |
+| down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
+
+
 
 ## 模型适配
 
@@ -353,13 +363,7 @@ class QuaRotOnlineInterface:
         - 实现`get_layer_wise_ov_pair(decoder_module)`：返回o_proj和v_proj的映射对。
         - 实现`get_layer_wise_up_down_pair(decoder_module)`：返回up_proj和down_proj的映射对。
 
-### 适用范围与局限性
-
-- **模型结构限制**：当前的适配器已支持Qwen3 Dense模型系列、Qwen3 MOE模型系列、DeepSeek-V3/R1系列。
-- **张量并行限制**：若在配置中启用了在线旋转，在使用推理引擎以TP并行的方式进行部署时，需要保证`tp_size`为2的幂，并且`tp_size`需要小于等于QuaRot的配置参数`max_tp_size`，否则必然导致精度异常。
-- **在线旋转限制**：使用在线旋转通常可以获得更好的精度，但需要在部署时插入在线旋转的算子，这依赖于推理框架的支持，也会一定程度降低性能，在推理引擎都支持的背景下，用户需要自行权衡精度与性能。
-
-## 常见问题排查
+## FAQ
 
 ### 1. 旋转矩阵创建失败
 

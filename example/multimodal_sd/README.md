@@ -1,4 +1,4 @@
-# 多模态生成模型量化
+# 多模态生成模型量化说明
 
 ## 模型介绍
 
@@ -12,9 +12,9 @@
 
 [Wan2.1](https://github.com/Wan-Video/Wan2.1) 是阿里巴巴发布的一套全面且开放的视频基础模型，它突破了视频生成的界限。支持文本到视频(T2V)、图像到视频(I2V)、文本到图像(T2I)等多种生成任务。
 
-## 环境配置
+## 使用前准备
 - 配套CANN版本请选择8.2.RC1及之后的版本
-- 具体环境配置请参考[使用说明](../../docs/zh/install_guide.md)
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
 - 当前多模态生成模型统一接口依赖于pydantic库
   - pip install pydantic
 - SD3-Medium依赖于diffusers库
@@ -47,7 +47,7 @@
 - 点击量化命令列中的链接可跳转到对应的具体量化命令
 
 
-## 使用案例
+## 使用示例
 使用量化前，需要加载模型和校准数据，其中加载模型依赖于diffusers库（如SD3-Medium）或多模态生成模型[魔乐社区](https://modelers.cn/models/)推理工程仓（如Open-Sora-Plan v1.2、Flux.1-dev、HunyuanVideo、Wan2.1），请先确保依据推理工程仓可以正常进行浮点推理。
 - Open-Sora-Plan v1.2推理工程仓：[MindIE/open_sora_planv1_2](https://modelers.cn/models/MindIE/open_sora_planv1_2)
 - Flux.1-dev推理工程仓：[MindIE/FLUX.1-dev](https://modelers.cn/models/MindIE/FLUX.1-dev)

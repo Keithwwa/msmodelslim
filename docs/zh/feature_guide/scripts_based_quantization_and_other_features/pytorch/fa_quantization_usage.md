@@ -4,7 +4,7 @@
 
 ## 使用前准备
 
-前提条件参考[大模型量化的前提条件](foundation_model_post_training_quantization.md#前提条件)
+前提条件参考大模型量化的[使用前准备](foundation_model_post_training_quantization.md#使用前准备)。
 
 说明：仅Atlas 800I A2推理产品支持FA3量化功能。当前 FA3 量化功能已完成对大语言模型 Llama3.1-70B、Qwen2.5-72B 和多模态模型 Flux.1-dev、HunyuanVideo 的验证。
 

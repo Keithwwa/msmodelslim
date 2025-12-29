@@ -4,7 +4,8 @@
 msModelSlim工具提供了API方式的Transformer类模型权重剪枝调优，可将模型权重进行裁剪，并加载到同一模型结构下的小模型中。用户只需提供同一模型结构下小模型(通过配置较小初始化参数得到的模型实例，例如Bert模型中缩小intermediate_size和num_hidden_layers参数)和原始模型权重文件，即可调用剪枝API完成模型权重的剪枝。
 
 ## 使用前准备
-目前支持MindSpore和PyTorch框架下Transformer类模型的剪枝调优，执行剪枝调优前需参考[安装指南](../../../install_guide.md)完成开发环境配置。
+目前支持MindSpore和PyTorch框架下Transformer类模型的剪枝调优。  
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 
 - 注意：该功能仅支持 PyTorch 2.0.0 以上版本。
 

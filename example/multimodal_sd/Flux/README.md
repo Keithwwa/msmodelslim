@@ -2,12 +2,13 @@
 
 FLUX的推理量化依赖于FLUX.1-dev推理工程仓：[MindIE/FLUX.1-dev](https://modelers.cn/models/MindIE/FLUX.1-dev)，根据该工程仓完成配置后，使用以下示例代码进行量化。
 
-**前提条件**
+## 使用前准备
 
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
 - 硬件支持：Atlas 800I A2
 - 软件支持：FLUX.1-dev推理工程仓，commit ID `12e09174353b1bd57bf7fcb80386f59b09fbbefe`
 
-**操作流程**
+## 操作流程
 
 - 克隆工程仓代码；
 
@@ -28,7 +29,9 @@ FLUX的推理量化依赖于FLUX.1-dev推理工程仓：[MindIE/FLUX.1-dev](http
 - 空格表示该量化策略暂未通过msModelSlim官方验证，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证。
 - 点击量化命令列中的链接可跳转到对应的具体量化命令
 
-## <span id="flux-timestep-quantization">FLUX 时间步量化</span>
+## 使用示例
+
+### <span id="flux-timestep-quantization">FLUX 时间步量化</span>
 
 **注意**: 在模型pipeline的去噪循环中，需要在每个timestep开始时调用`TimestepManager.set_timestep_idx()`来设置当前的时间步。
 
@@ -56,8 +59,6 @@ with self.progress_bar(total=num_inference_steps) as progress_bar:
         # -----------新增代码-----------
         timestep = t.expand(latents.shape[0]).to(latents.dtype)
 ```
-
-### 量化命令和示例代码
 
 #### 量化启动命令
 示例的启动命令可参考(请提前确保calib_prompts.txt权限不大于'0o640')：
@@ -167,9 +168,7 @@ session_cfg.model_validate(session_cfg)
 quant_model(model, session_cfg)
 ```
 
-## <span id="flux-fa3-quantization">FLUX FA3 量化</span>
-
-### 量化命令和示例代码
+### FLUX FA3 量化
 
 #### 量化启动命令
 
@@ -277,9 +276,7 @@ session_cfg.model_validate(session_cfg)
 quant_model(model, session_cfg)
 ```
 
-## <span id="flux-outlier-suppression-quantization">FLUX 异常值抑制量化</span>
-
-### 量化命令和示例代码
+### <span id="flux-outlier-suppression-quantization">FLUX 异常值抑制量化</span>
 
 #### 量化启动命令
 
@@ -392,7 +389,9 @@ session_cfg.model_validate(session_cfg)
 quant_model(model, session_cfg)
 ```
 
-## 运行参数说明
+## 附录
+
+### 运行参数说明
 以下是使用[Flux/inference_flux.py](./inference_flux.py)进行FLUX.1-dev模型推理量化时的参数说明。量化启动命令未涉及参数对应的说明请见FLUX.1-dev推理工程仓[MindIE/FLUX.1-dev](https://modelers.cn/models/MindIE/FLUX.1-dev)
 
 | 参数名 | 含义 | 使用限制 |

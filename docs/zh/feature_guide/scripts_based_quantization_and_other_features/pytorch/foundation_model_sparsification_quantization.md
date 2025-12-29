@@ -15,7 +15,7 @@ Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件
 
 权重压缩工具仅支持在Atlas 推理系列产品上使用。
 
-已参考[安装指南](../../../install_guide.md)完成开发环境配置。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 
 大模型稀疏和压缩前须执行命令安装如下依赖。
 
@@ -129,7 +129,7 @@ pip3 install sympy==1.11.1
 ```
 新建模型的稀疏量化脚本sparse_quant.py，编辑sparse_quant.py文件。
 
-稀疏量化场景导入样例代码如下，lowbit算法稀疏量化场景导入的代码样例请参考[lowbit算法稀疏量化场景](../../../case_studies/quantization_and_sparse_quantization_scenario_import_code_examples.md)，请参考信息提示，根据实际情况进行修改。
+稀疏量化场景导入样例代码如下，lowbit算法稀疏量化场景导入的代码样例请参考[lowbit算法稀疏量化场景](quantization_and_sparse_quantization_scenario_import_code_examples.md)，请参考信息提示，根据实际情况进行修改。
 
 ```python
 # 导入相关依赖

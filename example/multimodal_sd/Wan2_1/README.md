@@ -8,6 +8,10 @@ Wan2.1是阿里巴巴发布的一套全面且开放的视频基础模型，它�
 - **图像到视频 (I2V)**: 根据输入图像生成视频
 - **文本到图像 (T2I)**: 根据文本描述生成图像
 
+## 使用前准备
+
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide.md)。
+
 ## 支持的模型版本与量化策略
 
 | 模型系列 | 模型版本 | 模型仓库链接 | W8A8 | W8A16 | W4A16 | W4A4 | 时间步量化 | FA3量化 | 异常值抑制量化 | 量化命令 |
@@ -180,16 +184,16 @@ spec:
   | sample_steps | 采样步数 | 扩散模型的采样步数 | 大于0的整数 |
 
 
-## 常见问题
+## FAQ
 
-### Q1: 是否支持w8a8静态量化？
-**A**: 可以修改配置文件中的process部分，调整qconfig.act.scope为"per_tensor"启动静态量化，但精度损失严重，不推荐。
+问题：是否支持w8a8静态量化？  
+解决方案: 可以修改配置文件中的process部分，调整qconfig.act.scope为"per_tensor"启动静态量化，但精度损失严重，不推荐。
 
-### Q2: 如何自定义量化配置？
+现象：如何自定义量化配置？  
+解决方案：可以修改配置文件中的process部分，调整量化参数和层选择策略。
 
-**A**: 可以修改配置文件中的process部分，调整量化参数和层选择策略。
-
-## 相关资源
+## 附录
+### 相关资源
 
 - [Wan2.1模型仓库](https://modelers.cn/models/MindIE/Wan2.1)
 - [一键量化配置协议说明](../../../docs/zh/feature_guide/quick_quantization/configuration_protocols.md)

@@ -10,7 +10,7 @@
     - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件。
 
 ### 软件依赖
-- 已参考[安装指南](../../../install_guide.md)完成开发环境配置。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../install_guide.md)。
 - 参考开源模型仓库[OpenSoraPlanV1.2](https://github.com/PKU-YuanGroup/Open-Sora-Plan/releases/tag/v1.2.0) 的readme，下载模型权重，完成模型所需的python环境依赖的安装。
 
 ### 环境配置

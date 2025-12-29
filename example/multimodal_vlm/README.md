@@ -2,9 +2,10 @@
 
 多模态理解模型，也称为视觉语言模型（Vision-Language Models, VLM），具备强大的功能。可以处理图像、视频和文本等多种数据类型，并能执行多种下游任务，如理解图像内容并生成相应的自然语言描述。
 
-## 环境配置
+## 使用前准备
+
 - 请选用8.2.RC1及之后的配套CANN版本。
-- msModelSlim安装步骤请参考[安装指南](../../docs/zh/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
 - **不同的多模态理解模型依赖的transformers版本、第三方库有所差异，请务必参考各个多模态理解模型的量化说明进行配置。**
 
 ## 已验证量化模型

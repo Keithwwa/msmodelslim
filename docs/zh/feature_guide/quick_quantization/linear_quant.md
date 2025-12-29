@@ -6,7 +6,7 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[安装指南](../../install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide.md)。
 
 ## 功能介绍
 
@@ -76,7 +76,7 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 | include | 包含的层模式 | `array[string]` | 支持通配符匹配，指定要量化的层 | `["*"]`, `["*self_attn*"]` |
 | exclude | 排除的层模式 | `array[string]` | 支持通配符匹配，优先级高于include | `["*down_proj*"]` |
 
-### qconfig.act (激活值量化配置)
+#### qconfig.act (激活值量化配置)
 
 **作用**: 配置激活值的量化参数。
 
@@ -87,7 +87,7 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 | symmetric | 是否对称量化 | `true`, `false`                           | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整                                                                           | `false` |
 | method | 量化方法 | `"minmax"`, `"histogram"`                 | minmax: 最小最大值量化<br/>histogram: 直方图量化                                                                             | `"minmax"` |
 
-### qconfig.weight (权重量化配置)
+#### qconfig.weight (权重量化配置)
 
 **作用**: 配置权重的量化参数。
 
@@ -97,8 +97,6 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 | dtype | 量化数据类型 | `"int8"`, `"int4"` | 8位/4位整数量化 | `"int8"` |
 | symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `true` |
 | method | 量化方法 | `"minmax"`, `"ssz"` | minmax: 最小最大值量化<br/>ssz: ssz权重量化 | `"minmax"` |
-
-## 功能介绍
 
 ### 层过滤机制详解
 
@@ -126,9 +124,9 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
     - 如果层名匹配任何exclude模式，该层被排除。
     - 即使该层在第一步中被include包含，也会被exclude排除。
 
-#### 示例说明
+### 使用示例
 
-##### 示例1: 基础过滤
+#### 示例1: 基础过滤
 
 ```yaml
 include: [ "*" ]
@@ -137,7 +135,7 @@ exclude: [ "*down_proj*" ]
 
 - **结果**: 包含所有层，但排除包含"down_proj"的层。
 
-##### 示例2: 选择性包含
+#### 示例2: 选择性包含
 
 ```yaml
 include: [ "*self_attn*", "*mlp*" ]
@@ -146,7 +144,7 @@ exclude: [ ]
 
 - **结果**: 只包含包含"self_attn"或"mlp"的层。
 
-##### 示例3: 复杂过滤
+#### 示例3: 复杂过滤
 
 ```yaml
 include: [ "*attention*", "*mlp*" ]
@@ -155,7 +153,7 @@ exclude: [ "*down_proj*", "*gate*" ]
 
 - **结果**: 包含包含"attention"或"mlp"的层，但排除包含"down_proj"或"gate"的层。
 
-##### 示例4: 精确匹配
+#### 示例4: 精确匹配
 
 ```yaml
 include: [ "model.layers.*.self_attn.*" ]
@@ -164,7 +162,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
 
 - **结果**: 只包含self_attn层，但排除其中的down_proj子层。
 
-#### 常见层名模式
+### 常见层名模式
 
 #### Transformer架构常见层名
 
@@ -191,13 +189,12 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
 
 ### 量化组合有效性
 
-**重要提醒**: 并非所有配置组合都是有效的量化组合，无效组合会抛出`UnsupportedError`异常。
+**重要提醒**：并非所有配置组合都是有效的量化组合，当检测到无效的量化配置组合时，无效组合会抛出`UnsupportedError`异常。
 
-#### 错误处理
 
-- 当检测到无效的量化配置组合时，工具会抛出`UnsupportedError`异常。
-- 异常信息会详细说明具体的配置冲突原因。
-- 请根据异常信息调整配置参数。
+#### 解决方案
+
+- 异常信息会详细说明具体的配置冲突原因，请根据异常信息调整配置参数。
 
 ### 层匹配告警
 
