@@ -7,12 +7,12 @@ MAX_DEPTH_THRESHOLD = 100
 
 def check_mindspore_cell(cell):
     if not isinstance(cell, ms.nn.Cell):
-        raise TypeError("model must be a Mindspore.nn.Cell instance. Not {}".format(type(cell)))
+        raise TypeError("model must be a mindspore.nn.Cell instance. Not {}".format(type(cell)))
 
 
 def check_mindspore_input(input_data):
     """
-    Use recursion to check whether the input_data is Mindspore.Tensor
+    Use recursion to check whether the input_data is mindspore.Tensor
 
     Args:
         input_data: can be list/tuple/Tensor
@@ -28,6 +28,6 @@ def check_mindspore_input(input_data):
             for value in cur_data:
                 recursive_check_mindspore_input(value, depth)
         elif not isinstance(cur_data, ms.Tensor):
-            raise TypeError("input data must be Mindspore.Tensor. Not {}".format(type(cur_data)))
+            raise TypeError("input data must be mindspore.Tensor. Not {}".format(type(cur_data)))
 
     recursive_check_mindspore_input(input_data)
