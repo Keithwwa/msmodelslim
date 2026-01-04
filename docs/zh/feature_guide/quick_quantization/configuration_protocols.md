@@ -41,7 +41,7 @@ spec:
   save: [ ]
   dataset: "mix_calib.jsonl"   # 采用mix_calib.jsonl校准集
 ```
-**说明**：该配置文件描述了使用V1量化服务进行空处理。
+**说明**：该配置文件描述了使用V1量化服务的基础配置框架，process和save字段为空，表示未配置任何处理流程和保存操作。
 
 
 ## modelslim_v0 量化服务配置详解

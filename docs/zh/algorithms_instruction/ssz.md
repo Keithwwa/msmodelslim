@@ -30,7 +30,7 @@ SSZ算法基于以下核心思想：
 
 ### 实现
 
-- 算法在 `msmodelslim/quant/quantizer/impl/ssz.py` 中实现，核心函数为 `ssz_calculate_qparam`：
+- 算法在 `msmodelslim/core/quantizer/impl/ssz.py` 中实现，核心函数为 `ssz_calculate_qparam`：
 #### 1. 初始化阶段
     - 使用MinMax观察器计算权重的统计信息（min/max值）。
     - 基于统计信息计算初始的量化参数（scale和offset）。
@@ -61,8 +61,8 @@ SSZ算法基于以下核心思想：
 作为量化器使用：
 
 ```python
-from msmodelslim.quant.quantizer.base import QConfig
-from msmodelslim.quant.quantizer.impl.ssz import WeightPerChannelSsz
+from msmodelslim.core.quantizer.base import QConfig
+from msmodelslim.core.quantizer.impl.ssz import WeightPerChannelSsz
 
 # 创建SSZ量化配置
 config = QConfig(
@@ -137,8 +137,8 @@ def ssz_calculate_qparam(weight: QStorage, q_param: QParam) -> QParam: ...
 
 ```python
 import torch
-from msmodelslim.quant.quantizer.base import QConfig, AutoWeightQuantizer
-from msmodelslim.core.QAL.qbase import QStorage, QDType
+from msmodelslim.core.quantizer.base import QConfig, AutoWeightQuantizer
+from msmodelslim.ir.qal.qbase import QStorage, QDType
 
 # 1. 创建配置
 config = QConfig(

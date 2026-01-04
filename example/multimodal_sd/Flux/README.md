@@ -97,7 +97,7 @@ from msmodelslim.quant import W8A8TimeStepProcessorConfig, W8A8TimeStepQuantConf
 from example.multimodal_sd.utils import get_disable_layer_names, get_rank, DumperManager, get_rank_suffix_file
 
 DUMP_CALIB_FOLDER = './results/quant/cache'  # 用于存放校准数据的文件夹
-SAFE_TENSOR_FOLDER = './results/quant/safe_tensor'  # 用于存放量化模型的文件夹
+SAFE_TENSOR_FOLDER = './results/quant/safetensors'  # 用于存放量化模型的文件夹
 
 rank = get_rank()
 is_distributed = rank >= 0  # 标记是否为分布式环境
@@ -209,7 +209,7 @@ from msmodelslim.quant import FA3ProcessorConfig, W8A8DynamicQuantConfig, W8A8Dy
 from example.multimodal_sd.utils import get_disable_layer_names, get_rank, DumperManager, get_rank_suffix_file
 
 DUMP_CALIB_FOLDER = './results/quant/cache'  # 用于存放校准数据的文件夹
-SAFE_TENSOR_FOLDER = './results/quant/safe_tensor'  # 用于存放量化模型的文件夹
+SAFE_TENSOR_FOLDER = './results/quant/safetensors'  # 用于存放量化模型的文件夹
 
 rank = get_rank()
 is_distributed = rank >= 0  # 标记是否为分布式环境
@@ -319,7 +319,7 @@ from msmodelslim.quant import M3ProcessorConfig, M4ProcessorConfig, M6ProcessorC
 from example.multimodal_sd.utils import get_disable_layer_names, get_rank, DumperManager, get_rank_suffix_file
 
 DUMP_CALIB_FOLDER = './results/quant/cache'  # 用于存放校准数据的文件夹
-SAFE_TENSOR_FOLDER = './results/quant/safe_tensor'  # 用于存放量化模型的文件夹
+SAFE_TENSOR_FOLDER = './results/quant/safetensors'  # 用于存放量化模型的文件夹
 
 rank = get_rank()
 is_distributed = rank >= 0  # 标记是否为分布式环境

@@ -53,7 +53,7 @@
 
 ### 实现
 
-- FA3 量化在 [processor.py](../../../msmodelslim/quant/processor/quant/fa3/processor.py) 中实现，处理流程分三阶段：
+- FA3 量化在 [processor.py](../../../msmodelslim/processor/quant/fa3/processor.py) 中实现，处理流程分三阶段：
   1. **注入阶段（preprocess）**：
      - 调用模型适配器的 `inject_fa3_placeholders()` 方法。
      - 适配器负责在 MLA 计算流程中的关键位置插入占位器 `FA3QuantPlaceHolder`。

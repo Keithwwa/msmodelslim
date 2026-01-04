@@ -104,7 +104,7 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 
 ### 实现
 
-算法在 `msmodelslim/quant/processor/anti_outlier/flex_smooth/processor.py` 中实现，处理流程分两阶段：
+算法在 `msmodelslim/processor/anti_outlier/flex_smooth/processor.py` 中实现，处理流程分两阶段：
 
 #### 1) 预处理阶段（preprocess）
 
@@ -290,7 +290,7 @@ class FlexSmoothQuantInterface(ABC):
    - **Linear-Linear子图**：连续线性层的映射
 3. **指定模块路径**：使用完整的模块路径，如 `model.layers.{i}.self_attn.q_proj`。
 
-**参考实现：** 可参考 `msmodelslim/model/qwen.py` 中的 `Qwen3ModelAdapter` 实现。
+**参考实现：** 可参考 `msmodelslim/model/qwen3/model_adapter.py` 中的 `Qwen3ModelAdapter` 实现。
 
 ### 配置示例
 

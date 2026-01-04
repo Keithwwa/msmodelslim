@@ -1,6 +1,5 @@
 # Copyright Huawei Technologies Co., Ltd. 2025. All rights reserved.
 import os
-import json
 import sys
 import functools
 import torch
@@ -14,7 +13,7 @@ from example.common.utils import SafeGenerator, ArgumentParser, StringArgumentVa
     MAX_JSON_LENGTH, cmd_bool, parse_tokenizer_args
 from msmodelslim.pytorch.llm_ptq.anti_outlier import AntiOutlier, AntiOutlierConfig
 from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig
-from msmodelslim.tools.copy_config_files import copy_config_files, modify_config_json
+from example.common.copy_config_files import copy_config_files, modify_config_json
 
 
 CPU = "cpu"

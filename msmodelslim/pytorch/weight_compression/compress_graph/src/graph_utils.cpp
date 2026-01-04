@@ -39,56 +39,45 @@ void GetDataSizeFromShape(vector<int64_t> shape, int64_t &size)
     }
 }
 
-bool GetDataFromBin(string input_path, vector<int64_t> shapes, uint8_t *&data, int data_type_size)
+bool GetDataFromBin(std::string input_path, std::vector<int64_t> shapes, uint8_t *&data, int data_type_size)
 {
-    ifstream inFile(input_path.c_str(), std::ios::in | std::ios::binary);
+    std::ifstream inFile(input_path, std::ios::binary);
     if (!inFile.is_open()) {
-        std::cout << "Failed to open" << input_path.c_str() << std::endl;
+        std::cout << "Failed to open: " << input_path << std::endl;
         return false;
     }
-    inFile.seekg(0, ios_base::end);
-    istream::pos_type fileSize = inFile.tellg();
-    inFile.seekg(0, ios_base::beg);
+
+    inFile.seekg(0, std::ios::end);
+    auto fileSize = inFile.tellg();
+    inFile.seekg(0, std::ios::beg);
 
     int64_t size = 1;
     GetDataSizeFromShape(shapes, size);
-    uint64_t dataLen = size * data_type_size;
-    if (dataLen != static_cast<uint64_t>(fileSize)) {
-        std::cout << "Invalid Param.len:" << dataLen << " is not equal with binary size." << fileSize << ")\n";
-        inFile.close();
-        return false;
-    }
-    std::string buffer;
-    buffer.resize(dataLen);
-    inFile.read(&buffer[0], dataLen);
+    uint64_t dataLen = static_cast<uint64_t>(size) * data_type_size;
 
-    if (inFile.fail()) {
-        std(std::cout << "Read file failed.\n";
-        inFile.close();
+    if (dataLen != static_cast<uint64_t>(fileSize)) {
+        std::cout << "Invalid param: expected len=" << dataLen
+                  << ", but file size=" << fileSize << std::endl;
         return false;
     }
 
     uint8_t* heapData = new (std::nothrow) uint8_t[dataLen];
     if (!heapData) {
-        std::cout << "Failed to allocate memory for data.\n";
-        inFile.close();
+        std::cout << "Failed to allocate memory." << std::endl;
         return false;
     }
 
+    inFile.read(reinterpret_cast<char*>(heapData), dataLen);
     inFile.close();
 
-
-    uint8_t* heapData = new (std::nothrow) uint8_t[dataLen];
-    if (!heapData) {
-        std::cout << "Failed to allocate memory for data.\n";
+    if (inFile.fail()) {
+        delete[] heapData;
+        heapData = nullptr;
+        std::cout << "Read file failed." << std::endl;
         return false;
     }
 
-    for (uint64_t i = 0; i < dataLen; ++i) {
-        heapData[i] = static_cast<uint8_t>(buffer[i]);
-    }
-
-    *data = heapData;
+    data = heapData;
     return true;
 }
 

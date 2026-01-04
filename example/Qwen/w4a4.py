@@ -19,7 +19,7 @@ sys.path.append(parent_directory)
 from example.common.security.path import get_valid_read_path, get_write_directory
 from example.common.security.type import check_number
 from example.common.utils import SafeGenerator, cmd_bool
-from msmodelslim.tools.copy_config_files import copy_config_files, modify_config_json
+from example.common.copy_config_files import copy_config_files, modify_config_json
 from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig
 from msmodelslim.utils.logging import set_logger_level
 from msmodelslim.pytorch.llm_ptq.anti_outlier import AntiOutlierConfig, AntiOutlier

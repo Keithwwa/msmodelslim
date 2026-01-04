@@ -49,6 +49,11 @@ msModelSlim认为量化本质上是对模型局部结构的修改和替换，基
       </td>
     </tr>
     <tr>
+      <td>异常值抑制算法<br>Flex AWQ SSZ</td>
+      <td><a href="algorithms_instruction/flex_awq_ssz.md">Flex AWQ SSZ 算法说明</a></td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td>异常值抑制算法<br>Iterative Smooth</td>
       <td><a href="algorithms_instruction/iterative_smooth.md">Iterative Smooth 算法说明</a></td>
       <td>-</td>

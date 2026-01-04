@@ -237,7 +237,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    ```yaml
    # ❌ 可能匹配失败：匹配到非Linear层
    include: ["*gate.weight"]
-   # 实际上是nn.Parameters的路径
+   # 实际上是nn.Parameter的路径
    # LinearQuantProcess只处理nn.Linear层，其他层会被忽略
    ```
 

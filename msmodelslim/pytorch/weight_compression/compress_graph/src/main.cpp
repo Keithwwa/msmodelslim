@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
     vector<int64_t> compressParameters = {compress_size, index_size, isTight, 4, 2, 64, k_value,
                                           n_value, 1, compressType, isTiling};
     try {
-        if (!GraphUtils::GetDataFromBin(inputWeightPath, inputWeightShape, &data, sizeof(int8_t))) {
+        if (!GraphUtils::GetDataFromBin(inputWeightPath, inputWeightShape, data, sizeof(int8_t))) {
             delete[] data;
             data = nullptr;
             std::cout << "read file failed.\n";

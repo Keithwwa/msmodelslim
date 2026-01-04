@@ -31,7 +31,7 @@ int CheckShape(std::vector<int64_t> &shape);
 
 void GetDataSizeFromShape(std::vector<int64_t> shape, int64_t &size);
 
-bool GetDataFromBin(std::string input_path, std::vector<int64_t> shapes, uint8_t** data, int data_type_size);
+bool GetDataFromBin(std::string input_path, std::vector<int64_t> shapes, uint8_t *&data, int data_type_size);
 
 int32_t BuildCompressFcGraph(Graph &graph, uint8_t* data, std::vector<int64_t> &shape, std::vector<int64_t> &compressParameters);
 }

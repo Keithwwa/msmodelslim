@@ -749,5 +749,5 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
 - [模型接入指南](integrating_models.md)：大模型基础接入指导
 - [Qwen3-VL-MoE模型适配器](../../../msmodelslim/model/qwen3_vl_moe/model_adapter.py)：完整实现示例
 - [VLM数据集加载器](../../../msmodelslim/infra/vlm_dataset_loader.py)：校准数据加载处理
-- [多模态VLM量化服务](../../../msmodelslim/app/quant_service/multimodal_vlm_v1/)：服务层实现
+- [多模态VLM量化服务](../../../msmodelslim/core/quant_service/multimodal_vlm_v1/)：服务层实现
 - [一键量化使用说明](../feature_guide/quick_quantization/usage.md)：命令行参数详解

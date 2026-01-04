@@ -32,7 +32,7 @@
 
 ### 实现
 
-- 算法在 `msmodelslim/quant/processor/sparse/float_sparse.py` 和 `admm.py` 中实现：
+- 算法在 `msmodelslim/processor/sparse/float_sparse.py` 和 `admm.py` 中实现：
 
 #### ADMM稀疏器核心类
 
@@ -140,7 +140,7 @@ spec:
 
 ## 算法参数
 
-浮点稀疏算法内部使用以下参数（可通过修改源码调整，`msmodelslim/quant/processor/sparse/float_sparse.py`）：
+浮点稀疏算法内部使用以下参数（可通过修改源码调整，`msmodelslim/processor/sparse/float_sparse.py`）：
 
 ```python
 # ADMM参数

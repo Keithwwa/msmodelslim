@@ -40,7 +40,7 @@ class FA3QuantProcessorConfig(AutoProcessorConfig):
 
 
 class _FA3PerHeadObserver(nn.Module):
-    """监听器：复用 MsMinMaxObserver 的按维度统计，得到 per-head min/max。"""
+    """监测器：复用 MsMinMaxObserver 的按维度统计，得到 per-head min/max。"""
 
     def __init__(self, ratio: float = 1.0):
         super().__init__()
@@ -104,7 +104,7 @@ class FA3QuantProcessor(AutoSessionProcessor):
         except Exception as e:
             get_logger().warning(f"install fa3 placeholders at {request.name} failed: {e}")
 
-        # 2) 将占位模块替换为监听器
+        # 2) 将占位模块替换为监测器
         for name, submodule in request.module.named_modules(prefix=request.name):
             if isinstance(submodule, FA3QuantPlaceHolder):
                 # 适配器已据 should_inject 做过滤，这里不再重复 include/exclude 判定
@@ -112,7 +112,7 @@ class FA3QuantProcessor(AutoSessionProcessor):
                 self.model.set_submodule(name, observer)
 
     def postprocess(self, request: BatchProcessRequest) -> None:
-        # 汇总监听器数据，计算 per-head 对称 scale，并替换为 IR
+        # 汇总监测器数据，计算 per-head 对称 scale，并替换为 IR
         for name, submodule in request.module.named_modules(prefix=request.name):
             if isinstance(submodule, _FA3PerHeadObserver):
                 if submodule.min_val is None:

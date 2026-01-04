@@ -18,7 +18,7 @@
 
 ### 实现
 
-- 算法在 `msmodelslim/quant/quantizer/impl/histogram.py` 和 `msmodelslim/quant/observer/histogram.py` 中实现，处理流程分4步。
+- 算法在 `msmodelslim/core/quantizer/impl/histogram.py` 和 `msmodelslim/core/observer/histogram.py` 中实现，处理流程分4步。
 
 1. **直方图统计**：
    - 将输入张量的值域划分为固定数量的bins（默认2048）。
@@ -272,7 +272,7 @@ class SearchMethod(str, Enum):
      symmetric: True
      method: "minmax" # 不支持直方图权重量化，此处不应配置为"histogram"
 ```
-- 排查对应的quantizer在初始化时是否存在AutoActQuantizer。可以根据配置yaml中qconfig对应的-type查看名字，在`msmodelslim\msmodelslim\quant\quantizer`查看对应的代码。
+- 排查对应的quantizer在初始化时是否存在AutoActQuantizer。可以根据配置yaml中qconfig对应的-type查看名字，在`msmodelslim\core\quantizer`查看对应的代码。
 ```python
 class LinearQuantizer(nn.Module):
 

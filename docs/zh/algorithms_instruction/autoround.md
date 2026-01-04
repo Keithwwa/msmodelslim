@@ -42,7 +42,7 @@ AutoRound 在此基础之上引入了可学习的舍入偏移 V 和可选的缩�
 
 ### 实现
 
-- 算法在 `msmodelslim/quant/processor/quant/autoround.py` 中实现，核心类为 `AutoroundQuantProcessor`：
+- 算法在 `msmodelslim/processor/quant/autoround.py` 中实现，核心类为 `AutoroundQuantProcessor`：
   1. **初始化阶段**：
 
      * 层配置初始化：读取量化配置，并为每个网络层分配对应的量化配置方案

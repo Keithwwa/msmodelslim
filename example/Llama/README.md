@@ -71,7 +71,7 @@
 | tokenizer_args | 加载自定义tokenizer时传入的自定义参数 | 无 | 以字典方式传入。 |
 | disable_last_linear | 是否回退最后linear层 | True | True：回退最后linear层。<br>False：不回退最后linear层。 |
 | model_name | 模型名称，可选参数 | None | 用于控制异常值抑制参数。 |
-| model_type | qwen模型类型 | llama2|  若使用llama3模型，请输入该参数为llama3。 |
+| model_type | llama模型类型 | llama2|  若使用llama3模型，请输入该参数为llama3。 |
 | anti_calib_file | 离群值抑制校准数据文件 | None | 用于离群值抑制的校准数据文件路径(.json或.jsonl格式)。|
 | disable_threshold | 自动选择回退层的阈值 | 0 | 当值大于0时，会根据该阈值自动选择需要回退的层。值越大，回退的层越多。|
 | pdmix | 是否使用PDMix量化类型 | False | True: 使用PDMix量化类型；<br>False: 不使用PDMix量化类型。|
@@ -124,7 +124,7 @@
 
 #### <span id="llama2-70b-w8a16量化">LLaMA2-70B W8A16量化</span>
   ```shell
-  python3 quant_llama.py --model_path {浮点权重路径} --save_directory {W8A16量化权重路径} --calib_file= ../common/teacher_qualification.jsonl --w_bit 8 --a_bit 16 --act_method 3 --trust_remote_code True
+  python3 quant_llama.py --model_path {浮点权重路径} --save_directory {W8A16量化权重路径} --calib_file ../common/teacher_qualification.jsonl --w_bit 8 --a_bit 16 --act_method 3 --trust_remote_code True
   ```
 
 ### LLaMA3

@@ -22,7 +22,7 @@
 操作步骤：
 1. 如需自定义数据集，创建自定义数据集处理类，继承自DatasetProcessorBase类，并重写process_data()和verify_positive_prompt()方法
 2. 实例化CalibrationData，如需正样本混合校准集，需要实例化tokenizer和model，并作为参数传入CalibrationData；否则设置为None。如需保存需要设置保存路径
-3. 如有自定义数据集，通过add_customized_dataset_processor()接口传入自定义数据集名称和处理类的实例
+3. 如有自定义数据集，通过add_custormized_dataset_processor()接口传入自定义数据集名称和处理类的实例
 4. 设置样本数量，通过set_sample_size()接口
 5. 设置batch_size，通过set_batch_size()接口
 6. 设置随机种子，通过set_shuffle_seed()接口
@@ -121,7 +121,7 @@ customized_dataset_path = "./customized_dataset"
 customized_processor = CustomizedProcessor(customized_dataset_path, tokenizer=tokenizer, model=model)
 
 calib_select = CalibrationData(config_path=CONFIG_PATH, save_path=SAVE_PATH, tokenizer=tokenizer, model=model)  # 若不需要正样本，tokenizer和model均置为None
-calib_select.add_customized_dataset_processor("customized_dataset_name", customized_processor)     # 该调用需在设置采样数量之前
+calib_select.add_custormized_dataset_processor("customized_dataset_name", customized_processor)     # 该调用需在设置采样数量之前
 calib_select.set_sample_size(sample_size)
 calib_select.set_batch_size(4)  # 该调用仅用于设置获取正样本时的batch，不对输出产生影响， 输入为int类型
 calib_select.set_shuffle_seed(1)

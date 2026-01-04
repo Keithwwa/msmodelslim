@@ -23,7 +23,7 @@ from example.common.security.path import get_valid_read_path, get_write_director
 from example.common.security.path import json_safe_load, json_safe_dump, get_valid_write_path
 from example.common.security.type import check_number
 from example.common.utils import SafeGenerator, cmd_bool
-from msmodelslim.tools.copy_config_files import copy_config_files, modify_config_json, modify_vllm_config_json
+from example.common.copy_config_files import copy_config_files, modify_config_json, modify_vllm_config_json
 from msmodelslim.pytorch.llm_ptq.anti_outlier import AntiOutlierConfig, AntiOutlier
 from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig
 from msmodelslim.utils.logging import set_logger_level
@@ -242,6 +242,8 @@ def main():
     if args.fa_quant:
         if 'R1' in args.model_path.upper():
             disable_attn_layers = [0, 1, 2, 46, 47, 50, 54, 55, 56, 57, 58, 59, 60]
+        elif 'V3.1' in args.model_path.upper():
+            disable_attn_layers = [0, 1, 2, 50, 51, 53, 54, 55, 56, 57, 58, 59, 60]
         elif 'V3' in args.model_path.upper():
             disable_attn_layers = [0, 1, 2, 46, 50, 51, 53, 54, 55, 56, 57, 59, 60]
         else:
