@@ -11,29 +11,23 @@ model_resource_path = os.environ.get("MODEL_RESOURCE_PATH")
 if not model_resource_path:
     raise Exception("获取不到模型路径，请先检查环境变量 MODEL_RESOURCE_PATH")
 
-fp16_path = os.path.join(model_resource_path, "Qwen2.5-7B-Instruct")
-tokenizer = AutoTokenizer.from_pretrained(
-    pretrained_model_name_or_path=fp16_path,
-    trust_remote_code=True,
-    local_files_only=True)
+# for local path
+LOAD_PATH = os.path.join(model_resource_path, "Qwen3-14B")
 model = AutoModelForCausalLM.from_pretrained(
-    pretrained_model_name_or_path=fp16_path,
+    pretrained_model_name_or_path=LOAD_PATH,
     torch_dtype='auto',
     device_map='auto',
     trust_remote_code=True,
     local_files_only=True).eval()
 
-disable_names = []
-disable_names.append('lm_head')
+disable_names = ['lm_head']
 
-model.eval()
-w_sym = True
 quant_config = QuantConfig(
-    a_bit=16, w_bit=4, disable_names=disable_names, dev_type='npu', dev_id=model.device.index,
-    w_sym=w_sym, mm_tensor=False, is_lowbit=True, open_outlier=False, group_size=64, w_method='HQQ')
+    a_bit=16, w_bit=8, disable_names=disable_names, dev_id=model.device.index, dev_type='npu',
+    act_method=3, pr=1.0, w_sym=False, mm_tensor=False, w_method='MinMax')
 calibrator = Calibrator(model, quant_config, calib_data=[], disable_level='L0')
 calibrator.run()  # 执行PTQ量化校准
 
-save_dir = os.path.join(script_dir, "output_llm_ptq_w4a16_pergroup_hqq")
+save_dir = os.path.join(script_dir, "output_llm_ptq_minmax")
 calibrator.save(save_dir, save_type=["numpy", "safe_tensor"])
 print('Save quant weight success!')

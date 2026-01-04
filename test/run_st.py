@@ -457,8 +457,8 @@ def main():
     parser.add_argument(
         '--timeout', '-t',
         type=int,
-        default=300,
-        help='单个用例超时时间（默认：300 秒，必须为正数）'
+        default=600,
+        help='单个用例超时时间（默认：600 秒，必须为正数）'
     )
     parser.add_argument(
         '--parallel', '-par',
