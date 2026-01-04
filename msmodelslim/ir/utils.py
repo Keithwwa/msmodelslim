@@ -1,6 +1,6 @@
 """
 Copyright (c) Microsoft Corporation.
-Copyright (c) 2025-2025 Huawei Technologies Co., Ltd.
+Copyright (c) 2025 Huawei Technologies Co.,Ltd.
 Licensed under the MIT License.
 
 Name:    mx_ops.py
