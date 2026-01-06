@@ -115,6 +115,13 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
         if not isinstance(device, DeviceType):
             raise SchemaValidateError("device must be a DeviceType",
                                       action="Please make sure the device is a DeviceType")
+        
+        if device_indices is not None:
+            get_logger().warning(
+                "Specifying device indices is not supported in %s quant_service. "
+                "Device indices will be ignored.",
+                self.backend_name
+            )
 
         return self.quant_process(
             MultimodalVLMModelslimV1QuantConfig.from_base(quant_config),

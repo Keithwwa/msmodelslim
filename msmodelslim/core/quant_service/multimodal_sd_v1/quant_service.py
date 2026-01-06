@@ -60,6 +60,13 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
             raise SchemaValidateError("save_path must be a Path or None")
         if not isinstance(device, DeviceType):
             raise SchemaValidateError("device must be a DeviceType")
+        
+        if device_indices is not None:
+            get_logger().warning(
+                "Specifying device indices is not supported in %s quant_service. "
+                "Device indices will be ignored.",
+                self.backend_name
+            )
 
         return self.quant_process(MultimodalSDModelslimV1QuantConfig.from_base(quant_config), model_adapter, save_path,
                                   device)

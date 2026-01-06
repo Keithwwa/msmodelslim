@@ -19,10 +19,22 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+from typing import Optional, List, Any
+
+from torch import nn
+
+from msmodelslim.core.const import DeviceType
 from msmodelslim.core.runner.generated_runner import GeneratedRunner
-from msmodelslim.utils.logging import logger_setter
+from msmodelslim.utils.logging import logger_setter, get_logger
 
 
 @logger_setter()
 class PPRunner(GeneratedRunner):
-    pass
+    def run(self, model: nn.Module = None, calib_data: Optional[List[Any]] = None,
+                    device: DeviceType = DeviceType.NPU, device_indices: Optional[List[int]] = None):
+            if device_indices is not None:
+                get_logger().warning(
+                    "Specifying device indices is not supported in model_wise runner. "
+                    "Device indices will be ignored. "
+                )
+            super().run(model, calib_data, device, device_indices)

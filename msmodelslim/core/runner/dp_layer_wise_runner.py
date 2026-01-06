@@ -30,8 +30,9 @@ from msmodelslim.core.runner.layer_wise_runner import LayerWiseRunner
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.processor import AutoProcessorConfig
 from msmodelslim.processor.base import AutoSessionProcessor
+from msmodelslim.utils.config import msmodelslim_config
 from msmodelslim.utils.distributed import find_free_port, setup_distributed
-from msmodelslim.utils.logging import logger_setter, get_logger
+from msmodelslim.utils.logging import logger_setter, get_logger, set_logger_level
 from msmodelslim.core.runner.generated_runner import get_input_datas
 from msmodelslim.utils.exception import UnsupportedError
 
@@ -106,6 +107,8 @@ class DPLayerWiseRunner(LayerWiseRunner):
             master_port: Master port for distributed communication
         """
         try:
+            set_logger_level(msmodelslim_config.env_vars.log_level)
+
             # Get the actual device index for this rank
             actual_device_idx = device_indices[rank]
             
