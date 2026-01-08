@@ -242,6 +242,24 @@ class Qwen3VLModelAdapter(
         state_dict = self._get_state_dict(model)
         model.load_state_dict(state_dict)
 
+        # CRITICAL: Copy text_config attention heads to model.config for OV smoothing
+        # BaseSmoothProcessor._apply_standard_ov_smooth() reads from model.config, not model.config.text_config
+        # This must be done AFTER model is loaded
+        if hasattr(model.config.text_config, "num_attention_heads"):
+            model.config.num_attention_heads = (
+                model.config.text_config.num_attention_heads
+            )
+            get_logger().info(
+                f"Set model.config.num_attention_heads = {model.config.num_attention_heads}"
+            )
+        if hasattr(model.config.text_config, "num_key_value_heads"):
+            model.config.num_key_value_heads = (
+                model.config.text_config.num_key_value_heads
+            )
+            get_logger().info(
+                f"Set model.config.num_key_value_heads = {model.config.num_key_value_heads}"
+            )
+
         get_logger().info(
             f"Model initialized with {origin_layers} layers (1 loaded, others will be loaded on-demand)"
         )
@@ -503,8 +521,6 @@ class Qwen3VLModelAdapter(
                         mapping=ov_mapping_config,
                         extra_config={
                             "group_method": "max",
-                            "num_attention_heads": self.config.text_config.num_attention_heads,
-                            "num_key_value_heads": self.config.text_config.num_key_value_heads,
                         },
                     ),
                     AdapterConfig(
