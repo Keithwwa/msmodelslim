@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
 """
@@ -10,7 +10,7 @@ MindStudio is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
 You may obtain a copy of Mulan PSL v2 at:
 
-         http://license.coscl.org.cn/MulanPSL2
+        http://license.coscl.org.cn/MulanPSL2
 
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
@@ -62,4 +62,21 @@ from .utils import (
     clone_module_hooks,
     remove_after_substring,
     convert_hookir_to_wrapper,
+)
+
+from .flat_fake_quant_linear import (
+    FlatFakeQuantLinear,
+    FlatNormWrapper,
+    FlatFakeQuantLinearConfig,
+    ForwardMode,
+)
+from .flat_quant_manager import FlatQuantManager
+
+from .structure_pair import (
+    StructurePair,
+    NormLinearPair,
+    MLPLinearLinearPair,
+    MLPNormLinearPair,
+    AttnLinearLinearPair,
+    AttnNormLinearPair,
 )
