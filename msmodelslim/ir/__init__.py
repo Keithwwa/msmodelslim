@@ -49,6 +49,8 @@ __all__ = [
     "W16A16sLinear",
     "FakeQuantActivationPerHead",
     "FakeQuantActivationPerToken",
+    "FlatQuantOnlineWrapper",
+    "FlatQuantOnlineHookIR",
 
     "int8_per_tensor_sym",
     "int8_per_channel_sym",
@@ -87,6 +89,7 @@ from .const import int8_per_tensor_sym, int8_per_channel_sym, int8_per_token_sym
 from .quarot import QuarotOnlineRotationInfo, QuarotOnlineHeadRotationWrapper, QuarotOnlineKroneckerRotationWrapper, \
     QuarotHeadsRotationHookIR, QuarotKroneckerRotationHookIR, OnlineRotationInfo, OnlineRotationWrapper, \
     OnlineRotationInputHookIR, OnlineRotationOutputHookIR
+from .flatquant import FlatQuantOnlineWrapper, FlatQuantOnlineHookIR
 from .w16a16s import W16A16sLinear
 from .w4a4_dynamic import W4A4DynamicPerChannelFakeQuantLinear, W4A4DynamicPerGroupFakeQuantLinear
 from .w4a4_mx_dynamic import W4A4MXDynamicPerBlockFakeQuantLinear

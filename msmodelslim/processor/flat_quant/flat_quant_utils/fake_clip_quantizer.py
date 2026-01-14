@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 import torch
+from msmodelslim.utils.exception import UnexpectedError, UnsupportedError
 
 def round_ste(x: torch.Tensor):
     """实现直通估计器（STE）的四舍五入操作"""
@@ -93,7 +94,8 @@ class ActivationQuantizer(torch.nn.Module):
         self._clip_ratio = clip_ratio
         self.groupsize = groupsize
         if self.groupsize > 0:
-            raise NotImplementedError("暂不支持激活的每组量化")
+            raise UnsupportedError("Activating per-group quantization is not yet supported.")
+
         if self.lac:
             init_value = 4.0
             self.sigmoid = torch.nn.Sigmoid()
@@ -257,7 +259,7 @@ class WeightQuantizer(torch.nn.Module):
             if self.enable_find:
                 self.find_params(x)
             if not self.ready():
-                raise ValueError("WeightQuantizer 未就绪，请先调用 find_params")
+                raise UnexpectedError("WeightQuantizer is not ready. Please call find_params first.")
             if self.sym:
                 return sym_quant_dequant(x, self.scale, self.bits, self.is_signed).to(x_dtype)
             return asym_quant_dequant(x, self.scale, self.zero, self.bits, self.is_signed).to(x_dtype)

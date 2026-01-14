@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import List, Any, Generator
+from typing import List, Any, Generator, Dict
 
 from torch import nn
 
@@ -39,6 +39,13 @@ from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, Mo
     AnalyzePipelineInterface, KVSmoothFusedInterface, SmoothQuantInterface, IterSmoothInterface, \
     FlexSmoothQuantInterface
 
+from msmodelslim.processor.flat_quant import FlatQuantInterface
+from msmodelslim.processor.flat_quant.flat_quant_utils.structure_pair import(
+    AttnNormLinearPair, 
+    AttnLinearLinearPair, 
+    MLPNormLinearPair, 
+    MLPLinearLinearPair)
+
 
 @logger_setter()
 class Qwen3ModelAdapter(TransformersModel,
@@ -51,8 +58,45 @@ class Qwen3ModelAdapter(TransformersModel,
                         IterSmoothInterface,
                         FlexSmoothQuantInterface,
                         QuaRotInterface,
-                        LAOSOnlineRotationInterface
+                        LAOSOnlineRotationInterface,
+                        FlatQuantInterface
                         ):
+    def get_flatquant_subgraph(self) ->  List[Dict[str, object]]:
+        """分析Qwen模型结构并注册所有相关的结构对。"""
+        attn_norm_linear_names = ["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj"]
+        attn_linear_linear_names = ["self_attn.o_proj"]
+        mlp_norm_linear_names = ["mlp.gate_proj", "mlp.up_proj"]
+        mlp_linear_linear_names = ["mlp.down_proj"]
+        head_dim = getattr(self.config, "head_dim", self.config.hidden_size // self.config.num_attention_heads)
+        num_attention_heads = self.config.num_attention_heads
+        structure_configs = [
+            {
+                "source": "input_layernorm",
+                "targets": attn_norm_linear_names,
+                "pair_class": AttnNormLinearPair
+            },
+            {
+                "source": "self_attn.v_proj",
+                "targets": attn_linear_linear_names,
+                "pair_class": AttnLinearLinearPair,
+                "extra_config": {
+                    'head_dim': head_dim,
+                    'num_attention_heads': num_attention_heads
+                }
+            },
+            {
+                "source": "post_attention_layernorm",
+                "targets": mlp_norm_linear_names,
+                "pair_class": MLPNormLinearPair
+            },
+            {
+                "source": "mlp.up_proj",
+                "targets": mlp_linear_linear_names,
+                "pair_class": MLPLinearLinearPair
+            }
+        ]
+        return structure_configs
+
     def get_model_type(self) -> str:
         return self.model_type
 

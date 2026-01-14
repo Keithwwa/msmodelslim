@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details.
 
 import torch
 import torch.nn as nn
+from msmodelslim.utils.exception import UnexpectedError, UnsupportedError, SchemaValidateError
 from msmodelslim.processor.flat_quant.flat_quant_utils.utils import get_init_weight, get_inverse
 
 
@@ -40,11 +41,11 @@ class SingleTransMatrix(nn.Module):
 
     def get_matrix(self, inv_t=False):
         """获取当前变换矩阵（子类必须实现），支持返回逆转置用于反向变换。"""
-        raise NotImplementedError("子类必须实现 get_matrix 方法")
+        raise UnsupportedError("Subclasses must implement the `get_matrix` method.")
 
     def reparameterize(self):
         """重参数化：将可学习参数固化为固定缓冲区，释放动态参数以节省内存。"""
-        raise NotImplementedError("子类必须实现 reparameterize 方法")
+        raise UnsupportedError("Subclasses must implement the `reparameterize` method.")
 
     def to_eval_mode(self):
         """切换至评估模式：触发重参数化，冻结参数，提升推理效率。"""
@@ -63,14 +64,17 @@ class SingleTransMatrix(nn.Module):
             return output.reshape(init_shape)
         elif self.direction == "left":
             if self.size == 0:
-                raise ValueError("变换维度 size 不能为零")
+                raise UnexpectedError("The dimension size for transformation cannot be zero.")
             init_shape = inp.shape
             matrix = self.get_matrix(inv_t=inv_t).T.to(inp)
             inp = inp.reshape(-1, self.size, init_shape[-1] // self.size)
             output = matrix @ inp
             return output.reshape(init_shape)
         else:
-            raise ValueError(f"无效的变换方向: {self.direction}，仅支持 'left' 或 'right'")
+            raise SchemaValidateError(
+                f"Invalid transformation direction: {self.direction}. "
+                "Only 'left' or 'right' are supported."
+            )
 
     def get_save_params(self):
         """返回需要保存的参数字典，用于模型序列化，默认返回方向对应的变换矩阵。"""
@@ -223,8 +227,6 @@ class GeneralMatrixTrans(nn.Module):
         if self.diag_trans is not None:
             self.diag_trans.to_eval_mode()
 
-    def get_save_params(self, rollback_rotation=False):
+    def get_save_params(self):
         """返回需要保存的变换参数（左、右矩阵），支持模型回退模式。"""
-        if not rollback_rotation:
-            return {**self.left_trans.get_save_params(), **self.right_trans.get_save_params()}
-        return {}
+        return {**self.left_trans.get_save_params(), **self.right_trans.get_save_params()}

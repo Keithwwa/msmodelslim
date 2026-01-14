@@ -116,6 +116,7 @@ class AutoSaverProcessor(AutoSessionProcessor):
             qir.QuarotOnlineKroneckerRotationWrapper: self.on_kronecker_rotation_wrapper,
             qir.OnlineRotationWrapper: self.on_online_rotation_wrapper,
             qir.WFP8AFP8DynamicPerChannelFakeQuantLinear: self.on_wfp8afp8_dynamic_per_channel,
+            qir.FlatQuantOnlineWrapper: self.on_flat_clip_wrapper,
         }
 
     def support_distributed(self) -> bool:
@@ -257,6 +258,18 @@ class AutoSaverProcessor(AutoSessionProcessor):
             module: KroneckerRotationWrapper模块实例
         """
         # 只处理被包装的模块，旋转矩阵由全局逻辑处理
+        self._process_module(prefix, module.wrapped_module)
+
+    def on_flat_clip_wrapper(self, prefix: str, module: qir.FlatQuantOnlineWrapper):
+        """
+        处理FlatQuantOnlineWrapper类型的模块。
+
+        保存旋转矩阵到left_trans, right_trans, clip_factor, 并在JSON中添加相应的描述。
+
+        Args:
+            prefix: 模块名称前缀
+            module: FlatQuantOnlineWrapper模块实例
+        """
         self._process_module(prefix, module.wrapped_module)
 
     def on_wrapper_ir(self, prefix: str, module: qir.WrapperIR):

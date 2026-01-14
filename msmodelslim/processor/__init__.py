@@ -45,7 +45,9 @@ __all__ = [
     "FloatSparseProcessorConfig",
     "FloatSparseProcessor",
     "QuaRotProcessorConfig",
-    "QuaRotProcessor"
+    "QuaRotProcessor",
+    'FlatQuantProcessorConfig', 
+    'FlatQuantProcessor',
 ]
 
 from .anti_outlier import (
@@ -67,3 +69,4 @@ from .quant.fa3 import FA3QuantProcessorConfig, FA3QuantProcessor
 from .quant.linear import LinearProcessorConfig, LinearQuantProcessor
 from .quarot import QuaRotProcessor, QuaRotProcessorConfig
 from .sparse.float_sparse import FloatSparseProcessorConfig, FloatSparseProcessor
+from .flat_quant import FlatQuantProcessorConfig, FlatQuantProcessor

@@ -24,6 +24,7 @@ import numpy as np
 from scipy.linalg import qr
 from torch.nn import Module
 from typing import Union, List, Dict, Any, Pattern
+from msmodelslim.utils.exception import UnexpectedError
 
 npu_available = False
 try:
@@ -153,7 +154,13 @@ def match_pattern(pair_name: str, pattern: Union[str, Pattern]):
 def move_tensors_to_device(data, device):
     """递归遍历嵌套数据结构，将所有Tensor移动到指定设备"""
     if isinstance(data, torch.Tensor):
-        return data.to(device)
+        try:
+            return data.to(device)
+        except RuntimeError as e:
+            if "CUDA out of memory" in str(e):
+                raise UnexpectedError(
+                    f"CUDA out of memory occurred during the data transfer phase."
+                ) from e
 
     elif isinstance(data, dict):
         return {key: move_tensors_to_device(value, device) for key, value in data.items()}
@@ -176,8 +183,10 @@ def empty_cache():
         torch.cuda.empty_cache()
 
 
-def get_module_by_name(model: Module, submodule_key: str) -> Module:
+def get_module_by_name(model: Module, submodule_key: str, prefix: str=None) -> Module:
     """根据名称路径获取模型中的子模块"""
+    if prefix is not None:
+        submodule_key = submodule_key[len(prefix) + 1:] 
     module_tokens = submodule_key.split('.')
     cur_mod = model
     for s in module_tokens:
@@ -185,8 +194,10 @@ def get_module_by_name(model: Module, submodule_key: str) -> Module:
     return cur_mod
 
 
-def set_module_by_name(model: Module, submodule_key: str, module: Module, clone_hooks: bool = True):
+def set_module_by_name(model: Module, submodule_key: str, module: Module, clone_hooks: bool = True, prefix: str=None):
     """根据名称路径设置模型中的子模块，并可选择是否克隆原模块的钩子"""
+    if prefix is not None:
+        submodule_key = submodule_key[len(prefix) + 1:] 
     tokens = submodule_key.split('.')
     sub_tokens = tokens[:-1]
     cur_mod = model
@@ -235,7 +246,7 @@ def convert_hookir_to_wrapper(module: Module) -> None:
                 if isinstance(hook, qir.HookIR):
                     wrapper = hook.wrapper_module(sub_module)
                     module.set_submodule(name, wrapper)
-                    get_logger().info(f"Successfully converted {type(hook)} to wrapper, module name: {name}")
+                    get_logger().info(f"Converted {type(hook)} to wrapper, module name: {name}")
 
 
 def convert_outputs_to_inputs(outputs):
@@ -244,3 +255,14 @@ def convert_outputs_to_inputs(outputs):
     for output in outputs:
         converted_inputs.append([output])
     return converted_inputs
+
+
+def check_loss_for_nan_inf(loss):
+    """
+    检查 loss 是否包含 NaN 或 Inf，并通过 logger 输出 WARNING。
+    """
+    has_nan = torch.isnan(loss).any().item()
+    has_inf = torch.isinf(loss).any().item()
+
+    if has_nan or has_inf:
+        get_logger().info(f"Detected abnormal loss: loss={loss}, please check data, model, or gradient update process.")

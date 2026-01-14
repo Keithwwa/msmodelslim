@@ -26,6 +26,7 @@ import torch
 import torch.distributed as dist
 from pydantic import Field
 from torch import nn
+from unittest.mock import patch
 
 from ascend_utils.common.security.path import json_safe_load, json_safe_dump
 from msmodelslim import logger, ir as qir
@@ -468,13 +469,38 @@ class AscendV1Saver(AutoSaverProcessor):
         self.safetensors_writer.write(f"{prefix}.kronecker_rotation_m", self.quarot_info.kronecker_rotation_m.clone())
         self.safetensors_writer.write(f"{prefix}.kronecker_rotation_n", self.quarot_info.kronecker_rotation_n.clone())
 
-    def on_online_rotation_wrapper(self, prefix: str, module: qir.OnlineRotationWrapper):
+    def on_flat_clip_wrapper(self, prefix: str, module: qir.FlatQuantOnlineWrapper):
         """
-        处理OnlineRotationWrapper类型的模块。
+        处理FlatQuantOnlineWrapper类型的模块。
+
+        保存旋转矩阵到left_trans, right_trans, clip_factor, 并在JSON中添加相应的描述。
+
+        Args:
+            prefix: 模块名称前缀
+            module: FlatQuantOnlineWrapper模块实例
         """
-        rotation_matrix = module.rotation_info.rotation_matrix
-        # 保存旋转矩阵，标签为 FLOAT
-        self.write_tensor(f"{prefix}", "FLOAT", rotation_matrix.clone())
+        wrapped_module = module.wrapped_module
+        original_write_tensor = self.write_tensor
+        self.desc_quant = ''
+
+        def flat_write_tensor(prefix: str, desc: str, tensor: torch.Tensor):
+            # FlatQuant INT 量化命名格式为：WXAX_FLATQUANT_DYNAMIC; MXFP 量化命名格式为：WXAX_MXFP_FLATQUANT
+            if desc.endswith("_DYNAMIC"):
+                desc = desc.replace("_DYNAMIC", "_FLATQUANT_DYNAMIC")
+            else:
+                desc += '_FLATQUANT'
+            self.desc_quant = desc
+            original_write_tensor(prefix, desc, tensor)
+        
+        with patch.object(self, 'write_tensor', wraps=flat_write_tensor):
+            self._process_module(prefix, wrapped_module)
+        self.update_quant_type(self.desc_quant)
+        
+        if module.save_trans is not None:
+            save_trans = module.save_trans
+            for key, trans in save_trans.items():
+                self.write_tensor(f"{prefix}.{key}", self.desc_quant, trans)
+            self.write_tensor(f"{prefix}.clip_ratio", self.desc_quant, module.clip_factor)
 
     def update_quant_type(self, quant_type: str):
         if quant_type not in self.QUANT_TYPE_PRIORITY:

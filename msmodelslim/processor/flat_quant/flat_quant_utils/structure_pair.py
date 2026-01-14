@@ -23,6 +23,8 @@ import torch
 import functools
 from torch import nn
 from typing import Union, Callable, List, Dict, Any
+from msmodelslim.utils.logging import get_logger
+from msmodelslim.utils.exception import SchemaValidateError, UnexpectedError, UnsupportedError
 
 from msmodelslim.processor.flat_quant.flat_quant_utils.utils import (
     get_module_by_name,
@@ -77,9 +79,9 @@ class StructurePair(nn.Module):
             model: 整体模型实例。
         """
         if not isinstance(sources, str):
-            raise ValueError(f"sources 必须是字符串，但得到 {type(sources)}")
+            raise SchemaValidateError(f"sources must be a string, but got {type(sources).__name__}")
         if not isinstance(targets, list):
-            raise ValueError(f"targets 必须是字符串列表，但得到 {type(targets)}")
+            raise SchemaValidateError(f"targets must be a list of strings, but got {type(targets).__name__}")
 
         super().__init__()
         self.model = model
@@ -126,7 +128,8 @@ class StructurePair(nn.Module):
             self._reparameterize_act_diag_scale()
             self.linear_trans.to_eval_mode()
         elif mod == ForwardMode.CALIB:
-            self._init_diag_scale()
+            if self.config.diag_init == "sq_style":
+                self._init_diag_scale(diag_alpha=self.config.diag_alpha)
 
     def _call_method_on_modules(
         self,
@@ -141,12 +144,14 @@ class StructurePair(nn.Module):
         if isinstance(module_names, str):
             module_names = [module_names]
         elif not isinstance(module_names, list):
-            raise ValueError(f"module_names 必须是 str 或 List[str]，但得到 {type(module_names)}")
+            raise SchemaValidateError(f"module_names must be a str or a list of str, but got {type(module_names).__name__}")
 
         for module_name in module_names:
-            module = get_module_by_name(self.model, module_name)
+            module = get_module_by_name(self.model, module_name, prefix=self.prefix_name)
             if not hasattr(module, method):
-                raise AttributeError(f"模块 [{module_name}] 不存在成员函数 [{method}]")
+                raise UnsupportedError(
+                    f"Module '{module_name}' does not have a method named '{method}'"
+                )
 
             if isinstance(method, str):
                 target_method = getattr(module, method)
@@ -172,13 +177,12 @@ class StructurePair(nn.Module):
         """
         将目标线性层替换为支持量化和变换的 FlatFakeQuantLinear。
         """
-        clip_factor = nn.Parameter(torch.ones((1,)) * 1.0, requires_grad=True)
         for linear_name in self.target_modules:
-            linear = get_module_by_name(self.model, linear_name)
+            linear = get_module_by_name(self.model, linear_name, prefix=self.prefix_name)
             flat_linear = FlatFakeQuantLinear(self.config, linear)
-            self._register_forward_hook(flat_linear, linear_name)
-            set_module_by_name(self.model, linear_name, flat_linear)
-            flat_linear.set_act_clip_factor(clip_factor)
+            if self.config.diag_init == "sq_style":
+                self._register_forward_hook(flat_linear, linear_name)
+            set_module_by_name(self.model, linear_name, flat_linear, prefix=self.prefix_name)
 
     def _register_forward_hook(self, linear, name):
         """
@@ -212,7 +216,7 @@ class StructurePair(nn.Module):
         """
         if hasattr(self.linear_trans, 'diag_trans') and self.linear_trans.diag_trans is not None:
             pre_linear_name = self.source_modules
-            pre_linear_module = get_module_by_name(self.model, pre_linear_name)
+            pre_linear_module = get_module_by_name(self.model, pre_linear_name, prefix=self.prefix_name)
             weight = pre_linear_module.weight.data
             ori_dtype = weight.dtype
             if weight.dim() == 2:
@@ -220,7 +224,7 @@ class StructurePair(nn.Module):
             elif weight.dim() == 1:
                 weight = weight.to(torch.float32) * self.linear_trans.diag_trans.diag_scale.data.to(torch.float32)
             else:
-                raise ValueError(f"权重维度不支持: {weight.dim()}")
+                raise UnexpectedError(f"Unsupported weight dimension: {weight.dim()}")
             pre_linear_module.weight.data = weight.to(ori_dtype)
 
     def _init_diag_scale(self, diag_alpha: float = 0.5) -> None:
@@ -234,7 +238,7 @@ class StructurePair(nn.Module):
 
         weights = []
         for linear_name in post_linear_names:
-            linear_module = get_module_by_name(self.model, linear_name)
+            linear_module = get_module_by_name(self.model, linear_name, prefix=self.prefix_name)
             weights.append(linear_module.weight)
             input_max = self.act_stats[linear_name].get('input_max', None)
 
@@ -244,7 +248,6 @@ class StructurePair(nn.Module):
         weights_max = torch.cat(weights, dim=0).abs().max(dim=0)[0]
         weights_max = weights_max.to(self.linear_trans.diag_trans.diag_scale)
         input_max = input_max.to(self.linear_trans.diag_trans.diag_scale)
-
         self.linear_trans.diag_trans.diag_scale.data = get_init_scale(weights_max, input_max, diag_alpha)
 
     def contain(self, name: str) -> bool:
@@ -258,7 +261,7 @@ class StructurePair(nn.Module):
         获取前置模块（如 Norm 层或前一个 Linear）的实例。
         """
         pre_linear_name = self.source_modules
-        return get_module_by_name(self.model, pre_linear_name)
+        return get_module_by_name(self.model, pre_linear_name, prefix=self.prefix_name)
 
     def __str__(self) -> str:
         return self.name
@@ -293,7 +296,7 @@ class NormLinearPair(StructurePair):
         super().wrap_linear()
         self.norm_module = self._get_pre_linear_module()
         flat_norm = FlatNormWrapper(self.norm_module, self.linear_trans)
-        set_module_by_name(self.model, self.source_modules, flat_norm)
+        set_module_by_name(self.model, self.source_modules, flat_norm, prefix=self.prefix_name)
 
         self._call_method_on_modules(
             module_names=self.target_modules,
@@ -319,17 +322,19 @@ class NormLinearPair(StructurePair):
             self._reparameterize_act_diag_scale()
             self.linear_trans.to_eval_mode()
         elif mod == ForwardMode.CALIB:
-            self._init_diag_scale()
+            if self.config.diag_init == "sq_style":
+                self._init_diag_scale(diag_alpha=self.config.diag_alpha)
 
     def rollback_trans(self, pair_name: str) -> None:
         """
         移除变换模块，恢复原始 Norm 层结构。
         """
-        if not (pair_name and self.name.endswith(pair_name)):
+        if not self.contain(pair_name):
             return
         ori_norm = self.norm_module.norm
-        set_module_by_name(self.model, self.source_modules, ori_norm)
-
+        set_module_by_name(self.model, self.source_modules, ori_norm, prefix=self.prefix_name)
+        
+        get_logger().info(f"Rolling back affine transformation matrices for all modules in {self._name}: {self.target_modules}")
         self._call_method_on_modules(
             module_names=self.target_modules,
             method="set_trans",
@@ -344,7 +349,7 @@ class AttnNormLinearPair(NormLinearPair):
     """
 
     _register = True
-    _name = "self_attn.qkv_proj"
+    _name = "attn.norm_linear"
 
     def __init__(
         self,
@@ -364,7 +369,8 @@ class AttnLinearLinearPair(StructurePair):
     支持变换插入。无 diag，相关操作去除。
     """
 
-    _name = "self_attn.o_proj"
+    _name = "attn.linear_linear"
+
 
     def __init__(
         self,
@@ -373,24 +379,24 @@ class AttnLinearLinearPair(StructurePair):
         post_linear_name: str,
         prefix_name: str,
         model: nn.Module,
+        head_dim: int = None,
+        num_attention_heads: int = None,
     ) -> None:
         super().__init__(pre_linear_name, post_linear_name, prefix_name, model)
         self.config = config
+        self.head_dim = head_dim
+        self.num_attention_heads = num_attention_heads
 
     def _create_trans(self) -> None:
         """
         根据注意力头维度创建变换矩阵，支持分头处理。
         """
-        config = self.model_config
-        if hasattr(config, 'head_dim'):
-            head_dim = config.head_dim
-        else:
-            if config.num_attention_heads == 0:
-                raise ValueError("num_attention_heads 不能为零。")
-            head_dim = config.hidden_size // config.num_attention_heads
+        if self.head_dim is None or self.num_attention_heads is None:
+            raise SchemaValidateError("head_dim and num_attention_heads must not be empty. Please check that they are correctly assigned in the model adapter.")
+        
         self.linear_trans = GeneralMatrixTrans(
-            config.num_attention_heads,
-            head_dim,
+            self.num_attention_heads,
+            self.head_dim,
             add_diag=False,
             diag_relu=self.config.diag_relu,
             tran_type=self.config.tran_type,
@@ -434,9 +440,8 @@ class AttnLinearLinearPair(StructurePair):
         """
         回退变换模块的插入，恢复原始线性层结构。
         """
-        if not (pair_name and self.name.endswith(pair_name)):
+        if not self.contain(pair_name):
             return
-
         pre_linear_module = self._get_pre_linear_module()
         pre_linear_module.set_trans(
             weight_in_trans=pre_linear_module.weight_in_trans,
@@ -460,7 +465,8 @@ class MLPNormLinearPair(NormLinearPair):
     """
 
     _register = True
-    _name = "mlp.gate_up_proj"
+    _name = "mlp.norm_linear"
+
 
     def __init__(
         self,
@@ -479,7 +485,8 @@ class MLPLinearLinearPair(StructurePair):
     MLP 模块中前一个 Linear 与后一个 Linear 之间的结构对，用于量化变换。
     """
 
-    _name = "mlp.down_proj"
+    _name = "mlp.linear_linear"
+
 
     def __init__(
         self,
@@ -510,7 +517,7 @@ class MLPLinearLinearPair(StructurePair):
         """
         移除变换模块的插入，还原为原始线性层结构。
         """
-        if not (pair_name and self.name.endswith(pair_name)):
+        if not self.contain(pair_name):
             return
 
         self._call_method_on_modules(
