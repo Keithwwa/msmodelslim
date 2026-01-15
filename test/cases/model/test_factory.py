@@ -71,7 +71,7 @@ def test_create_fallback_default(mock_check_plugin, mock_logger, mock_entry_poin
     model = PluginModelFactory().create("not_exist", Path("/tmp/path"))
 
     mock_logger().warning.assert_called_once()
-    assert model.model_type == DEFAULT
+    assert model.model_type == "not_exist"
 
 
 @patch("msmodelslim.model.plugin_factory.entry_points")

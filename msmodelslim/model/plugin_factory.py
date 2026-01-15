@@ -67,6 +67,7 @@ class PluginModelFactory(IModelFactory):
             trust_remote_code: bool = False,
     ) -> IModel:
         model_map = self._get_model_map()
+        model_name = model_type
 
         if model_type not in model_map:
             if DEFAULT in model_map:
@@ -85,7 +86,7 @@ class PluginModelFactory(IModelFactory):
         self._check_plugin_require_packages(model_type, adapter_class)
 
         adapter_instance = adapter_class(
-            model_type=model_type,
+            model_type=model_name,
             model_path=model_path,
             trust_remote_code=trust_remote_code,
         )
