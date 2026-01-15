@@ -28,7 +28,6 @@ from typing import List, Optional, Literal, Callable, Any, Union
 import msmodelslim.ir as qir
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.core.base.protocol import BatchProcessRequest
-from msmodelslim.utils.logging import get_logger
 from msmodelslim.core.quantizer.base import QConfig
 from msmodelslim.core.quantizer.linear import LinearQuantizer, LinearQConfig
 from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig

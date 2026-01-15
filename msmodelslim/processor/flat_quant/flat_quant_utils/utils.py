@@ -24,6 +24,7 @@ import numpy as np
 from scipy.linalg import qr
 from torch.nn import Module
 from typing import Union, List, Dict, Any, Pattern
+from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError
 
 npu_available = False
