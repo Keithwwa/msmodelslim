@@ -231,6 +231,10 @@ class DeepSeekV3ModelAdapter(TransformersModel,
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
+        if hasattr(self.config, 'num_experts'):
+            expert_num = self.config.num_experts
+        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
+            expert_num = self.config.n_routed_experts
         # mtp layer does not apply smooth due to the compatible with pre-refactor
         for layer_idx in range(self.config.num_hidden_layers - 1):
             # OKV_b融合的映射配置：o_proj -> kv_b_proj
@@ -279,6 +283,51 @@ class DeepSeekV3ModelAdapter(TransformersModel,
                     mapping=norm_linear_mapping_config2
                 ),
             ])
+
+            # 添加up-down的FFN配置
+            if layer_idx < self.config.first_k_dense_replace:
+                # Dense FFN 层
+                up_proj = 'model.layers.' + str(layer_idx) + '.mlp.up_proj'
+                down_proj = 'model.layers.' + str(layer_idx) + '.mlp.down_proj'
+                up_down_mapping_config = MappingConfig(
+                    source=up_proj,  # 上投影层
+                    targets=[down_proj]  # 下投影层
+                )
+                adapter_config.extend([
+                    AdapterConfig(
+                        subgraph_type="up-down",
+                        mapping=up_down_mapping_config
+                    ),
+                ])
+            else:
+                # MOE FFN 层：Shared Experts
+                expert_up_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.up_proj'
+                expert_down_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.down_proj'
+                up_down_mapping_config_shared = MappingConfig(
+                    source=expert_up_proj,
+                    targets=[expert_down_proj]
+                )
+                adapter_config.extend([
+                    AdapterConfig(
+                        subgraph_type="up-down",
+                        mapping=up_down_mapping_config_shared
+                    )
+                ])
+
+                # MOE FFN 层：Routed Experts
+                for expert in range(expert_num):
+                    up_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.up_proj'
+                    down_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.down_proj'
+                    up_down_mapping_config_expert = MappingConfig(
+                        source=up_proj,
+                        targets=[down_proj]
+                    )
+                    adapter_config.extend([
+                        AdapterConfig(
+                            subgraph_type="up-down",
+                            mapping=up_down_mapping_config_expert
+                        )
+                    ])
 
         return adapter_config
 
