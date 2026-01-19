@@ -27,7 +27,7 @@ from msmodelslim.utils.config import msmodelslim_config
 from msmodelslim.utils.logging import set_logger_level
 from msmodelslim.utils.validation.conversion import convert_to_bool
 
-FAQ_HOME = "gitcode repo: Ascend/msit/msmodelslim, wiki"
+FAQ_HOME = "gitcode repo: Ascend/msmodelslim, wiki"
 MIND_STUDIO_LOGO = "[Powered by MindStudio]"
 
 

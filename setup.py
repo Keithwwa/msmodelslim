@@ -78,7 +78,7 @@ setup(
         'msmodelslim.lab_practice': ['**'],
     },
     data_files=[('', ['requirements.txt'])],
-    license='Apache-2.0',
+    license='Mulan PSL v2',
     keywords='msmodelslim',
     python_requires='>=3.7',
     install_requires=required,
