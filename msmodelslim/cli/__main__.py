@@ -55,6 +55,8 @@ def main():
                               help="Target device specification for quantization. "
                                    "Format: 'device_type' or 'device_type:index1,index2,...' "
                                    "(e.g., 'npu', 'npu:0,1,2,3', 'cpu'). "
+                                   "Note: Format 'device_type:index1,index2,...' is only supported "
+                                   "when apiversion is 'modelslim_v1'. "
                                    "Default: 'npu' (single device)")
     quant_parser.add_argument('--config_path', type=str,
                               help="Explicit path to quantization config file")
@@ -105,6 +107,8 @@ def main():
                               help="Target device specification for quantization. "
                                    "Format: 'device_type' or 'device_type:index1,index2,...' "
                                    "(e.g., 'npu', 'npu:0,1,2,3', 'cpu'). "
+                                   "Note: Format 'device_type:index1,index2,...' is only supported "
+                                   "when apiversion is 'modelslim_v1'. "
                                    "Default: 'npu' (single device)")
     tuning_parser.add_argument('--timeout', type=str, default=None,
                                help='Timeout for tuning, e.g. 1D, 2H, 3D4H')
