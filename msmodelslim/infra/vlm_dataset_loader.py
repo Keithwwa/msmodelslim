@@ -86,7 +86,7 @@ class VLMDatasetLoader(DatasetLoaderInfra):
         """
         super().__init__()
         self.supported_image_extensions = {'.jpg', '.jpeg', '.png'}
-        self.supported_data_extensions = {'.json', '.jsonl'}
+        self.supported_description_file_extensions = {'.json', '.jsonl'}
         self.dataset_dir = dataset_dir
         self.default_text = default_text
     
@@ -156,7 +156,7 @@ class VLMDatasetLoader(DatasetLoaderInfra):
             resolved_path = get_valid_read_path(str(resolved_path), is_dir=True, check_user_stat=True)
             get_logger().info(f"Loading from directory: {resolved_path}")
             return self._load_from_directory(resolved_path)
-        elif resolved_path.is_file() and resolved_path.suffix.lower() in self.supported_data_extensions:
+        elif resolved_path.is_file() and resolved_path.suffix.lower() in self.supported_description_file_extensions:
             # Type 1: Pure text json/jsonl file
             file_suffix = resolved_path.suffix.lower()
             resolved_path = get_valid_read_path(str(resolved_path), is_dir=False, check_user_stat=True)
@@ -308,28 +308,33 @@ class VLMDatasetLoader(DatasetLoaderInfra):
             for f in directory.iterdir()
             if f.is_file() and f.suffix.lower() in self.supported_image_extensions
         ]
-        
+        if not image_files:
+            raise InvalidDatasetError(
+                f"No images files found in directory: {directory}",
+                action="Ensure directory contains images (.jpg/.jpeg/.png)"
+            )
+
         # Find json/jsonl files in directory
-        data_files = [
+        json_jsonl_files = [
             f
             for f in directory.iterdir()
-            if f.is_file() and f.suffix.lower() in self.supported_data_extensions
+            if f.is_file() and f.suffix.lower() in self.supported_description_file_extensions
         ]
         
-        if len(data_files) > 1:
+        if len(json_jsonl_files) > 1:
             get_logger().warning(
-                f"Found multiple json/jsonl files in {directory}, using first one: {data_files[0].name}"
+                f"Found multiple json/jsonl files in {directory}, using first one: {json_jsonl_files[0].name}"
             )
         
-        if data_files:
+        if json_jsonl_files:
             # Type 3 or 4: Has json/jsonl file
-            data_file = data_files[0]
-            file_suffix = data_file.suffix.lower()
-            get_logger().info(f"Found data file: {data_file.name}, loading mixed/image-text dataset")
-            return self._load_mixed_from_jsonl(data_file, directory, image_files, file_suffix=file_suffix)
+            json_jsonl_file = json_jsonl_files[0]
+            file_suffix = json_jsonl_file.suffix.lower()
+            get_logger().info(f"Found json/jsonl file: {json_jsonl_file.name}, loading mixed/image-text dataset")
+            return self._load_mixed_from_jsonl(json_jsonl_file, directory, image_files, file_suffix=file_suffix)
         elif image_files:
             # Type 2: Pure images, no json/jsonl
-            get_logger().info(f"No data file found, using default text for {len(image_files)} images")
+            get_logger().info(f"No json/jsonl file found, using default text for {len(image_files)} images")
             return self._load_images_with_default_text(image_files)
         else:
             raise InvalidDatasetError(
@@ -390,10 +395,13 @@ class VLMDatasetLoader(DatasetLoaderInfra):
         image_filenames = {img.name: img for img in available_images}
         
         dataset: List[VlmCalibSample] = []
+        processed_images = set()  # 记录已处理的图片路径
+
         image_entries_count = 0
         text_only_count = 0
 
         def _accumulate(entry_tuple):
+            """处理JSON条目，收集图像到文本的映射"""
             nonlocal image_entries_count, text_only_count
             entry, is_image, is_text = entry_tuple
             if entry is None:
@@ -401,7 +409,11 @@ class VLMDatasetLoader(DatasetLoaderInfra):
             dataset.append(entry)
             image_entries_count += is_image
             text_only_count += is_text
-        
+
+            # 如果是图片条目，记录已处理的图片
+            if is_image and entry.image:
+                processed_images.add(str(entry.image))
+
         if file_suffix == ".jsonl":
             with open(jsonl_path, 'r', encoding='utf-8') as f:
                 for line_num, line in enumerate(f, 1):
@@ -429,9 +441,10 @@ class VLMDatasetLoader(DatasetLoaderInfra):
                 ) from e
 
             def _parse_item(item, hint: str):
+                """解析JSON项目，返回 (entry, is_image, is_text)"""
                 # Plain string -> text-only
                 if isinstance(item, str):
-                    return VlmCalibSample(text=item, image=None), 0, 1
+                    return self._handle_plain_string(item, hint)
 
                 # Dict cases
                 if isinstance(item, dict):
@@ -440,17 +453,21 @@ class VLMDatasetLoader(DatasetLoaderInfra):
 
                     # Text-only dict
                     if not has_image and has_text:
-                        return VlmCalibSample(text=item['text'], image=None), 0, 1
+                        # 纯文本场景：无效文本时传入None表示跳过
+                        text_val = self._get_text_with_warning(item, hint, None)
+                        if text_val is None:
+                            return None, 0, 0
+                        return VlmCalibSample(text=text_val, image=None), 0, 1
 
                     # Image + optional text
                     if has_image:
                         image_ref = item['image']
-                        text_val = item.get('text', self.default_text)
-
                         resolved = self._resolve_image_path(image_ref, base_directory, image_filenames, hint)
                         if resolved is None:
                             return None, 0, 0
 
+                        # 图文混合场景：无效文本时使用default_text
+                        text_val = self._get_text_with_warning(item, hint, self.default_text)
                         return VlmCalibSample(text=text_val, image=resolved), 1, 0
 
                     get_logger().warning(f"{hint}: Missing both 'image' and 'text' fields, skipping")
@@ -464,7 +481,24 @@ class VLMDatasetLoader(DatasetLoaderInfra):
                     _accumulate(_parse_item(item, f"Index {idx}"))
             else:
                 _accumulate(_parse_item(content, "Root"))
-        
+
+        # 以目录中的图片为标准构建最终数据集
+        # 1.JSON/JSONL中的图片（需存在于校准目录），校准图片+custom_text
+        # 2.校准目录中，在JSON/JSONL中不存在，校准图片+default_text
+        for img_path in sorted(available_images):
+            abs_img_path = str(img_path.absolute())
+
+            # 在JSON/JSONL已处理，跳过
+            if abs_img_path in processed_images:
+                get_logger().debug(f"Image {img_path.name} already processed, skipping")
+                continue
+
+            # 图片不在JSON中，使用默认文本
+            get_logger().warning(f"Image {abs_img_path} not found in JSON, using default text")
+            dataset.append(VlmCalibSample(text=self.default_text, image=abs_img_path))
+            # 图像条数计数
+            image_entries_count += 1
+
         if not dataset:
             raise InvalidDatasetError(
                 f"No valid entries found in JSONL file: {jsonl_path}",
@@ -474,10 +508,8 @@ class VLMDatasetLoader(DatasetLoaderInfra):
         # Validate Type 3 vs Type 4
         if text_only_count == 0:
             # Type 3: Pure images with custom text
-            get_logger().info(
-                f"Loaded Type 3 dataset: {image_entries_count} images with custom text"
-            )
-            
+            get_logger().info(f"Loading {image_entries_count} images with custom text referring {jsonl_path}.")
+
             # Check if image count matches
             if image_entries_count != len(available_images):
                 get_logger().warning(
@@ -487,10 +519,10 @@ class VLMDatasetLoader(DatasetLoaderInfra):
         else:
             # Type 4: Mixed dataset
             get_logger().info(
-                f"Loaded Type 4 dataset: {image_entries_count} image+text samples, "
-                f"{text_only_count} text-only samples"
+                f"Loading {image_entries_count} image+text samples, "
+                f"{text_only_count} text-only samples referring {jsonl_path}."
             )
-        
+
         return dataset
 
     def _parse_jsonl_line(
@@ -519,24 +551,30 @@ class VLMDatasetLoader(DatasetLoaderInfra):
 
         # Case 1: plain string -> text-only
         if isinstance(item, str):
-            return VlmCalibSample(text=item, image=None), 0, 1
+            return self._handle_plain_string(item, f"Line {line_num}")
 
         # Case 2: dict
         if isinstance(item, dict):
+            hint = f"Line {line_num}"
             if 'image' in item:
                 resolved = self._resolve_image_path(
                     item['image'],
                     base_directory,
                     image_filenames,
-                    hint=f"Line {line_num}"
+                    hint=hint
                 )
                 if resolved is None:
                     return None, 0, 0
-                text = item.get('text', self.default_text)
-                return VlmCalibSample(text=text, image=resolved), 1, 0
+                # 图文混合场景：无效文本时使用default_text
+                text_val = self._get_text_with_warning(item, hint, self.default_text)
+                return VlmCalibSample(text=text_val, image=resolved), 1, 0
 
             if 'text' in item:
-                return VlmCalibSample(text=item['text'], image=None), 0, 1
+                # 纯文本场景：只有text字段，如果text无效则跳过
+                text_val = self._get_text_with_warning(item, hint, None)
+                if text_val is None:
+                    return None, 0, 0
+                return VlmCalibSample(text=text_val, image=None), 0, 1
 
             get_logger().warning(
                 f"Line {line_num}: Missing both 'image' and 'text' fields, skipping"
@@ -559,7 +597,28 @@ class VLMDatasetLoader(DatasetLoaderInfra):
         Resolve and validate image path for mixed json/jsonl entries.
         Returns validated path (str) or None if invalid.
         """
-        image_path = Path(image_ref)
+        if not image_ref or not isinstance(image_ref, str):
+            get_logger().warning(f"{hint}: Image reference is empty or invalid type, skipping")
+            return None
+
+        image_ref = image_ref.strip()
+        if not image_ref:
+            get_logger().warning(f"{hint}: Image reference is empty after stripping, skipping")
+            return None
+
+        try:
+            image_path = Path(image_ref)
+        except Exception as e:
+            get_logger().warning(f"{hint}: Invalid image reference '{image_ref}': {e}, skipping")
+            return None
+
+        # 检查文件名后缀
+        if image_path.suffix.lower() not in self.supported_image_extensions:
+            get_logger().warning(
+                f"{hint}: Image link '{image_path}' has unsupported suffix "
+                f"(only {self.supported_image_extensions} are allowed); entry discarded"
+            )
+            return None
         if not image_path.is_absolute():
             if image_path.name in image_filenames:
                 resolved_image = image_filenames[image_path.name]
@@ -574,8 +633,86 @@ class VLMDatasetLoader(DatasetLoaderInfra):
                 get_logger().warning(f"{hint}: Image path '{image_ref}' does not exist, skipping")
                 return None
 
+        # 检查文件是否在校准目录
+        if resolved_image.name not in image_filenames or resolved_image != image_filenames[resolved_image.name]:
+            get_logger().warning(f"{hint}: Image '{resolved_image}' not found in directory, skipping")
+            return None
+
         try:
             return get_valid_read_path(str(resolved_image))
         except Exception as e:
             get_logger().warning(f"{hint}: Failed to validate image path '{resolved_image}': {e}, skipping")
             return None
+
+    def _get_text_with_warning(self, item: dict, hint: str, default_value: Optional[str]) -> Optional[str]:
+        """
+        获取文本值
+        Args:
+            item: 包含text字段的字典
+            hint: 日志提示信息前缀
+            default_value: 文本无效时使用的默认值，None表示跳过
+        Returns:
+            有效文本、默认值或None（default_value为None且文本无效时）
+        """
+        # 检查text字段是否存在
+        if 'text' not in item:
+            if default_value is None:
+                get_logger().warning(f"{hint}: Missing 'text' field, skipping")
+                return None
+            else:
+                get_logger().warning(f"{hint}: Missing 'text' field, using default text")
+                return default_value
+
+        text_val = item['text']
+
+        # 检查是否为None
+        if text_val is None:
+            if default_value is None:
+                get_logger().warning(f"{hint}: 'text' field is None, skipping")
+                return None
+            else:
+                get_logger().warning(f"{hint}: 'text' field is None, using default text")
+                return default_value
+
+        # 转换为字符串并去除空白
+        if not isinstance(text_val, str):
+            try:
+                text_val = str(text_val)
+            except Exception as e:
+                if default_value is None:
+                    get_logger().warning(f"{hint}: Cannot convert 'text' to string: {e}, skipping")
+                    return None
+                else:
+                    get_logger().warning(f"{hint}: Cannot convert 'text' to string: {e}, using default text")
+                    return default_value
+
+        # 检查去除空白后是否为空
+        stripped = text_val.strip()
+        if not stripped:
+            if text_val:  # 原始值非空但去除空白后为空
+                if default_value is None:
+                    get_logger().warning(f"{hint}: 'text' field contains only whitespace, skipping")
+                    return None
+                else:
+                    get_logger().warning(f"{hint}: 'text' field contains only whitespace, using default text")
+                    return default_value
+            else:  # 原始值就是空字符串
+                if default_value is None:
+                    get_logger().warning(f"{hint}: 'text' field is empty string, skipping")
+                    return None
+                else:
+                    get_logger().warning(f"{hint}: 'text' field is empty string, using default text")
+                    return default_value
+        return stripped
+
+    def _handle_plain_string(self, item: str, hint: str) -> Tuple[Optional[VlmCalibSample], int, int]:
+        """处理纯字符串情况"""
+        # 对于纯字符串，如果是空或只有空白字符，跳过
+        stripped_str = item.strip()
+        if not stripped_str:
+            if item:  # 原始值非空但去除空白后为空
+                get_logger().warning(f"{hint}: Text string contains only whitespace, skipping")
+            else:  # 原始值就是空字符串
+                get_logger().warning(f"{hint}: Text string is empty, skipping")
+            return None, 0, 0
+        return VlmCalibSample(text=stripped_str, image=None), 0, 1

@@ -157,11 +157,23 @@ def test_get_dataset_by_name_directory_with_mixed_jsonl(tmp_path: Path):
     loader = VLMDatasetLoader(default_text="PROMPT")
     dataset = loader.get_dataset_by_name(str(tmp_path))
 
-    # 期望：两条样本：1 条文本-only + 1 条 image+text
-    assert len(dataset) == 2
+    # 期望：三条样本：1 条文本-only + 1 条 image+text + 1 条 image+default_text
+    assert len(dataset) == 3
+    # 检查纯文本样本
     assert any(s.image is None and s.text == "only text" for s in dataset)
+    # 检查 img1 样本
     assert any(
-        s.image is not None and Path(s.image).name == "img1.jpg" and s.text == "image text"
+        s.image is not None and
+        Path(s.image).name == "img1.jpg" and
+        s.text == "image text"
+        for s in dataset
+    )
+
+    # 检查 img2 样本（使用默认文本）
+    assert any(
+        s.image is not None and
+        Path(s.image).name == "img2.jpg" and
+        s.text == "PROMPT"
         for s in dataset
     )
 
@@ -308,7 +320,7 @@ def test_load_from_directory_no_images_or_data_raises_invalid_dataset_error(tmp_
     with pytest.raises(InvalidDatasetError) as exc_info:
         loader._load_from_directory(tmp_path)
 
-    assert "No images or data files found in directory" in str(exc_info.value)
+    assert "No images files found in directory" in str(exc_info.value)
 
 
 def test_load_mixed_from_jsonl_json_mode_type3_and_type4_and_no_valid(tmp_path: Path):
@@ -335,7 +347,8 @@ def test_load_mixed_from_jsonl_json_mode_type3_and_type4_and_no_valid(tmp_path: 
     dataset_type3 = loader._load_mixed_from_jsonl(
         type3_json, base_dir, images, file_suffix=".json"
     )
-    assert len(dataset_type3) == 1
+    # dataset数量应与图片数相同
+    assert len(dataset_type3) == 2
     assert dataset_type3[0].image is not None
 
     # 2) Type4：image+text + text-only
@@ -352,7 +365,8 @@ def test_load_mixed_from_jsonl_json_mode_type3_and_type4_and_no_valid(tmp_path: 
     dataset_type4 = loader._load_mixed_from_jsonl(
         type4_json, base_dir, images, file_suffix=".json"
     )
-    assert len(dataset_type4) == 2
+    # 2图片+1文本
+    assert len(dataset_type4) == 3
     assert any(s.image is None for s in dataset_type4)
     assert any(s.image is not None for s in dataset_type4)
 
@@ -361,9 +375,10 @@ def test_load_mixed_from_jsonl_json_mode_type3_and_type4_and_no_valid(tmp_path: 
     invalid_json.write_text(
         json.dumps([{"foo": "bar"}]), encoding="utf-8"
     )
+    images_empty = []
     with pytest.raises(InvalidDatasetError) as exc_info:
         loader._load_mixed_from_jsonl(
-            invalid_json, base_dir, images, file_suffix=".json"
+            invalid_json, base_dir, images_empty, file_suffix=".json"
         )
     assert "No valid entries found in JSONL file" in str(exc_info.value)
 
