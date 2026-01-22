@@ -11,7 +11,7 @@
 
 ### 配置文件位置
 
-用户需要自定义调优配置文件，可以参考 `msmodelslim/docs/功能指南/自动调优/example` 目录下的配置文件格式进行自定义。
+用户需要自定义调优配置文件，可以参考 `docs/zh/feature_guide/auto_tuning/example` 目录下的配置文件格式进行自定义。
 
 ## 自动调优基础配置协议
 
@@ -21,7 +21,7 @@
 strategy:
   type: <strategy_type>  # 调优策略类型，如 standing_high
   # 策略特有配置，不同策略类型有不同的配置字段
-  # 详细配置请参考对应算法的文档，如 [Standing High 调优算法](../../算法说明/standing_high.md)
+  # 详细配置请参考对应算法的文档，如 [Standing High 调优算法](../../algorithms_instruction/standing_high.md)
   template:
     # 量化基础配置，参考一键量化配置协议
   metadata:
@@ -40,7 +40,10 @@ evaluation:
         target: 83  # 目标精度，单位为百分比，83 表示 83%
         tolerance: 2  # 容差，单位为百分比，2 表示 ±2%
   evaluation:
-    # 测评工具配置
+    type: aisbench
+    precheck:  # 可选，正式评估前的预检查配置列表
+      # 预检查配置列表，每个元素包含 type 字段（garbled_text 或 expected_answer）
+    # 其他测评工具配置
   inference_engine:
     # 推理引擎配置
 ```
@@ -57,17 +60,17 @@ evaluation:
 
 **类型**: `string`
 
-**可选值**: 根据已实现的调优策略而定，例如 `standing_high`。详细的算法说明请参考[算法说明](../../算法说明/)目录下的相关文档，如 [Standing High 调优算法](../../算法说明/standing_high.md)。
+**可选值**: 根据已实现的调优策略而定，例如 `standing_high`。详细的算法说明请参考[算法说明](../../algorithms_instruction/)目录下的相关文档，如 [Standing High 调优算法](../../algorithms_instruction/standing_high.md)。
 
 #### 策略特有配置字段
 
-不同的调优策略类型可能有不同的特有配置字段。例如，`standing_high` 策略包含 `anti_outlier_strategies` 字段用于配置离群值抑制策略。详细的策略特有配置说明请参考对应算法的文档，如 [Standing High 调优算法](../../算法说明/standing_high.md)。
+不同的调优策略类型可能有不同的特有配置字段。例如，`standing_high` 策略包含 `anti_outlier_strategies` 字段用于配置离群值抑制策略。详细的策略特有配置说明请参考对应算法的文档，如 [Standing High 调优算法](../../algorithms_instruction/standing_high.md)。
 
 #### template - 量化基础配置
 
 **作用**: 定义量化处理的基础配置，包括量化调度器、处理器、保存器和数据集配置。该配置是开启调优的起点，基础配置的选择一定程度上会影响调优的迭代次数。
 
-**配置协议**: template 字段的配置协议与一键量化配置协议中的 `spec` 字段保持一致，详细配置说明请参考[一键量化配置协议说明](../一键量化/配置协议说明.md)。
+**配置协议**: template 字段的配置协议与一键量化配置协议中的 `spec` 字段保持一致，详细配置说明请参考[一键量化配置协议说明](../quick_quantization/configuration_protocols.md)。
 
 **核心字段**:
 
@@ -199,13 +202,12 @@ demand:
 **核心字段**:
 
 - **type**: 测评工具类型，当前支持 `aisbench`
+- **precheck**: 预检查配置（可选），定义正式评估前的预检查配置
 - **aisbench**: AISbench 测评工具的详细配置参数
 - **datasets**: 数据集配置，定义需要评估的数据集及其配置
 - **host**: 服务主机地址
 - **port**: 服务端口
 - **served_model_name**: 服务化模型名称
-
-**详细参数说明**: AISbench 测评工具的详细参数配置请参考 [AISbench 官方文档](https://gitee.com/aisbench/benchmark)。
 
 **配置示例**:
 
@@ -255,6 +257,135 @@ evaluation:
 **datasets 字段说明**:
 
 该字段指定了不同的数据集字段对应的 AISbench 拉起测评服务的字段。当前示例中仅支持三个数据集（gsm8k、aime25、bfcl-simple），用户可以参考 [AISbench 文档数据集支持列表](https://gitee.com/aisbench/benchmark)添加更多支持的数据集。每个数据集需要配置 `config_name`（AISbench 中的配置名称）和 `mode`（评估模式）字段。
+
+**aisbench 字段说明**: AISbench 测评工具的详细参数配置请参考 [AISbench 官方文档](https://gitee.com/aisbench/benchmark)。
+
+##### precheck - 预检查配置（可选）
+
+**作用**: 定义正式评估前的预检查配置，用于在每次迭代的模型评估前对量化后的模型进行预验证。预检查功能可以检测模型输出是否存在乱码，并可选择性地验证模型输出是否包含预期的答案内容，帮助用户提前发现问题，避免浪费评估时间。
+
+**类型**: `list`
+
+**说明**: precheck 是一个列表，每个元素是一个预检查规则配置，包含 `type` 字段用于指定预检查类型。如果配置了 precheck 且不为空列表，系统会在正式评估前执行预检查。
+
+**支持的预检查类型**:
+
+1. **expected_answer** - 期望答案验证
+2. **garbled_text** - 基本乱码情况检测
+
+**expected_answer - 期望答案验证**
+
+**作用**: 验证模型输出是否包含预期的答案内容。
+
+**字段说明**:
+
+| 字段名 | 作用 | 类型 | 说明 |
+|--------|------|------|------|
+| type | 预检查类型 | string | 固定值：`expected_answer` |
+| test_cases | 测试用例列表 | list | 测试用例列表，使用键值对格式（问题: 答案）。如果不配置，默认使用一个测试用例（"What is 2+2?": "4"） |
+| max_tokens | 最大token数 | int | 可选，默认值：512 |
+| timeout | 超时时间 | float | 可选，默认值：60.0（秒） |
+
+**test_cases 字段说明**:
+
+`test_cases` 使用字典格式（键值对），键为问题，值为答案：
+
+```yaml
+test_cases:
+  - "What is 2+2?": ["4", "four"]  # 期望响应中包含 "4" 或 "four"
+  - "What is the capital of China?": "Beijing"  # 期望响应中包含 "Beijing"
+```
+
+**格式说明**：
+- 键（问题）：字符串类型，测试消息
+- 值（答案）：可以是字符串、字符串列表
+  - 字符串：如 `"4"`，表示期望响应中包含 "4"
+  - 字符串列表：如 `["4", "four"]`，表示期望响应中包含 "4" 或 "four" 中的任意一个
+
+**配置示例**:
+
+```yaml
+precheck:
+- type: expected_answer
+  test_cases:
+    - "What is 2+2?": ["4", "four"]
+    - "What is the capital of China?": "Beijing"
+  max_tokens: 1024
+  timeout: 60.0
+```
+
+**garbled_text - 基本乱码情况检测**
+
+**作用**: 检测模型输出是否存在乱码。
+
+**字段说明**:
+
+| 字段名 | 作用 | 类型 | 说明 |
+|--------|------|------|------|
+| type | 预检查类型 | string | 固定值：`garbled_text` |
+| test_cases | 测试用例列表 | list | 测试用例列表，每个用例包含 message 和 items。如果不配置，默认使用一个测试用例（message: "How are you?"，items: 所有检查项） |
+| max_tokens | 最大token数 | int | 可选，默认值：512 |
+| timeout | 超时时间 | float | 可选，默认值：60.0（秒） |
+
+**test_cases 字段说明**:
+
+每个测试用例包含以下字段：
+
+| 字段名 | 作用 | 类型 | 说明 |
+|--------|------|------|------|
+| message | 测试消息 | string | 发送给模型的测试消息 |
+| items | 检查项列表 | list | 启用的检查项，可选值：`empty_text`、`repeated_char`、`normal_char_ratio`、`control_char`、`repeated_pattern`。如果不指定，默认启用所有检查项 |
+
+**配置示例**:
+
+```yaml
+precheck:
+- type: garbled_text
+  test_cases:
+    - message: "How are you?"
+      items:
+        - empty_text
+        - repeated_char
+        - normal_char_ratio
+        - control_char
+        - repeated_pattern
+    - message: "How old are you?"
+      items:
+        - empty_text
+        - repeated_char
+        - normal_char_ratio
+  max_tokens: 512
+  timeout: 60.0
+```
+
+**组合使用多种预检查类型**
+
+可以同时配置多种预检查类型，系统会依次执行所有预检查：
+
+```yaml
+precheck:
+- type: expected_answer
+  test_cases:
+    - "What is 2+2?": ["4", "four"]
+    - "What is the capital of China?": "Beijing"
+  max_tokens: 1024
+  timeout: 60.0
+- type: garbled_text
+  test_cases:
+    - message: "How are you?"
+      items:
+        - empty_text
+        - repeated_char
+        - normal_char_ratio
+  max_tokens: 1024
+  timeout: 60.0
+```
+
+**注意**:
+- 预检查功能会在每次迭代的模型评估前执行（在服务化启动后）。系统会依次执行所有配置的预检查规则，如果任何一个预检查失败，系统会跳过本次迭代的正式评估，返回数据集全零结果，直接开启下一次迭代。
+- 预检查的目的是快速发现明显的问题（如模型输出乱码），避免浪费时间进行完整的评估。如果所有预检查都通过，系统会继续进行正式的精度评估。
+- **仅支持英文问答**：预检查功能目前仅支持英文问答，测试消息和期望答案应使用英文。
+- 如果不配置 `precheck` 字段或配置为空列表，将跳过预检查直接进行正式评估。
 
 #### inference_engine - 推理引擎配置
 
