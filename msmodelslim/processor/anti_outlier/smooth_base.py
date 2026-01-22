@@ -324,7 +324,7 @@ class BaseSmoothProcessor(AutoSessionProcessor, ABC):
         source_module = self.model.get_submodule(adapter_config.mapping.source)
         target_modules = [self.model.get_submodule(name) for name in adapter_config.mapping.targets]
         target_modules = [m for m in target_modules if m is not None]
-        target_names = adapter_config.mapping.targets
+        target_name = adapter_config.mapping.targets[0] if adapter_config.mapping.targets else ''
 
         if not source_module or not target_modules:
             get_logger().warning("Failed to get modules for linear-linear subgraph: %s", adapter_config.mapping.source)
@@ -333,7 +333,7 @@ class BaseSmoothProcessor(AutoSessionProcessor, ABC):
         target_module = target_modules[0]
         self.apply_smooth_algorithm(
             LinearLinearSubgraph(source_module, target_module),
-            [target_names]
+            [target_name]
         )
 
     def _remove_all_hooks(self) -> None:
