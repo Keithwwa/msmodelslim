@@ -925,7 +925,8 @@ class HunyuanVideoModelAdapter(BaseModelAdapter,
                 rotation_size=head_dim,
                 rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
                 block_size=-1,
-                seed=shared_seed
+                seed=shared_seed,
+                dtype=torch.bfloat16
             )
             
             # 配置 k_rot（使用相同的种子，确保与 q_rot 使用相同的旋转矩阵）
@@ -935,7 +936,8 @@ class HunyuanVideoModelAdapter(BaseModelAdapter,
                 rotation_size=head_dim,
                 rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
                 block_size=-1,
-                seed=shared_seed
+                seed=shared_seed,
+                dtype=torch.bfloat16
             )
         
         return configs
