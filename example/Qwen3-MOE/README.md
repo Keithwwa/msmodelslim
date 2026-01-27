@@ -15,6 +15,7 @@
 |---------|---------|---------------------------------------------------------------|-----|-----|-----|--------|------|---------|----------|-----------|-----------------------------------------------|
 | **Qwen3-MOE** | Qwen3-30B-A3B | [Qwen3-30B-A3B](https://huggingface.co/Qwen/Qwen3-30B-A3B)   | ✅ |  |  ✅   |        |   |  |   |   | [W8A8](#qwen3-30b-a3b-w8a8-混合量化) /[W4A8](#qwen3-30b-a3b-w4a8-混合量化)               |
 | | Qwen3-235B-A22B | [Qwen3-235B-A22B](https://huggingface.co/Qwen/Qwen3-235B-A22B) | ✅ |   |  ✅ |   |   |  |   |   | [W8A8](#qwen3-235b-a22b-w8a8-混合量化) /[W4A8](#qwen3-235b-a22b-w4a8-混合量化) |
+| | Qwen3-Coder-480B-A35B | [Qwen3-Coder-480B-A35B](https://huggingface.co/Qwen/Qwen3-Coder-480B-A35B-Instruct) |  |   |  ✅ |   |   |  |   |   | [W4A8](#qwen3-coder-480b-a35b-w4a8-混合量化) |
 
 **说明：**
 - ✅ 表示该量化策略已通过msModelSlim官方验证，功能完整、性能稳定，建议优先采用。
@@ -67,6 +68,12 @@
 生成Qwen3-235B-A22B模型W4A8混合量化权重（Attention:w8a8 dynamic量化，MoE:w4a8 dynamic量化）
   ```shell
   msmodelslim quant --model_type Qwen3-235B --model_path {浮点权重路径} --save_path {W4A8量化权重路径} --quant_type w4a8 --trust_remote_code True
+  ```
+###  Qwen3-Coder-480B-A35B
+#### <span id="qwen3-coder-480b-a35b-w4a8-混合量化">Qwen3-Coder-480B-A35B W4A8混合量化</span>
+生成Qwen3-Coder-480B-A35B模型W4A8混合量化权重（Attention:w8a8 量化，MoE:w4a8 dynamic量化）
+  ```shell
+  msmodelslim quant --model_type  Qwen3-Coder-480B-A35B --model_path {浮点权重路径} --save_path {W4A8量化权重路径} --quant_type w4a8 --trust_remote_code True
   ```
 
 ## 附录

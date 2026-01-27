@@ -268,7 +268,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>√</td>
     </tr>
     <tr>
-      <td rowspan="2"><strong><a href="../../example/Qwen3-MOE/README.md">Qwen3-MOE系列</a></strong></td>
+      <td rowspan="3"><strong><a href="../../example/Qwen3-MOE/README.md">Qwen3-MOE系列</a></strong></td>
       <td>Qwen3-30B-A3B</td>
       <td>transformers==4.51.0</td>
       <td>-</td>
@@ -286,6 +286,19 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>transformers==4.51.0</td>
       <td>-</td>
       <td>√</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Qwen3-Coder-480B-A35B</td>
+      <td>transformers==4.51.0</td>
+      <td>-</td>
+      <td>-</td>
       <td>√(一键量化)</td>
       <td>-</td>
       <td>-</td>
