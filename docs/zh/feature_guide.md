@@ -64,6 +64,11 @@ msModelSlim认为量化本质上是对模型局部结构的修改和替换，基
       <td>-</td>
     </tr>
     <tr>
+      <td>权重量化算法<br>GPTQ</td>
+      <td><a href="algorithms_instruction/gptq.md">GPTQ 算法说明</a></td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td>异常值抑制算法<br>KV Smooth</td>
       <td><a href="algorithms_instruction/kv_smooth.md">KV Smooth 算法说明</a></td>
       <td>-</td>

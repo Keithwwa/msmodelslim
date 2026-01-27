@@ -86,8 +86,6 @@ def calculate_hessian_inv(hessian: torch.Tensor, percdamp: float, weight_tensor:
         need_recovering = True
     hessian = torch.linalg.cholesky(hessian)
     hessian_inv = torch.cholesky_inverse(hessian)
-    # 确保H为正定矩阵
-    hessian_inv += percdamp * torch.eye(columns)
     hessian_inv = torch.linalg.cholesky(hessian_inv, upper=True).to(weight_tensor.dtype)
     if need_recovering:
         hessian_inv = hessian_inv.to(weight_tensor.device)
@@ -144,6 +142,12 @@ class WeightPerChannelGPTQ(AutoWeightQuantizer):
     def is_data_free(self) -> bool:
         """
         GPTQ权重算法需要使用激活值计算hessian矩阵，因此需要返回False
+        """
+        return False
+
+    def support_distributed(self) -> bool:
+        """
+        GPTQ权重算法不支持DP分布式量化
         """
         return False
 
@@ -274,6 +278,12 @@ class WeightPerGroupGPTQ(AutoWeightQuantizer):
     def is_data_free(self) -> bool:
         """
         GPTQ权重算法需要使用激活值计算hessian矩阵，因此需要返回False
+        """
+        return False
+
+    def support_distributed(self) -> bool:
+        """
+        GPTQ权重算法不支持DP分布式量化
         """
         return False
 

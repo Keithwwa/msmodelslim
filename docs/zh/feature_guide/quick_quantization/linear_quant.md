@@ -96,7 +96,7 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 | scope | 量化范围 | `"per_tensor"`, `"per_channel"` | per_tensor: 整个张量使用相同参数<br/>per_channel: 每个通道独立参数 | `"per_channel"` |
 | dtype | 量化数据类型 | `"int8"`, `"int4"` | 8位/4位整数量化 | `"int8"` |
 | symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `true` |
-| method | 量化方法 | `"minmax"`, `"ssz"` | minmax: 最小最大值量化<br/>ssz: ssz权重量化 | `"minmax"` |
+| method | 量化方法 | `"minmax"`, `"ssz"`, `"gptq"` | minmax: 最小最大值量化<br/>ssz: ssz权重量化<br/>gptq: gptq权重量化 | `"minmax"` |
 
 ### 层过滤机制详解
 

@@ -127,6 +127,7 @@ V1量化服务的具体配置应当位于spec字段下。
 | AutoRound       | [AutoRound 配置示例](../../algorithms_instruction/autoround.md#作为processor使用)                    | [AutoRound 配置字段详解](../../algorithms_instruction/autoround.md#yaml配置字段详解)
 | LAOS       | [LAOS 配置示例](../../algorithms_instruction/laos.md#修改配置文件使用)                                   | [LAOS 配置字段详解](../../algorithms_instruction/laos.md#yaml配置字段详解)
 | PDMIX       | [PDMIX 配置示例](../../algorithms_instruction/pdmix.md#使用方式)                                     | [PDMIX 配置字段详解](../../algorithms_instruction/pdmix.md#使用方式)
+| GPTQ       | [GPTQ 配置示例](../../algorithms_instruction/gptq.md#yaml配置示例)                                     | [GPTQ 配置字段详解](../../algorithms_instruction/gptq.md#yaml配置字段详解)
 
 #### save - 保存器配置字段
 

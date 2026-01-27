@@ -159,7 +159,7 @@ core/                         # 量化核心抽象层(QAL)、执行器、服务�
 - **graph/**：定义图适配器类型，用于统一不同框架/表示下的“计算图”。
 - **observer/**：提供 MinMax、Histogram、RecallWindow 等多种统计方式。
 - **quant_service/**：统一的量化服务框架（modelslim_v0/v1、多模态 SD/VLM），含保存到 AscendV1/MindIE 等格式的能力。
-- **quantizer/**：MinMax/Histogram/SSZ 等量化器实现，用于把统计信息转换为量化参数。
+- **quantizer/**：MinMax/Histogram/SSZ/GPTQ 等量化器实现，用于把统计信息转换为量化参数。
 - **runner/**：多种执行模式（层级、流水线并行、数据并行）驱动量化/分析流程。
 - **tune_strategy/**：调优策略及其插件机制，例如 StandingHigh 策略。
 
