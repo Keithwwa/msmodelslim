@@ -239,31 +239,9 @@ def remove_after_substring(text, substring):
     return text
 
 
-def convert_hookir_to_wrapper(module: Module) -> None:
-    """将模块中所有 HookIR 类型的钩子转换为 Wrapper 模块"""
-    for name, sub_module in module.named_modules():
-        if hasattr(sub_module, '_forward_pre_hooks'):
-            for hook in sub_module._forward_pre_hooks.values():
-                if isinstance(hook, qir.HookIR):
-                    wrapper = hook.wrapper_module(sub_module)
-                    module.set_submodule(name, wrapper)
-                    get_logger().info(f"Converted {type(hook)} to wrapper, module name: {name}")
-
-
 def convert_outputs_to_inputs(outputs):
     """将输出列表转换为输入格式：每个输出作为一个列表元素"""
     converted_inputs = []
     for output in outputs:
         converted_inputs.append([output])
     return converted_inputs
-
-
-def check_loss_for_nan_inf(loss):
-    """
-    检查 loss 是否包含 NaN 或 Inf，并通过 logger 输出 WARNING。
-    """
-    has_nan = torch.isnan(loss).any().item()
-    has_inf = torch.isinf(loss).any().item()
-
-    if has_nan or has_inf:
-        get_logger().info(f"Detected abnormal loss: loss={loss}, please check data, model, or gradient update process.")

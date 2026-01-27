@@ -81,5 +81,4 @@ from .utils import (
     set_module_by_name,
     clone_module_hooks,
     remove_after_substring,
-    convert_hookir_to_wrapper,
 )

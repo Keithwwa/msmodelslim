@@ -114,8 +114,6 @@ class ActivationQuantizer(torch.nn.Module):
         """将可学习的剪裁因子转为缓冲区"""
         if self.lac:
             clip_factor = self.clip_factor
-            del self.clip_factor
-            self.register_buffer('clip_factor', clip_factor)
 
     def forward(self, x, quantize=True):
         """前向传播：根据模式决定是否量化"""
@@ -175,9 +173,6 @@ class WeightQuantizer(torch.nn.Module):
     """权重量化器，支持每通道/全局、对称/非对称、可学习剪裁"""
     def __init__(self, in_size, out_size, bits=8, perchannel=False, sym=True, lwc=False, is_signed=True):
         super().__init__()
-        self.register_buffer('maxq', torch.tensor(0))
-        self.register_buffer('scale', torch.zeros(out_size, 1))
-        self.register_buffer('zero', torch.zeros(out_size, 1))
         self.in_size = in_size
         self.out_size = out_size
         self.enable = True
@@ -204,10 +199,6 @@ class WeightQuantizer(torch.nn.Module):
         if self.lwc:
             clip_factor_w_max = self.clip_factor_w_max
             clip_factor_w_min = self.clip_factor_w_min
-            del self.clip_factor_w_max
-            del self.clip_factor_w_min
-            self.register_buffer('clip_factor_w_max', clip_factor_w_max)
-            self.register_buffer('clip_factor_w_min', clip_factor_w_min)
 
     def apply_wclip(self, weight):
         """应用可学习权重剪裁（LWC）"""

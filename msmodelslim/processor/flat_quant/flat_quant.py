@@ -36,7 +36,7 @@ from msmodelslim.processor.flat_quant.flat_quant_interface import FlatQuantInter
 from msmodelslim.utils.config_map import ConfigSet
 import msmodelslim.processor.flat_quant.flat_quant_utils.utils as utils
 from msmodelslim.processor.flat_quant.flat_quant_utils.flat_quant_manager import FlatQuantLayerManager
-from msmodelslim.processor.flat_quant.flat_quant_utils.flat_fake_quant_linear import ForwardMode, FlatFakeQuantLinear
+from msmodelslim.processor.flat_quant.flat_quant_utils.flat_fake_quant_linear import ForwardMode, FlatFakeQuantLinear, FlatNormWrapper
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 
 npu_available = False
@@ -82,7 +82,7 @@ class FlatQuantProcessorConfig(AutoProcessorConfig):
     add_diag: bool = Field(default=True, init=False, description="是否启用对角缩放矩阵，用于全局缩放")
     lwc: bool = Field(default=True, init=False, description="是否启用权重校准（训练权重量化参数）")
     lac: bool = Field(default=True, init=False, description="是否启用激活校准（训练激活量化参数）")
-    diag_init: str = Field(default="sq_style", init=False, description="对角缩放矩阵的初始化方式,支持sq_style以及one_style")
+    diag_init: str = Field(default="one_style", init=False, description="对角缩放矩阵的初始化方式,支持sq_style以及one_style")
     diag_alpha: float = Field(default=0.3, init=False, description="对角线缩放参数，控制缩放强度")
     warmup: bool = Field(default=True, init=False, description="是否启用训练预热机制，提升稳定性")
     deactive_amp: bool = Field(default=True, init=False, description="是否禁用混合精度训练（用于调试）")
@@ -183,7 +183,6 @@ class FlatQuantProcessor(AutoSessionProcessor):
         self.layer_quantizer.change_mode(ForwardMode.CALIB)
 
         self.dtype_dict = {name: param.dtype for name, param in request.module.named_parameters()}
-        self.dtype_dict.update({name: buf.dtype for name, buf in request.module.named_buffers()})
 
     def process(self, request: BatchProcessRequest) -> None:
         """对当前层执行量化训练：切换到校准模式，使用训练器优化量化参数"""
@@ -196,30 +195,27 @@ class FlatQuantProcessor(AutoSessionProcessor):
             if name in self.dtype_dict:
                 param.data = param.to(self.dtype_dict[name])
 
-        for name, buf in request.module.named_buffers():
-            if name in self.dtype_dict:
-                buf.data = buf.to(self.dtype_dict[name])
-
         self._rollback_trans(request.name, request.module)
         self.layer_quantizer.change_mode(ForwardMode.EVAL)
         self.set_hook_ir(request.module)
 
     def post_run(self) -> None:
         """模型最终处理：绑定权重以确保共享参数一致性，并清空缓存"""
-        utils.convert_hookir_to_wrapper(self.model)
         self.model.tie_weights()
 
     def _rollback_trans(self, prefix: str, module: nn.Module) -> None:
         for name, submodule in module.named_modules(prefix=prefix):
             if not isinstance(submodule, FlatFakeQuantLinear):
                 continue
-
+            should_rollback = False
             if name not in self.trans_include:
-                continue
+                should_rollback = True
 
-            if name not in self.trans_exclude:
-                continue
-            self.layer_quantizer.rollback_trans(pair_name=name)
+            if name in self.trans_exclude:
+                should_rollback = True
+        
+            if should_rollback:
+                self.layer_quantizer.rollback_trans(pair_name=name)
 
     @torch.no_grad()
     def set_hook_ir(self, block: torch.nn.Module) -> None:
@@ -242,6 +238,10 @@ class FlatQuantProcessor(AutoSessionProcessor):
                     hook_handle = ori_linear.register_forward_pre_hook(hook_ir)
                     hook_ir.set_hook_handle(hook_handle)
                     block._modules[name] = ori_linear
+            elif isinstance(child, FlatNormWrapper):
+                norm: torch.nn.Module = child.unwrapper()
+                child.del_norm()
+                block._modules[name] = norm
             else:
                 self.set_hook_ir(child)
 

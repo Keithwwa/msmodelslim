@@ -215,14 +215,13 @@ class FlatNormWrapper(nn.Module):
         self.trans = trans
         self._mode = ForwardMode.ORG
 
-        weight = norm.weight
-        del self.norm.weight
-        self.norm.register_buffer('weight', weight)
+    def unwrapper(self) -> nn.Module:
+        """返回原始线性层，用于恢复或调试"""
+        return self.norm
 
-        if hasattr(self.norm, "bias") and self.norm.bias is not None:
-            bias = norm.bias
-            del self.norm.bias
-            self.norm.register_buffer('bias', bias)
+    def del_norm(self) -> None:
+        """删除内部线性层及其相关量化器，释放内存"""
+        del self.norm
 
     @property
     def weight(self) -> torch.Tensor:
@@ -243,6 +242,8 @@ class FlatNormWrapper(nn.Module):
 
     def change_mode(self, mod: ForwardMode) -> None:
         """统一的模式切换接口，用于切换归一化模块的运行模式"""
+        if mod == ForwardMode.EVAL:
+            self.trans = None
         self._mode = mod
 
     def _ori_forward(self, hidden_states: torch.Tensor) -> torch.Tensor:

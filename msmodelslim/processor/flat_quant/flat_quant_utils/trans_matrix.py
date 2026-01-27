@@ -32,8 +32,6 @@ class SingleTransMatrix(nn.Module):
         super().__init__()
         self.size = size
         self._eval_mode = False
-        self.register_buffer("matrix", torch.empty(0))
-        self.register_buffer("matrix_inv_t", torch.empty(0))
         self.direction = direction
 
     def __repr__(self):

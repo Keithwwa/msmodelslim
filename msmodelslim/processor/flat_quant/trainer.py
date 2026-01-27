@@ -25,7 +25,6 @@ from msmodelslim.processor.flat_quant.flat_quant_utils.utils import (
     get_trainable_parameters, 
     move_tensors_to_device, 
     convert_outputs_to_inputs,
-    check_loss_for_nan_inf
 )
 from msmodelslim.utils.exception import UnexpectedError
 
@@ -82,20 +81,12 @@ class LayerTrainer:
                 device_kwargs = move_tensors_to_device(request.datas[index][1], device)   
                 
                 with self.config.traincast():
-                    try:
-                        quant_output = request.module(device_args, **device_kwargs)[0]
-                        loss = self.loss_fn(quant_output.to(device), float_out.to(device))
-                        check_loss_for_nan_inf(loss)
-                        mse += loss.detach().cpu().item()
-                        loss = loss / loss.clone().detach()
-                        optimizer.zero_grad()
-                        loss.backward()
-                    except RuntimeError as e:
-                        if "CUDA out of memory" in str(e):
-                            raise UnexpectedError(
-                                f"CUDA out of memory occurred during epoch {epoch}, sample {j}. "
-                            ) from e
-                    
+                    quant_output = request.module(device_args, **device_kwargs)[0]
+                    loss = self.loss_fn(quant_output.to(device), float_out.to(device))
+                    mse += loss.detach().cpu().item()
+                    loss = loss / loss.clone().detach()
+                    optimizer.zero_grad()
+                    loss.backward()
                     optimizer.step()
                     scheduler.step()
                     epoch_outputs.append(quant_output.detach().cpu())
