@@ -29,6 +29,7 @@ from pydantic import AfterValidator, Field
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.ir.norm_bias import RMSNormBias
+from msmodelslim.ir.rms_norm import RMSNorm
 from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.core.observer import MsMinMaxObserver, MinMaxObserverConfig
 from msmodelslim.utils.distributed import DistHelper
@@ -251,31 +252,30 @@ class IterSmoothProcessor(BaseSmoothProcessor):
 
     def _replace_norm_modules(self) -> None:
         for adapter_config in self.adapter_config:
-            if adapter_config.subgraph_type == "norm-linear":
-                norm_name = adapter_config.mapping.source
-                norm_module = self.model.get_submodule(
-                    norm_name) if norm_name else None
-                if norm_name and norm_module is not None:
-                    try:
-                        if hasattr(norm_module, 'weight'):
-                            norm_bias = RMSNormBias(
-                                norm_module.weight.shape[-1])
-                            norm_bias.weight.data.copy_(
-                                norm_module.weight.data)
-                            norm_bias.weight.data = norm_bias.weight.data.type(
-                                norm_module.weight.data.dtype)
-                            if hasattr(norm_module, 'bias') and norm_module.bias is not None:
-                                norm_bias.bias.data.copy_(
-                                    norm_module.bias.data)
-                                norm_bias.bias.data = norm_bias.bias.data.type(
-                                    norm_module.weight.data.dtype)
-                            norm_bias.to(norm_module.weight.data.device)
-                            self.model.set_submodule(norm_name, norm_bias)
-                            get_logger().debug("%s: %s -> %s", norm_name, type(norm_module), type(norm_bias))
-                        else:
-                            get_logger().warning("Norm module %s does not have weight attribute", norm_name)
-                    except Exception as e:
-                        get_logger().warning("Failed to replace norm module %s: %s", norm_name, e)
+            if adapter_config.subgraph_type != "norm-linear":
+                continue
+            norm_name = adapter_config.mapping.source
+            norm_module = self.model.get_submodule(norm_name) if norm_name else None
+            if not norm_name or norm_module is None:
+                continue
+            if not hasattr(norm_module, 'weight'):
+                get_logger().warning("Norm module %s does not have weight attribute", norm_name)
+                continue
+            try:
+                hidden_size = norm_module.weight.shape[-1]
+                need_bias = not self.config.symmetric or hasattr(norm_module, 'bias')
+
+                norm_bias = RMSNormBias(hidden_size) if need_bias else RMSNorm(hidden_size)
+                norm_bias.weight.data.copy_(norm_module.weight.data)
+                norm_bias.weight.data = norm_bias.weight.data.type(norm_module.weight.data.dtype)
+                if hasattr(norm_module, 'bias') and norm_module.bias is not None:
+                    norm_bias.bias.data.copy_(norm_module.bias.data)
+                    norm_bias.bias.data = norm_bias.bias.data.type(norm_module.weight.data.dtype)
+                norm_bias.to(norm_module.weight.data.device)
+                self.model.set_submodule(norm_name, norm_bias)
+                get_logger().debug("%s: %s -> %s", norm_name, type(norm_module), type(norm_bias))
+            except Exception as e:
+                get_logger().warning("Failed to replace norm module %s: %s", norm_name, e)
 
     def _validate_adapter_interface(self, adapter: object) -> None:
         """Validate that the adapter implements IterSmoothInterface."""
