@@ -35,6 +35,7 @@ from .evaluation_service_infra import EvaluateServiceInfra, EvaluateContext
 from .model_info_interface import ModelInfoInterface
 from .plan_manager_infra import TuningPlanManagerInfra
 from .practice_history_infra import TuningHistoryManagerInfra
+from .practice_accuracy_infra import TuningAccuracyManagerInfra
 from .practice_manager_infra import PracticeManagerInfra
 
 MAX_ITERATION = 30
@@ -47,6 +48,7 @@ class AutoTuningApplication:
                  practice_manager: PracticeManagerInfra,
                  evaluation_service: EvaluateServiceInfra,
                  tuning_history_manager: TuningHistoryManagerInfra,
+                 tuning_accuracy_manager: TuningAccuracyManagerInfra,
                  quantization_service: IQuantService,
                  model_factory: IModelFactory,
                  strategy_factory: ITuningStrategyFactory,
@@ -58,6 +60,7 @@ class AutoTuningApplication:
         self.model_factory = model_factory
         self.strategy_factory = strategy_factory
         self.tuning_history_manager = tuning_history_manager
+        self.tuning_accuracy_manager = tuning_accuracy_manager
 
     def tune(self,
              model_type: str,
@@ -93,8 +96,8 @@ class AutoTuningApplication:
 
         get_logger().info('Auto tuning with following parameters:')
         get_logger().info("model_type: %r", model_type)
-        get_logger().info("model_path: %s", model_path)
-        get_logger().info("save_path: %s", save_path)
+        get_logger().info("model_path: %r", model_path)
+        get_logger().info("save_path: %r", save_path)
         get_logger().info("plan_id: %r", plan_id)
         get_logger().info("device: %r", device)
         if device_indices:
@@ -134,7 +137,7 @@ class AutoTuningApplication:
         get_logger().info("===========START TUNING===========")
         datetime_start = datetime.datetime.now()
         allowed_end_time = datetime_start + timeout if timeout is not None else None
-        get_logger().info("Start time: %s, timeout: %s", datetime_start, timeout)
+        get_logger().info("Start time: %r, timeout: %r", datetime_start, timeout)
 
         # Check if history exists and can be resumed
         get_logger().info("===========CHECK HISTORY===========")
@@ -144,12 +147,14 @@ class AutoTuningApplication:
         # Clear history records
         history.clear_records()
         
-        accuracy_count = history.get_accuracy_count()
+        # Load accuracy record
+        accuracy_record = self.tuning_accuracy_manager.load_accuracy(history_path)
+        accuracy_count = accuracy_record.get_accuracy_count()
         if accuracy_count > 0:
-            get_logger().info("Detected existing accuracy cache in %s with %d accuracy records. Will attempt to resume from history.", 
-                            history_path, accuracy_count)
+            get_logger().info("Detected %d existing accuracy records in %r. Will attempt to reuse accuracy records.",
+                                accuracy_count, history_path)
         else:
-            get_logger().info("No existing accuracy cache found in %s. Starting fresh tuning.", history_path)
+            get_logger().info("No existing accuracy records found in %r. Starting fresh tuning.", history_path)
 
         # create quant config generator
         practice_generator = strategy.generate_practice(model=model_adapter)
@@ -161,29 +166,29 @@ class AutoTuningApplication:
             # check timeout
             current_time = datetime.datetime.now()
             if allowed_end_time and current_time > allowed_end_time:
-                get_logger().warning("Current time: %s exceed allowed end time: %s!",
+                get_logger().warning("Current time: %r exceed allowed end time: %r!",
                                      current_time, allowed_end_time)
                 get_logger().warning("===========TIMEOUT===========")
                 break
 
             try:
                 get_logger().info("===========TRY %r===========", count)
-                get_logger().info("Current time: %s", current_time)
+                get_logger().info("Current time: %r", current_time)
                 # generate quant config
                 practice = practice_generator.send(evaluate_result)
                 get_logger().debug("Practice: %r", practice)
                 get_logger().info("Generate practice success")
 
                 evaluate_result = None  # reset evaluate_result
-                # Path 1: Try to get accuracy from history records
-                evaluate_result = history.get_accuracy(practice)
+                # Path 1: Try to get accuracy from accuracy records
+                evaluate_result = accuracy_record.get_accuracy(practice, plan.evaluation)
                 if evaluate_result is not None:
-                    get_logger().info("Got accuracy from history for iteration %d", count)
+                    get_logger().info("Got accuracy from accuracy records for iteration %d", count)
                     for accuracy_unit in evaluate_result.accuracies:
-                        get_logger().info("Accuracy from history of %r: %r",
+                        get_logger().info("Accuracy from accuracy records of %r: %r",
                                           accuracy_unit.dataset, accuracy_unit.accuracy)
                 
-                # Path 2: If not found in history, quantize and evaluate
+                # Path 2: If not found in accuracy records, quantize and evaluate
                 if evaluate_result is None:
                     quant_model_path = save_path / f"quant_model"
 
@@ -212,8 +217,11 @@ class AutoTuningApplication:
                     for accuracy_unit in evaluate_result.accuracies:
                         get_logger().info("Evaluate Accuracy of %r: %r",
                                           accuracy_unit.dataset, accuracy_unit.accuracy)
+                    
+                    # Save accuracy record only after new evaluation
+                    accuracy_record.append_accuracy(practice, plan.evaluation, evaluate_result)
+                    get_logger().info("Append accuracy success")
                 
-                # Append history record (this will also save accuracy data)
                 history.append_history(practice, evaluate_result)
                 get_logger().info("Append history success")
             except StopIteration:

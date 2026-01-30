@@ -28,27 +28,13 @@ from msmodelslim.core.tune_strategy import EvaluateResult
 class TuningHistoryInfra(ABC):
     """
     Abstract interface for tuning history operations.
-    Provides methods for accuracy retrieval/storage and history process management.
+    Provides methods for history process management.
     """
-    
-    @abstractmethod
-    def get_accuracy(self, practice: PracticeConfig) -> Optional[EvaluateResult]:
-        """
-        Get accuracy from history for the given practice.
-        
-        Args:
-            practice: PracticeConfig, the practice config
-            
-        Returns:
-            Optional[EvaluateResult]: The evaluation result if found, None otherwise
-        """
-        ...
     
     @abstractmethod
     def append_history(self, practice: PracticeConfig, evaluation: EvaluateResult) -> None:
         """
         Append a history record to the database.
-        This method will also save accuracy data to the accuracy cache.
         
         Args:
             practice: PracticeConfig, the practice config
@@ -61,13 +47,6 @@ class TuningHistoryInfra(ABC):
         """
         Clear history records (history.yaml and practice config files), but preserve accuracy cache.
         This is a dangerous operation and should be called explicitly.
-        """
-        ...
-    
-    @abstractmethod
-    def get_accuracy_count(self) -> int:
-        """
-        Return the number of accuracy records.
         """
         ...
 

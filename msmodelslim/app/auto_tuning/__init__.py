@@ -27,6 +27,9 @@ __all__ = [
     'TuningHistoryInfra',
     'TuningHistoryManagerInfra',
 
+    'TuningAccuracyInfra',
+    'TuningAccuracyManagerInfra',
+
     'TuningPlanManagerInfra',
     'TuningPlanConfig',
 
@@ -41,4 +44,5 @@ from .evaluation_service_infra import EvaluateServiceConfig, EvaluateServiceInfr
 from .model_info_interface import ModelInfoInterface
 from .plan_manager_infra import TuningPlanManagerInfra, TuningPlanConfig
 from .practice_history_infra import TuningHistoryInfra, TuningHistoryManagerInfra
+from .practice_accuracy_infra import TuningAccuracyInfra, TuningAccuracyManagerInfra
 from .practice_manager_infra import PracticeConfig, PracticeManagerInfra

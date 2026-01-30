@@ -19,17 +19,16 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 import datetime
-import hashlib
-import json
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field, ConfigDict
 
 from msmodelslim.app.auto_tuning import TuningHistoryManagerInfra, TuningHistoryInfra
 from msmodelslim.core.practice import PracticeConfig
-from msmodelslim.core.tune_strategy import EvaluateResult, EvaluateAccuracy
+from msmodelslim.core.tune_strategy import EvaluateResult
+from msmodelslim.utils.hash import calculate_md5
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.security import (
     yaml_safe_load,
@@ -43,7 +42,6 @@ from msmodelslim.utils.yaml_database import YamlDatabase
 class YamlDatabaseHistory(BaseModel):
     history_practice_database: YamlDatabase  # Record database: manages practice config files
     history_index_file_path: Path  # History index: manages history.yaml
-    accuracy_database: YamlDatabase  # Accuracy database: manages accuracy.yaml
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -62,7 +60,7 @@ class TuningHistoryIndex(BaseModel):
 class YamlTuningHistory(TuningHistoryInfra):
     """
     YAML-based implementation of TuningHistoryInfra.
-    Manages history.yaml (history index) and accuracy.yaml (accuracy cache).
+    Manages history.yaml (history index).
     """
     
     def __init__(self, database: str):
@@ -80,24 +78,16 @@ class YamlTuningHistory(TuningHistoryInfra):
         history_index_file_path = self.history_dir / 'history.yaml'
         
         # Initialize database
-        accuracy_database_dir = self.history_dir
         self._database_history = YamlDatabaseHistory(
             history_practice_database=YamlDatabase(
                 config_dir=self.history_dir,
                 read_only=False,
             ),
             history_index_file_path=history_index_file_path,
-            accuracy_database=YamlDatabase(
-                config_dir=accuracy_database_dir,
-                read_only=False,
-            ),
         )
         
         # Always start with new history index
         self._history_index = TuningHistoryIndex()
-        
-        # Load accuracy cache into memory
-        self._accuracy_cache: Dict[str, Dict] = self._load_accuracy_database()
     
     def clear_records(self) -> None:
         """
@@ -120,55 +110,13 @@ class YamlTuningHistory(TuningHistoryInfra):
             self._history_index = history_index
         
         get_logger().info("History records cleared successfully")
-        
-    def _load_accuracy_database(self) -> Dict[str, Dict]:
-        """Load accuracy data from accuracy database interface."""
-        accuracy_database = self._database_history.accuracy_database
-        accuracy_key = "accuracy"
-        
-        if accuracy_key not in accuracy_database:
-            get_logger().debug("Accuracy database key %r does not exist. Starting with empty cache.", accuracy_key)
-            return {}
-        
-        try:
-            content = accuracy_database[accuracy_key]
-            if content is None:
-                return {}
-            
-            return content if isinstance(content, dict) else {}
-        except Exception as e:
-            get_logger().debug("Failed to load accuracy cache from database: %s. Starting with empty cache.", e)
-            return {}
-    
-    def get_accuracy(self, practice: PracticeConfig) -> Optional[EvaluateResult]:
-        """Get accuracy from history for the given practice by MD5."""
-        practice_md5 = calculate_practice_md5(practice)
-        
-        if practice_md5 not in self._accuracy_cache:
-            return None
-        
-        evaluation_dict = self._accuracy_cache[practice_md5]
-        get_logger().info("Found accuracy in history. Using historical accuracy.")
-        return EvaluateResult.model_validate(evaluation_dict)
     
     def append_history(self, practice: PracticeConfig, evaluation: EvaluateResult) -> None:
         """
         Append a history record to the database.
-        This method will also save accuracy data to the accuracy cache.
         """
         practice_id = practice.metadata.config_id
-        practice_md5 = calculate_practice_md5(practice)
-        
-        if practice_md5 in self._accuracy_cache:
-            get_logger().warning(
-                "Overwriting existing accuracy data for practice MD5 %r. "
-                "Previous accuracy data will be replaced with new evaluation result.",
-                practice_md5
-            )
-        
-        evaluation_dict = evaluation.model_dump()
-        self._accuracy_cache[practice_md5] = evaluation_dict
-        self._database_history.accuracy_database["accuracy"] = self._accuracy_cache
+        practice_md5 = calculate_md5(practice)
         
         # Append to history index
         with _get_modifiable_history_index(self._database_history.history_index_file_path) as history_index:
@@ -181,10 +129,6 @@ class YamlTuningHistory(TuningHistoryInfra):
         
         # Save practice config (this will replace if exists)
         self._database_history.history_practice_database[practice_id] = practice
-    
-    def get_accuracy_count(self) -> int:
-        """Return the number of accuracy records in the accuracy cache."""
-        return len(self._accuracy_cache)
 
 
 class YamlTuningHistoryManager(TuningHistoryManagerInfra):
@@ -210,21 +154,6 @@ class YamlTuningHistoryManager(TuningHistoryManagerInfra):
             error_msg = f"Failed to create or load history from {database}. Cannot proceed with tuning."
             get_logger().error(error_msg)
             raise RuntimeError(error_msg) from e
-
-
-def calculate_practice_md5(practice: PracticeConfig) -> str:
-    """
-    Calculate MD5 hash of a practice object.
-    
-    Args:
-        practice: PracticeConfig object
-        
-    Returns:
-        str: MD5 hash string
-    """
-    practice_dict = practice.model_dump()
-    practice_json = json.dumps(practice_dict, sort_keys=True)
-    return hashlib.md5(practice_json.encode('utf-8')).hexdigest()
 
 
 @contextmanager
