@@ -4,7 +4,8 @@
 本文介绍msModelSlim工具的安装。
 
 ## 安装前准备
-准备python环境：需要 Python 3.10 或更高版本。
+准备python环境：需要 Python 3.8 或更高版本。
+> 注意：部分 Python3.8 环境下安装 msmodelslim 异常，报错信息提示 accelerate 依赖安装失败，可通过升级为 Python3.9 解决。
 
 ## 安装步骤
 

@@ -40,3 +40,18 @@ check-wheel-contents 0.6.0 requires pydantic~=2.0, but you have pydantic 1.0 whi
 ### 解决方法
 
 请尝试升级pydantic或卸载环境中依赖低版本pydantic的其他软件包，直至环境无版本冲突。
+
+## 3. 为什么Python3.8环境下安装msModelSlim提示安装accelerate异常？
+
+msModelSlim依赖accelerate库来支持多卡运行，因此将其写入requirements.txt，在安装时通过pip自动下载accelerate。
+然而，部分Python 3.8环境因兼容性问题不支持accelerate，可能导致安装失败。
+
+### pip安装时的错误信息
+
+```
+ERROR: Could not find a version that satisfies the requirement puccinialin (from versions: none)
+```
+
+### 解决方法
+
+请尝试升级Python环境至Python3.9。
