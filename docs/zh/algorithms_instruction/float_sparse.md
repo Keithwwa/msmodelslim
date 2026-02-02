@@ -109,8 +109,8 @@ class FloatSparseProcessor(AutoSessionProcessor):
 ```yaml
 - type: "float_sparse"
       sparse_ratio: 0.3          # 稀疏比例，取值范围为 0.0~1.0，默认0.3。
-      include: [ "*" ]           # 包含的层模式，支持通配符。
-      exclude: ["*self_attn*"]   # 排除的层模式，支持通配符。
+      include: [ "*" ]           # 包含的层，支持通配符。
+      exclude: ["*self_attn*"]   # 排除的层，支持通配符。
 ```
 
 ### YAML配置示例
@@ -120,8 +120,8 @@ spec:
   process:
     - type: "float_sparse"
       sparse_ratio: 0.3          # 稀疏比例，取值范围为 0.0~1.0，默认0.3。
-      include: [ "*" ]           # 包含的层模式，支持通配符。
-      exclude: ["*self_attn*"]   # 排除的层模式，支持通配符。
+      include: [ "*" ]           # 包含的层，支持通配符。
+      exclude: ["*self_attn*"]   # 排除的层，支持通配符。
 ```
 
 ### YAML配置字段详解
@@ -130,8 +130,8 @@ spec:
 |--------|------|----------|--------|------|
 | type | 处理器类型标识 | string | - | 固定值"float_sparse"，用于标识该对象为浮点稀疏量化处理器。 |
 | sparse_ratio | 稀疏比例 | float | 0.3 | 稀疏比例，取值范围为 0.0~1.0，默认0.3。 |
-| include | 包含的层模式 | array[string] | ["*"] | 支持通配符匹配，指定要执行浮点稀疏量化的层。 |
-| exclude | 排除的层模式 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
+| include | 包含的层 | array[string] | ["*"] | 支持通配符匹配，指定要执行浮点稀疏量化的层。 |
+| exclude | 排除的层 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
 
 
 ## 模型适配

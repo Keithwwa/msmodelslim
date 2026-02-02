@@ -56,10 +56,13 @@
 
 | 算法 | 算法特点 | 适用场景与建议 | 配置示例链接 |
 |------|---------|---------------|-------------|
-| Smooth Quant | 仅对norm-linear子图做平滑处理，支持对称/非对称 | 在Qwen、DeepSeek等热门系列模型上精度较差，不建议使用 | [Smooth_Quant.md](../algorithms_instruction/smooth_quant.md) |
-| Iterative Smooth | 解决o_proj、down_proj等层因无相邻LayerNorm而无法转移scale的问题。支持对称/非对称 | **优先使用**。运行快，精度较高。超长序列校准集时优先使用。可调整 `alpha` 参数优化 | [Iterative_Smooth.md](../algorithms_instruction/iterative_smooth.md) |
-| Flex Smooth Quant | 通过二阶段网格搜索自动寻找最优alpha和beta参数，实现更精细的平衡 | 当Iterative Smooth不达标、对量化时间不敏感且显存充足时尝试。运行速度较慢 | [Flex_Smooth_Quant.md](../algorithms_instruction/flex_smooth_quant.md) |
-| QuaRot | 通过对权重和激活进行旋转变换，将离群值"分散"到多个通道，平滑分布 | 可与其他算法叠加使用，作为进一步提升精度的备选方案。| [QuaRot.md](../algorithms_instruction/quarot.md) |
+| Smooth Quant | 仅对norm-linear子图做平滑处理，支持对称/非对称 | 在Qwen、DeepSeek等热门系列模型上精度较差，不建议使用 | [smooth_quant.md](../algorithms_instruction/smooth_quant.md) |
+| Iterative Smooth | 解决o_proj、down_proj等层因无相邻LayerNorm而无法转移scale的问题。支持对称/非对称 | **优先使用**。运行快，精度较高。超长序列校准集时优先使用。可调整 `alpha` 参数优化 | [iterative_smooth.md](../algorithms_instruction/iterative_smooth.md) |
+| Flex Smooth Quant | 通过二阶段网格搜索自动寻找最优alpha和beta参数，实现更精细的平衡 | 当Iterative Smooth不达标、对量化时间不敏感且显存充足时尝试。运行速度较慢 | [flex_smooth_quant.md](../algorithms_instruction/flex_smooth_quant.md) |
+| Flex AWQ SSZ | 结合 AWQ 和 SSZ 思想，使用真实量化器评估 MSE 误差，自动搜索最优 alpha | **INT4 低比特量化必备**。针对低比特权重量化精度敏感的特点，寻找最优参数。精度提升显著，但运行速度较慢 | [flex_awq_ssz.md](../algorithms_instruction/flex_awq_ssz.md) |
+| QuaRot | 通过对权重和激活进行旋转变换，将离群值"分散"到多个通道，平滑分布 | 可与其他算法叠加使用，作为进一步提升精度的备选方案。对于 W4A4 等极端场景效果显著 | [quarot.md](../algorithms_instruction/quarot.md) |
+| KV Smooth | 专门针对 KVCache 中的 Key 离群值抑制，将其迁移至 Query | **KVCache 量化必备**。在不改变注意力打分前提下压缩 K 的动态范围，提升生成质量 | [kv_smooth.md](../algorithms_instruction/kv_smooth.md) |
+| LAOS | 协同优化方案。通过 QuaRot 和 Iterative Smooth 抑制离群值，配合 AutoRound 优化权重舍入 | **W4A4 极致精度方案**。当前主要适配 Qwen3 稠密系列模型 | [laos.md](../algorithms_instruction/laos.md) |
 
 #### 总结建议
 
@@ -81,21 +84,21 @@
 | autoround | 通过引入可学习的舍入偏移参数，结合SignSGD优化器自适应调整各权重的舍入方向，训练得到最优的取整补偿 | ★★★ | ★ | 当 `ssz` 方法精度不达标时，可以尝试使用 `autoround` 来进一步提升精度，尤其在超低比特条件下寻求最优平衡 |
 | gptq | 通过逐列量化优化方式，最小化量化引入的输出误差，实现高精度低比特量化 | ★★★ | ★ | 当 `ssz` 方法精度不达标时，可以尝试使用 `gptq` 来进一步提升精度 |
 
-##### 配置示例 (YAML)
+#### 配置示例 (YAML)
 
-在量化配置文件中，权重量化通常在 `linear_quant` 处理器的 `qconfig.weight` 部分进行配置：
+在量化配置文件中，权重量化通常在 `linear_quant` 处理器的 `qconfig.weight` 部分进行配置（`autoround` 则需使用专门的 `autoround_quant` 处理器）：
 
 ```yaml
-- type: "linear_quant"
+- type: "linear_quant"         # 处理器类型：线性层量化
   qconfig:
-    weight:
-      scope: "per_channel"  # 量化粒度：per_channel
-      dtype: "int8"         # 量化数据类型：int8 或 int4
-      symmetric: true       # 是否对称量化：权重量化通常使用对称量化
-      method: "minmax"      # 量化方法：minmax、ssz、autoround 或 gptq
+    weight:                    # 权重量化配置
+      scope: "per_channel"     # 权重量化粒度：逐通道量化
+      dtype: "int8"            # 量化数据类型。默认：int8
+      symmetric: true          # 是否对称量化。默认：true
+      method: "minmax"         # 量化方法。默认：minmax
 ```
 
-##### 总结建议
+#### 总结建议
 
 1. **INT8权重量化**：优先使用 `minmax` 方法，在保证精度的同时速度最快。
 2. **INT4等低比特权重量化**：优先使用 `ssz` 方法，若精度不足再尝试 `autoround` 、 `gptq`。
@@ -106,10 +109,11 @@
 
 | 量化方法 | 特点 | 量化精度 | 量化速度 | 适用场景与建议 |
 |---------|------|-----|-----|---------------|
-| minmax | 统计激活张量的最小值和最大值来确定量化范围，方法简单，计算速度快 | ★ | ★★ | 优先推荐。方法简单，速度快，适用于大多数场景 |
-| histogram | 通过分析激活值的直方图分布，自动搜索最优的截断区间，过滤离群值，提高量化精度和模型性能 | ★★ | ★  | 当 `minmax` 方法精度不足时，可以尝试使用 `histogram` 来进一步提升精度，但速度稍慢 |
+| minmax | 统计激活张量的最小值和最大值来确定量化范围，方法简单，计算速度快 | ★ | ★★ | **通用首选**。适用于绝大多数模型量化场景 |
+| histogram | 通过分析直方图分布，搜索最优截断区间以过滤激活离群值 | ★★ | ★  | 当激活分布存在长尾且 minmax 效果不佳时尝试，有助于提升 W8A8 精度 |
+| fa3_quant | 针对 MLA 架构中 Q/K/V 的 Per-head（逐头）粒度 INT8 量化 | ★★ | ★★ | **DeepSeek-V3/R1 系列专属**。适应不同注意力头的分布差异，需使用专门的 `fa3_quant` 处理器 |
 
-##### 激活值量化粒度选择
+#### 激活值量化粒度选择
 
 激活值量化支持多种粒度，对精度和性能有直接影响：
 
@@ -117,28 +121,28 @@
 |---------|------|---------|
 | per_tensor | 整个张量使用一组量化参数。静态量化。计算简单，性能最好，几乎所有硬件都支持。但当张量内数据分布差异大时，量化误差显著 | 追求最佳性能时使用 |
 | per_token | 每个token独立使用一组量化参数。动态量化。量化粒度更细，能获得更高的量化精度，但计算也更复杂，性能较差 | 追求更高精度时使用 |
-| pd_mix | profiling阶段使用 `per_token`，decoding阶段使用 `per_tensor`。混合策略。旨在平衡精度和性能 | 需要平衡精度和性能时使用 |
+| pd_mix | prefill阶段使用 `per_token`，decode阶段使用 `per_tensor`。混合策略。旨在平衡精度和性能 | 需要平衡精度和性能时使用，有助于提升 W8A8 精度 |
 
-##### 配置示例 (YAML)
+#### 配置示例 (YAML)
 
 在量化配置文件中，激活值量化通常在 `linear_quant` 处理器的 `qconfig.act` 部分进行配置：
 
 ```yaml
-- type: "linear_quant"
+- type: "linear_quant"         # 处理器类型：线性层量化
   qconfig:
-    act:
-      scope: "per_tensor"   # 量化粒度：per_tensor、per_token 或 pd_mix
-      dtype: "int8"         # 量化数据类型：int8 或 int4
-      symmetric: false      # 是否对称量化：激活值量化通常使用非对称量化
-      method: "minmax"      # 量化方法：minmax
-    weight:
-      scope: "per_channel"
-      dtype: "int8"
-      symmetric: true
-      method: "minmax"
+    act:                       # 激活值量化配置
+      scope: "per_tensor"      # 静态量化标识：整个张量共用量化参数
+      dtype: "int8"            # 量化数据类型。默认：int8
+      symmetric: false         # 是否对称量化。默认：false
+      method: "minmax"         # 量化方法。默认：minmax
+    weight:                    # 权重量化配置
+      scope: "per_channel"     # 权重量化粒度：逐通道量化
+      dtype: "int8"            # 量化数据类型。默认：int8
+      symmetric: true          # 是否对称量化。默认：true
+      method: "minmax"         # 量化方法。默认：minmax
 ```
 
-##### 总结建议
+#### 总结建议
 
 1. **量化方法**：优先使用`minmax`方法，当精度不足时可尝试`histogram`方法。
 2. **量化粒度 (`scope`)**：
@@ -194,20 +198,24 @@
 #### 配置示例
 
 ```yaml
-- type: "linear_quant"
-  qconfig:
-    act:
-      scope: "per_tensor"
-      dtype: "int8"
-      symmetric: false
-      method: "minmax"
-    weight:
-      scope: "per_channel"
-      dtype: "int8"
-      symmetric: true
-      method: "minmax"
-  include: ["*"]
-  exclude: ["*model.layers.*.mlp.down_proj*"] # 回退所有mlp.down_proj层
+apiversion: modelslim_v1       # 协议版本
+
+spec:
+  process:                     # 处理器列表
+    - type: "linear_quant"     # 处理器类型：线性层量化
+      qconfig:
+        act:                   # 激活值量化配置
+          scope: "per_tensor"  # 静态量化标识：整个张量共用量化参数
+          dtype: "int8"        # 量化数据类型。默认：int8
+          symmetric: false     # 是否对称量化。默认：false
+          method: "minmax"     # 量化方法。默认：minmax
+        weight:                # 权重量化配置
+          scope: "per_channel" # 量化粒度。逐通道量化
+          dtype: "int8"        # 量化数据类型。默认：int8
+          symmetric: true      # 是否对称量化。默认：true
+          method: "minmax"     # 量化方法。默认：minmax
+      include: ["*"]           # 包含的层，支持通配符。默认：["*"]
+      exclude: ["*model.layers.*.mlp.down_proj*"] # 排除的层。默认：[]。此处回退所有mlp.down_proj层
 ```
 
 #### 总结建议

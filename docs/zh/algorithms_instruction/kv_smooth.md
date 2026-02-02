@@ -54,8 +54,8 @@ spec:
   process:
     - type: "kv_smooth"
       smooth_factor: 1.0                    # 控制平滑激进程度，>0，越大平滑越激进
-      include: ["*"]                        # 包含的层模式，支持通配符
-      exclude: ["model.layers.0.self_attn"] # 排除的层模式，支持通配符
+      include: ["*"]                        # 包含的层，支持通配符
+      exclude: ["model.layers.0.self_attn"] # 排除的层，支持通配符
 ```
 
 ### YAML配置字段详解

@@ -78,7 +78,7 @@ msModelSlim的版本说明包含msModelSlim的软件版本配套关系和软件�
 
 快速入门旨在帮助用户快速通过一键量化的方式完成大模型量化功能。
 
-具体快速入门请查看[快速入门](docs/zh/quick_quantization_quick_start.md)。
+具体快速入门请查看[快速入门](docs/zh/quantization_quick_start.md)。
 
 ## 功能介绍
 

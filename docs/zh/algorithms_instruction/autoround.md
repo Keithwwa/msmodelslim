@@ -170,8 +170,8 @@ spec:
 | 字段名 | 作用 | 类型 | 说明 | 示例值 |
 |--------|------|------|------|--------|
 | qconfig | 量化配置参数 | `object` | 包含激活值量化和权重量化的详细配置 | [激活值配置](#qconfigact-激活值量化配置)、[权重量化配置](#qconfigweight-权重量化配置) |
-| include | 包含的层模式 | `array[string]` | 支持通配符匹配，指定要量化的层 | `["*"]`, `["*self_attn*"]` |
-| exclude | 排除的层模式 | `array[string]` | 支持通配符匹配，优先级高于include | `["*down_proj*"]` |
+| include | 包含的层 | `array[string]` | 支持通配符匹配，指定要量化的层 | `["*"]`, `["*self_attn*"]` |
+| exclude | 排除的层 | `array[string]` | 支持通配符匹配，优先级高于include | `["*down_proj*"]` |
 
 #### qconfig.act (激活值量化配置)
 
@@ -207,7 +207,7 @@ spec:
 
 ## 层过滤机制
 
-层过滤机制用于指定哪些层需要量化，支持include和exclude模式匹配。详细的过滤规则、匹配模式、示例说明和常见层名模式请参考 [LinearQuantProcess层过滤机制详解](../feature_guide/quick_quantization/linear_quant.md#层过滤机制详解)。
+层过滤机制用于指定哪些层需要量化，支持include和exclude模式匹配。详细的过滤规则、匹配模式、示例说明和常见层名模式请参考 [线性量化层过滤机制详解](linear_quant.md#层过滤机制详解)。
 
 ## 模型适配
 

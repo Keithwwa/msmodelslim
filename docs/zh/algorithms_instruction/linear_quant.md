@@ -1,8 +1,45 @@
-# LinearQuantProcess 线性层量化处理器
+# 线性量化算法说明
 
 ## 简介
 
-LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对模型的线性层进行量化处理。它支持灵活的量化配置，包括激活值量化和权重量化。
+线性量化（Linear Quantization）是深度学习模型压缩中最基础且广泛应用的算法类别。
+
+在 msModelSlim 中，线性量化通过 `linear_quant` 处理器实现，专门用于对模型的线性层（`torch.nn.Linear` 模块）进行量化处理。它支持对线性层的权重（Weight）和激活值（Activation）进行灵活的量化配置。
+
+## 原理和实现
+
+### 原理
+
+线性量化的核心是将连续的浮点数值范围映射到离散的数值集合中。其基本公式为：
+
+$$Q = \text{clamp}(\text{round}(\frac{V}{S}) + Z, Q_{min}, Q_{max})$$
+
+其中：
+- $V$：原始浮点值。
+- $S$ (Scale)：缩放因子，决定了量化的步长。
+- $Z$ (Zero-point)：偏移量（零点），用于处理非对称分布。
+- $Q$：量化后的数值。
+
+### 实现
+
+在 msModelSlim 中，线性量化通过 `linear_quant` 处理器实现，支持对模型的线性层（Linear/Dense Layers）进行灵活的量化配置。算法在 `msmodelslim/processor/quant/linear.py` 中实现。
+
+### 算法分类
+
+根据参数统计和计算时机的不同，线性量化主要分为以下几类：
+
+1. **静态量化 (Static Quantization)**：
+   - **原理**：在推理前，通过校准数据集（Calibration Dataset）统计激活值的分布，计算并固定 Scale 和 Zero-point。
+   - **优势**：推理时无需动态计算量化参数，性能最优。
+   - **适用场景**：对推理时延极度敏感的生产环境。
+
+2. **动态量化 (Dynamic Quantization)**：
+   - **原理**：在推理过程中，针对每一组输入（如每个 Token 或每个 Batch）动态计算激活值的 Scale 和 Zero-point。
+   - **优势**：能够自适应输入数据的分布变化，精度通常显著高于静态量化。
+   - **适用场景**：对精度要求较高，且模型激活值分布随输入剧烈变化的场景（如大语言模型）。
+
+3. **混合量化 (Mixed/Hybrid Quantization)**：
+   - **原理**：结合静态和动态量化的优点。例如 **PDMIX** 算法，在 Prefilling 阶段使用动态量化以保证首字精度，在 Decoding 阶段使用静态量化以提升生成速度。
 
 ## 使用前准备
 
@@ -15,57 +52,63 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 #### W8A8静态量化配置
 
 ```yaml
-- type: "linear_quant"
+- type: "linear_quant"         # 处理器类型：线性层量化
   qconfig:
-    act:
-      scope: "per_tensor"
-      dtype: "int8"
-      symmetric: false
-      method: "minmax"
-    weight:
-      scope: "per_channel"
-      dtype: "int8"
-      symmetric: true
-      method: "minmax"
-  include: [ "*" ]
-  exclude: [ "*down_proj*" ]
+    act:                       # 激活值量化配置
+      scope: "per_tensor"      # 静态量化标识：整个张量共用量化参数
+      dtype: "int8"            # 数据类型：int8
+      symmetric: false         # 是否对称量化：false（静态量化推荐非对称）
+      method: "minmax"         # 量化方法：minmax
+    weight:                    # 权重量化配置
+      scope: "per_channel"     # 权重量化粒度：逐通道量化
+      dtype: "int8"            # 数据类型：int8
+      symmetric: true          # 是否对称量化：true
+      method: "minmax"         # 量化方法：minmax
+  include: [ "*" ]             # 包含的层。默认：["*"]
+  exclude: [ "*down_proj*" ]   # 排除的层。默认：[]
 ```
 
 #### W8A8动态量化配置
 
 ```yaml
-- type: "linear_quant"
+- type: "linear_quant"         # 处理器类型：线性层量化
   qconfig:
-    act:
-      scope: "per_token"
-      dtype: "int8"
-      symmetric: false
-      method: "minmax"
-    weight:
-      scope: "per_channel"
-      dtype: "int8"
-      symmetric: true
-      method: "minmax"
-  include: [ "*mlp*" ]
+    act:                       # 激活值量化配置
+      scope: "per_token"       # 动态量化标识：每个 token 独立量化参数
+      dtype: "int8"            # 数据类型：int8
+      symmetric: false         # 是否对称量化：false
+      method: "minmax"         # 量化方法：minmax
+    weight:                    # 权重量化配置
+      scope: "per_channel"     # 权重量化粒度：逐通道量化
+      dtype: "int8"            # 数据类型：int8
+      symmetric: true          # 对称量化：true
+      method: "minmax"         # 量化方法：minmax
+  include: [ "*mlp*" ]         # 仅包含包含 mlp 的层
 ```
 
 #### W4A8动态量化配置
 
 ```yaml
-- type: "linear_quant"
+- type: "linear_quant"         # 处理器类型：线性层量化
   qconfig:
-    act:
-      scope: "per_token"
-      dtype: "int8"
-      symmetric: true
-      method: "minmax"
-    weight:
-      scope: "per_channel"
-      dtype: "int4"
-      symmetric: true
-      method: "minmax"
-  include: [ "*" ]
+    act:                       # 激活值量化配置
+      scope: "per_token"       # 动态量化标识：每个 token 独立量化参数
+      dtype: "int8"            # 数据类型：int8
+      symmetric: true          # 是否对称量化：true
+      method: "minmax"         # 量化方法：minmax
+    weight:                    # 权重量化配置
+      scope: "per_channel"     # 权重量化粒度：逐通道量化
+      dtype: "int4"            # 数据类型：int4（低比特权重量化）
+      symmetric: true          # 对称量化：true
+      method: "minmax"         # 量化方法：minmax
+  include: [ "*" ]             # 包含所有层
 ```
+#### 静态量化与动态量化的核心差异
+
+在一键量化中，通过 `qconfig.act.scope` 字段来区分 **静态量化** 与 **动态量化**：
+- **静态量化 (`per_tensor`)**：在量化校准阶段统计并固定量化参数（scale和offset），推理时直接使用。**特点**：推理性能最优，计算开销最小，但在分布变化剧烈时精度可能受损。
+- **动态量化 (`per_token`)**：在推理过程中，针对每个 token 实时计算量化参数。**特点**：量化粒度更细，能够更好地捕捉激活值的动态分布，**精度通常优于静态量化**，但会引入一定的实时计算开销。
+- **PDMIX 混合量化 (`pd_mix`)**：Prefilling 阶段使用 `per_token`，Decoding 阶段使用 `per_tensor`。**特点**：旨在平衡精度和性能，特别适用于生成式模型的推理加速，参考[PDMIX：激活值阶段间混合量化算法说明](../../algorithms_instruction/pdmix.md)。
 
 ### YAML配置字段详解
 
@@ -73,8 +116,8 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 |--------|------|------|------|--------|
 | type | 处理器类型标识 | `string` | 固定值，用于标识这是一个线性层量化处理器 | `"linear_quant"` |
 | qconfig | 量化配置参数 | `object` | 包含激活值量化和权重量化的详细配置 | 见下方详细配置 |
-| include | 包含的层模式 | `array[string]` | 支持通配符匹配，指定要量化的层 | `["*"]`, `["*self_attn*"]` |
-| exclude | 排除的层模式 | `array[string]` | 支持通配符匹配，优先级高于include | `["*down_proj*"]` |
+| include | 包含的层 | `array[string]` | 支持通配符匹配，指定要量化的层 | `["*"]`, `["*self_attn*"]` |
+| exclude | 排除的层 | `array[string]` | 支持通配符匹配，优先级高于include | `["*down_proj*"]` |
 
 #### qconfig.act (激活值量化配置)
 
@@ -97,6 +140,17 @@ LinearQuantProcess是modelslim_v1量化服务中的核心处理器，用于对�
 | dtype | 量化数据类型 | `"int8"`, `"int4"` | 8位/4位整数量化 | `"int8"` |
 | symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `true` |
 | method | 量化方法 | `"minmax"`, `"ssz"`, `"gptq"` | minmax: 最小最大值量化<br/>ssz: ssz权重量化<br/>gptq: gptq权重量化 | `"minmax"` |
+
+### 支持的量化算法
+
+在 `linear_quant` 处理器中，你可以通过 `method` 参数选择不同的量化算法：
+
+| 算法名称 | 适用对象 | 简介 | 详细说明 |
+| :--- | :--- | :--- | :--- |
+| **MinMax** | 权重 / 激活 | 最基础的量化算法，通过统计最大最小值确定量化范围。简单高效，INT8 场景首选。 | [MinMax 说明](../../algorithms_instruction/minmax.md) |
+| **Histogram** | 激活 | 通过直方图分析激活值分布，自动截断离群值以优化量化范围。精度通常优于 MinMax。 | [Histogram 说明](../../algorithms_instruction/histogram_activation_quantization.md) |
+| **SSZ** | 权重 | 通过迭代搜索最优缩放因子，最小化量化误差。专为 INT4 等低比特权重量化设计。 | [SSZ 说明](../../algorithms_instruction/ssz.md) |
+| **GPTQ** | 权重 | 通过逐列优化方式，将量化误差在后续未权重中进行补偿，进而达到最小化量化误差。| [GPTQ说明](../../algorithms_instruction/gptq.md) |
 
 ### 层过滤机制详解
 

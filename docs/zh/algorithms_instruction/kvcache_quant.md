@@ -2,7 +2,7 @@
 
 ## 简介
 
-- **简介**：KVCache量化机制。
+- **简介**：KVCache量化机制。KV Cache 量化通常与[线性量化](linear_quant.md)配合使用，以实现全量化方案。
 - **问题**：在大模型推理中，KVCache 存储的 Key/Value 状态占用大量显存，随序列长度线性增长，成为推理瓶颈。
 - **目标**：对写入 KVCache 的 `key_states` 和 `value_states` 进行量化，在保持生成质量的前提下显著降低缓存内存占用。
 
@@ -131,8 +131,8 @@ spec:
         dtype: "int8"          # 量化数据类型，目前支持int8。
         symmetric: true        # 是否使用对称量化，默认True。
         method: "minmax"       # 量化方法，目前支持minmax。
-      include: [ "*" ]           # 包含的注意力层模式。
-      exclude: [ "model.layers.0.self_attn" ] # 排除的注意力层模式。
+      include: [ "*" ]           # 包含的注意力层。
+      exclude: [ "model.layers.0.self_attn" ] # 排除的注意力层。
 ```
 
 ### YAML配置字段详解
@@ -145,8 +145,8 @@ spec:
 | dtype | 量化数据类型 | string | "int8" | 量化后的数据类型，当前仅支持配置为"int8"。 |
 | symmetric | 对称量化开关 | boolean | true | 是否使用对称量化。true表示使用对称量化，false表示使用非对称量化。 |
 | method | 量化方法 | string | "minmax" | 量化算法方法，当前仅支持"minmax"算法。 |
-| include | 包含的注意力层模式 | array[string] | ["*"] | 支持通配符匹配，指定要执行KVCache量化的注意力层。 |
-| exclude | 排除的注意力层模式 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
+| include | 包含的注意力层 | array[string] | ["*"] | 支持通配符匹配，指定要执行KVCache量化的注意力层。 |
+| exclude | 排除的注意力层 | array[string] | [] | 支持通配符匹配，优先级高于include。 |
 
 ## 已验证模型列表
 - Qwen2.5系列

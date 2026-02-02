@@ -143,9 +143,9 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
     - 'linear-linear'
     - 'ov'
     - 'up-down'
-  include:                                # 包含的层模式，支持通配符。
+  include:                                # 包含的层，支持通配符。
     - "*"
-  exclude:                                # 排除的层模式，支持通配符。
+  exclude:                                # 排除的层，支持通配符。
     - "*self_attn*"
 ```
 
@@ -163,8 +163,8 @@ spec:
         - 'linear-linear'
         - 'ov'
         - 'up-down'
-      include: ["*"]                       # 包含的层模式，支持通配符。
-      exclude: ["*self_attn*"]             # 排除的层模式，支持通配符。
+      include: ["*"]                       # 包含的层，支持通配符。
+      exclude: ["*self_attn*"]             # 排除的层，支持通配符。
 ```
 
 ### YAML配置字段详解
@@ -176,8 +176,8 @@ spec:
 | scale_min | 缩放因子最小值 | 大于0的浮点数，防止数值不稳定，默认1e-5。 |
 | symmetric | 是否对称量化  | 布尔值，True为对称，False为非对称，默认True。 |
 | enable_subgraph_type | 开启的子图类型 | 支持的子图类型列表，包括"norm-linear"、"linear-linear"、"ov"、"up-down"。 |
-| include | 包含的层模式  | 支持通配符匹配。 |
-| exclude | 排除的层模式  | 支持通配符匹配。|
+| include | 包含的层  | 支持通配符匹配。 |
+| exclude | 排除的层  | 支持通配符匹配。|
 
 ## 模型适配
 
