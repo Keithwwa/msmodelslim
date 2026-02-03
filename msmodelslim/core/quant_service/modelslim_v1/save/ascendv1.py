@@ -533,6 +533,12 @@ class AscendV1Saver(AutoSaverProcessor):
             for key, trans in save_trans.items():
                 self.write_tensor(f"{prefix}.{key}", self.desc_quant, trans)
             self.write_tensor(f"{prefix}.clip_ratio", self.desc_quant, module.clip_factor)
+        
+    def on_non_fusion_smooth_quant_wrapper(self, prefix: str, module: qir.NonFusionSmoothQuantWrapper):
+        wrapped_module = module.wrapped_module
+        self.write_tensor(prefix + ".div.mul_scale", "FLOAT", module.scales)
+        prefix = prefix + ".linear"
+        self._process_module(prefix, wrapped_module)
 
     def update_quant_type(self, quant_type: str):
         if quant_type not in self.QUANT_TYPE_PRIORITY:

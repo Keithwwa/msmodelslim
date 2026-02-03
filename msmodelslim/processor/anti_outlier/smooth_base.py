@@ -28,7 +28,8 @@ from msmodelslim.ir.qal.qtypes import (
     LinearLinearSubgraph,
     NormLinearSubgraph,
     UpDownSubgraph,
-    OVSubgraph
+    OVSubgraph,
+    NonFusionSubgraph,
 )
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.core.graph.adapter_types import AdapterConfig
@@ -57,8 +58,8 @@ class BaseSmoothProcessor(AutoSessionProcessor, ABC):
     SUBGRAPH_PRIORITY = {
         "up-down": 1,
         "ov": 2,
-        "norm-linear": 3,
-        "linear-linear": 4
+        "norm-linear": 4,
+        "linear-linear": 3
     }
 
     def __init__(self, model: nn.Module, config: AutoProcessorConfig, adapter: Optional[Any] = None):
@@ -137,13 +138,16 @@ class BaseSmoothProcessor(AutoSessionProcessor, ABC):
                 continue
             if not adapter_config.mapping:
                 continue
-
-            source_name = adapter_config.mapping.source
-            if not source_name.startswith(layer_prefix):
+            module_name = (
+                adapter_config.mapping.source
+                if adapter_config.mapping.source
+                else adapter_config.mapping.targets[0]
+            )
+            if not module_name.startswith(layer_prefix):
                 continue
-            if source_name not in include:
+            if module_name not in include:
                 continue
-            if source_name in exclude:
+            if module_name in exclude:
                 continue
 
             result.append(adapter_config)
@@ -169,29 +173,49 @@ class BaseSmoothProcessor(AutoSessionProcessor, ABC):
 
         for idx, adapter_config in enumerate(sorted_configs, start=1):
             priority = self.SUBGRAPH_PRIORITY.get(adapter_config.subgraph_type, 999)
+            module_name = adapter_config.mapping.source \
+                if adapter_config.mapping.source else adapter_config.mapping.targets[0]
             get_logger().debug(
-                "  %d. %s (priority: %d) - %s",
-                idx, adapter_config.subgraph_type, priority, adapter_config.mapping.source
+                "  %d. %s (priority: %d) - %s", idx, adapter_config.subgraph_type, priority, module_name
             )
-
-            try:
-                self._process_single_subgraph(adapter_config)
-            except Exception as e:
-                get_logger().error(
-                    "Error processing subgraph %s: %s",
-                    adapter_config.mapping.source, e
-                )
+            self._process_single_subgraph(adapter_config)
 
     def _process_single_subgraph(self, adapter_config: AdapterConfig) -> None:
-        """Process single subgraph (dispatch to specific handler)"""
+        """Process single subgraph: non-fusion first, then dispatch to type-specific handler."""
+        if self._try_apply_non_fusion_smooth(adapter_config):
+            get_logger().debug("Successfully applied non-fusion smooth: %s", adapter_config.mapping.targets)
+            return
         handler_name = SubgraphRegistry.get_handler_name(adapter_config.subgraph_type)
         handler = getattr(self, handler_name, None)
-
         get_logger().debug(
             "    Mapping: %s -> %s",
             adapter_config.mapping.source, adapter_config.mapping.targets
         )
         handler(adapter_config)
+
+    def _try_apply_non_fusion_smooth(self, adapter_config: AdapterConfig) -> bool:
+        """
+        If mapping is non-fusion (source is None, targets present), apply NonFusionSubgraph
+        and return True; otherwise return False.
+        """
+        if (
+            adapter_config.mapping.source is not None
+            or not adapter_config.mapping.targets
+        ):
+            return False
+        target_modules = [
+            self.model.get_submodule(name)
+            for name in adapter_config.mapping.targets
+        ]
+        if adapter_config.subgraph_type == "norm-linear":
+            linear_names = adapter_config.mapping.targets
+        else:
+            linear_names = [adapter_config.mapping.targets[0]]
+        self.apply_smooth_algorithm(
+            NonFusionSubgraph(linears=target_modules),
+            linear_names,
+        )
+        return True
 
     def _apply_up_down_smooth(self, adapter_config: AdapterConfig) -> None:
         """Apply Up-Down smoothing (Priority 1)"""

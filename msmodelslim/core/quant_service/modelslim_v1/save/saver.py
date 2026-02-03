@@ -119,6 +119,7 @@ class AutoSaverProcessor(AutoSessionProcessor):
             qir.OnlineRotationWrapper: self.on_online_rotation_wrapper,
             qir.WFP8AFP8DynamicPerChannelFakeQuantLinear: self.on_wfp8afp8_dynamic_per_channel,
             qir.FlatQuantOnlineWrapper: self.on_flat_clip_wrapper,
+            qir.NonFusionSmoothQuantWrapper: self.on_non_fusion_smooth_quant_wrapper,
         }
 
     def support_distributed(self) -> bool:
@@ -279,6 +280,15 @@ class AutoSaverProcessor(AutoSessionProcessor):
             module: FlatQuantOnlineWrapper模块实例
         """
         self._process_module(prefix, module.wrapped_module)
+    
+    def on_non_fusion_smooth_quant_wrapper(self, prefix: str, module: qir.NonFusionSmoothQuantWrapper):
+        """
+        Args:
+            prefix: 模块名称前缀
+            module: NonFusionSmoothQuantWrapper模块实例
+        """
+        raise NotImplementedError(
+            f"You should implement the on_non_fusion_smooth_quant_wrapper method for {self.__class__.__name__}")
 
     def on_wrapper_ir(self, prefix: str, module: qir.WrapperIR):
         """

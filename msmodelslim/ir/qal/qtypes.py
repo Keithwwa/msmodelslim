@@ -34,6 +34,14 @@ class Subgraph:
 
 
 @dataclass
+class NonFusionSubgraph(Subgraph):
+    """
+    该子图代表了非融合操作符。
+    """
+    linears: List[nn.Linear]
+
+
+@dataclass
 class NormLinearSubgraph(Subgraph):
     """
 

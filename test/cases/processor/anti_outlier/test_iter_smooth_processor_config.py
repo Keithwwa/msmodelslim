@@ -51,7 +51,7 @@ class MockAdapterWithIncompleteConfig(IterSmoothInterface):
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         # 缺少subgraph_type
-        return [AdapterConfig(subgraph_type=None, mapping=MappingConfig("layer1", ["layer2"]))]
+        return [AdapterConfig(subgraph_type=None, mapping=MappingConfig(targets=["layer2"], source="layer1"))]
 
 
 class MockAdapterWithoutMapping(IterSmoothInterface):
@@ -70,7 +70,7 @@ class MockAdapterWithIncompleteFusion(IterSmoothInterface):
         fusion_config = FusionConfig(fusion_type="qkv", num_attention_heads=None, num_key_value_heads=None)
         return [AdapterConfig(
             subgraph_type="norm-linear",
-            mapping=MappingConfig("layer1", ["layer2"]),
+            mapping=MappingConfig(targets=["layer2"], source="layer1"),
             fusion=fusion_config
         )]
 
@@ -276,6 +276,23 @@ class TestIterSmoothProcessor:
         # 检查错误信息
         error_str = str(exc_info.value)
         assert "exclude" in error_str.lower() or "string" in error_str.lower()
+
+    def test_adapter_config_valid_for_subgraph_types(self):
+        """AdapterConfig 可正常创建，子图处理顺序由 BaseSmoothProcessor.SUBGRAPH_PRIORITY 决定。"""
+        for subgraph_type in ["up-down", "ov", "norm-linear", "linear-linear"]:
+            config = AdapterConfig(
+                subgraph_type=subgraph_type,
+                mapping=MappingConfig(targets=["layer1"], source="layer0"),
+            )
+            assert config.subgraph_type == subgraph_type
+            assert config.mapping.targets == ["layer1"]
+            assert config.mapping.source == "layer0"
+
+    def test_mapping_config_source_optional(self):
+        """MappingConfig.source 可选，非融合场景下为 None（仅配置 targets）。"""
+        mapping = MappingConfig(targets=["layer1", "layer2"], source=None)
+        assert mapping.source is None
+        assert mapping.targets == ["layer1", "layer2"]
 
 
 if __name__ == "__main__":

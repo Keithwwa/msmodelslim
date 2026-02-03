@@ -30,7 +30,10 @@ from msmodelslim.ir.qal.qtypes import (
     LinearLinearSubgraph,
     OVSubgraph,
     UpDownSubgraph,
+    NonFusionSubgraph,
 )
+from msmodelslim.ir.non_fusion_smooth_quant_ir import NonFusionSmoothQuantHookIR
+from msmodelslim.utils.logging import get_logger
 from ..common import (
     IterSmoothConfig,
     SmoothContext,
@@ -164,3 +167,45 @@ def iter_smooth_impl_norm_linear(subgraph: Subgraph, config: IterSmoothConfig, c
         shifts=shifts if shifts else None
     )
     return
+
+
+@torch.no_grad()
+@QFuncRegistry.register(dispatch_key=(NonFusionSubgraph, 1), api_name="iter_smooth")
+def iter_smooth_impl_non_fusion_linear(subgraph: Subgraph, config: IterSmoothConfig, context: SmoothContext):
+    """
+    Apply iter_smooth to a NonFusionSubgraph for outlier suppression.
+
+    Computes per-channel smooth scales from activation statistics (context.a_smooth_scale)
+    and weight statistics (per-output-channel max abs weight across subgraph linears).
+    Then applies fusion (weight/norm scaling) via SubgraphFusionFactory and registers
+    a forward_pre_hook (NonFusionSmoothQuantHookIR) on each linear so that smooth
+    scaling is applied at inference time.
+    """
+    
+    calculator = IterSmoothScaleCalculator(alpha=config.alpha, scale_min=config.scale_min)
+    a_scale = context.a_smooth_scale
+
+    if len(subgraph.linears) < 1:
+        raise ValueError("NonFusionSubgraph must have at least one linear layer")
+
+    w_scale = []
+    for linear in subgraph.linears:
+        stat = linear.weight.abs().max(dim=0, keepdim=True)[0]
+        w_scale.append(stat)
+    w_scale = torch.cat(w_scale, dim=0)
+    scales = calculator.compute_smooth_scale(a_scale, w_scale)
+    shifts = {}
+    if config.shift:
+        get_logger().warning(
+            "NonFusionSubgraphFusion does not support shifts; shifts will be ignored.",
+        )
+    SubgraphFusionFactory.apply_fusion_to_subgraph(
+        subgraph,
+        scales={'scales': scales},
+        shifts=shifts if shifts else None
+    )
+
+    for linear_module in subgraph.linears:
+        hook_ir = NonFusionSmoothQuantHookIR(scales)
+        hook_handle = linear_module.register_forward_pre_hook(hook_ir)
+        hook_ir.set_hook_handle(hook_handle)       

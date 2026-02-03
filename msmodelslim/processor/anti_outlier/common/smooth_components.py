@@ -30,7 +30,8 @@ from msmodelslim.ir.qal.qtypes import (
     NormLinearSubgraph,
     LinearLinearSubgraph,
     OVSubgraph,
-    UpDownSubgraph
+    UpDownSubgraph,
+    NonFusionSubgraph
 )
 
 
@@ -86,7 +87,8 @@ class SubgraphRegistry:
         NormLinearSubgraph: "norm-linear",
         LinearLinearSubgraph: "linear-linear",
         OVSubgraph: "ov",
-        UpDownSubgraph: "up-down"
+        UpDownSubgraph: "up-down",
+ 	    NonFusionSubgraph: "non-fusion"
     }
 
     NAME_TO_HANDLER = {

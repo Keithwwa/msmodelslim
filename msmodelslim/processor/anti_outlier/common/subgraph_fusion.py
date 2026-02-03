@@ -31,7 +31,8 @@ from msmodelslim.ir.qal.qtypes import (
     OVSubgraph,
     UpDownSubgraph,
     LinearLinearSubgraph,
-    NormLinearSubgraph
+    NormLinearSubgraph,
+    NonFusionSubgraph
 )
 
 
@@ -138,6 +139,19 @@ class NormLinearSubgraphFusion(SubgraphFusionStrategy):
         apply_smooth_scale_shift(
             subgraph.norm, (1.0 / scales_tensor).squeeze(), norm_shift
         )
+        
+
+class NonFusionSubgraphFusion(SubgraphFusionStrategy):
+    def apply_fusion(
+        self, 
+        subgraph: NonFusionSubgraph, 
+        scales: Dict[str, torch.Tensor],
+        shifts: Optional[Dict[str, torch.Tensor]] = None
+    ) -> None:
+        # 暂不支持shift
+        scales_tensor = scales['scales']
+        for idx, fc in enumerate(subgraph.linears):
+            apply_smooth_scale_shift(fc, scales_tensor.view(1, -1), None)
 
 
 class SubgraphFusionFactory:
@@ -147,6 +161,7 @@ class SubgraphFusionFactory:
         UpDownSubgraph: UpDownSubgraphFusion(),
         LinearLinearSubgraph: LinearLinearSubgraphFusion(),
         NormLinearSubgraph: NormLinearSubgraphFusion(),
+        NonFusionSubgraph: NonFusionSubgraphFusion(),
     }
     
     @classmethod

@@ -33,8 +33,10 @@ SUPPORTED_SUBGRAPH_TYPES = [
 @dataclass
 class MappingConfig:
     """映射关系配置"""
-    source: str
+
     targets: List[str]
+    # 非融合场景用 source 配置为None
+    source: Optional[str] = None
 
 
 @dataclass
@@ -77,7 +79,7 @@ class AdapterConfig:
     """
     # 子图类型（必需）
     subgraph_type: str
-    # 自定义的映射关系（必需）
+    # 自定义的映射关系（必需），支持融合 / 非融合两种配置
     mapping: MappingConfig
     # 融合配置（可选）
     fusion: Optional[FusionConfig] = None
