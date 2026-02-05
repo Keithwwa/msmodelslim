@@ -16,13 +16,14 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, AfterValidator, BeforeValidator, SerializeAsAny
 
 from msmodelslim.core.tune_strategy import EvaluateAccuracy
 from msmodelslim.utils.plugin import TypedConfig
 from msmodelslim.utils.security import build_safe_url, safe_post
+from msmodelslim.utils.validation.pydantic import greater_than_zero
 
 PRECHECK_CONFIG_PLUGIN_PATH = "msmodelslim.precheck_config.plugins"
 
@@ -31,8 +32,14 @@ PRECHECK_CONFIG_PLUGIN_PATH = "msmodelslim.precheck_config.plugins"
 class BasePrecheckConfig(TypedConfig):
     """预检查配置基类"""
     type: TypedConfig.TypeField  # 类型字段，用于插件注册
-    max_tokens: int = Field(default=512, gt=0, description="Maximum number of tokens to generate, must be greater than 0")
-    timeout: float = Field(default=60.0, gt=0.0, description="Request timeout in seconds for API calls, must be greater than 0")
+    max_tokens: Annotated[
+        int,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=512, description="Maximum number of tokens to generate, must be greater than 0")
+    timeout: Annotated[
+        float,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=60.0, description="Request timeout in seconds for API calls, must be greater than 0")
 
 
 class BasePrecheckRule(ABC):
@@ -133,3 +140,33 @@ class BasePrecheckRule(ABC):
             如果检查失败，返回不达标的结果列表；如果检查通过，返回 None
         """
         pass
+
+
+def validate_base_precheck_config_list(v: Any) -> List[BasePrecheckConfig]:
+    """验证并转换预检查配置列表为 BasePrecheckConfig 实例列表"""
+    if v is None:
+        return []
+    
+    # 支持单个字典转换为列表
+    if isinstance(v, dict) and 'type' in v:
+        v = [v]
+    
+    if not isinstance(v, list):
+        raise ValueError("Expected a list of BasePrecheckConfig or dict, or a single dict with 'type' field")
+    
+    validated_configs = []
+    for item in v:
+        if isinstance(item, BasePrecheckConfig):
+            validated_configs.append(item)
+        elif isinstance(item, dict):
+            validated_configs.append(BasePrecheckConfig.model_validate(item))
+        else:
+            raise ValueError(f"Invalid precheck config item type: {type(item)}, expected dict or BasePrecheckConfig")
+    
+    return validated_configs
+
+
+BasePrecheckConfigList = Annotated[
+    List[SerializeAsAny[BasePrecheckConfig]],
+    BeforeValidator(validate_base_precheck_config_list)
+]

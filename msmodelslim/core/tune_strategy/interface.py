@@ -19,14 +19,15 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
-from typing import Generator, List, Optional
+from typing import Generator, List, Optional, Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AfterValidator
 
 from msmodelslim.core.practice import PracticeConfig
 from msmodelslim.core.const import DeviceType
 from msmodelslim.model import IModel
 from msmodelslim.utils.plugin import TypedConfig
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 TUNING_STRATEGY_CONFIG_PLUGIN_PATH = "msmodelslim.strategy_config.plugins"
 
@@ -37,9 +38,12 @@ class EvaluateAccuracy(BaseModel):
 
 
 class AccuracyExpectation(BaseModel):
-    dataset: str
-    target: float
-    tolerance: float
+    dataset: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(description="数据集名称")
+    target: float = Field(gt=0.0, description="目标精度值，必须 > 0")
+    tolerance: float = Field(ge=0.0, description="容差值，必须 >= 0")
 
 
 class EvaluateResult(BaseModel):

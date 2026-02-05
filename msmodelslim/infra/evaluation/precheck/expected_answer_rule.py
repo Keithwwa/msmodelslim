@@ -15,21 +15,29 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-from typing import List, Optional, Union, Any, Literal
+from typing import List, Optional, Union, Any, Literal, Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, AfterValidator
 
 from msmodelslim.core.tune_strategy import EvaluateAccuracy
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger
+from msmodelslim.utils.validation.pydantic import validate_str_length, non_empty_string
 
 from .base import BasePrecheckRule, BasePrecheckConfig
 
 
 class TestCase(BaseModel):
     """预检查测试用例"""
-    message: str = Field(min_length=1, description="Test message, must be a non-empty string")
-    expected_answer: Optional[Union[str, List[str]]] = Field(
+    message: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length(max_len=4096))
+    ] = Field(description="Test message, must be a non-empty string")
+    expected_answer: Optional[Union[
+        Annotated[str, AfterValidator(validate_str_length())],
+        List[Annotated[str, AfterValidator(validate_str_length())]]
+    ]] = Field(
         default=None,
         description="Expected content that should be included in the response. Can be a string or a list of strings."
     )

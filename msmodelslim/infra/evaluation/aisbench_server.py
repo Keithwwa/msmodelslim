@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field, AfterValidator, field_validator
 from msmodelslim.app.auto_tuning.evaluation_service_infra import EvaluateContext
 from msmodelslim.core.tune_strategy import EvaluateAccuracy
 from msmodelslim.infra.evaluation.precheck import model_output_precheck
+from msmodelslim.infra.evaluation.precheck.base import BasePrecheckConfigList
 from msmodelslim.utils.exception import SpecError
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.plugin import TypedConfig
@@ -41,34 +42,73 @@ from msmodelslim.utils.security.shell import build_safe_command_with_options
 from msmodelslim.utils.validation.pydantic import (
     is_safe_host,
     is_port,
+    greater_than_zero,
+    non_empty_string,
+    validate_str_length,
 )
 
 
 class ModelConfigMeta(BaseModel):
     """模型配置元数据"""
-    directory: str = Field(default="", description="模型配置目录的显式路径，空字符串表示使用默认路径")
-    subdir: str = Field(default="vllm_api", description="模型配置子目录")
-    base_name: str = Field(default="vllm_api_general_chat", description="模型配置基础名称")
-    name_suffix: str = Field(default="auto", description="模型配置名称后缀，'auto'表示自动生成")
-    abbr: str = Field(default="vllm-api-general-chat", description="模型配置缩写")
-    attr: str = Field(default="service", description="模型配置属性")
+    directory: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="", description="模型配置目录的显式路径，空字符串表示使用默认路径")
+    subdir: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="vllm_api", description="模型配置子目录")
+    base_name: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="vllm_api_general_chat", description="模型配置基础名称")
+    name_suffix: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="auto", description="模型配置名称后缀，'auto'表示自动生成")
+    abbr: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="vllm-api-general-chat", description="模型配置缩写")
+    attr: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="service", description="模型配置属性")
 
 
 class AisbenchConfig(BaseModel):
     """AISBench 评测配置"""
-    binary: str = Field(default="ais_bench", description="ais_bench 可执行文件路径或命令")
-    mode: str = Field(default="all", description="评测模式")
-    timeout: int = Field(default=7200, description="命令执行超时时间（秒），默认2小时")
+    binary: Literal['ais_bench'] = Field(default="ais_bench", description="aisbench 启动命令，固定为 'ais_bench'")
+    mode: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="all", description="评测模式")
+    timeout: Annotated[
+        int,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=7200, description="命令执行超时时间（秒），默认2小时")
     cleanup_model_config: bool = Field(default=True, description="是否清理生成的模型配置文件")
     model_meta: ModelConfigMeta = Field(default_factory=ModelConfigMeta, description="模型配置元数据")
-    request_rate: float = Field(default=1.0, description="默认请求速率")
-    pred_postprocessor: str = Field(
+    request_rate: Annotated[
+        float,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=1.0, description="默认请求速率，必须 > 0")
+    pred_postprocessor: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(
         default="extract_non_reasoning_content",
         description="预测后处理器名称"
     )
-    retry: int = Field(default=2, description="请求重试次数")
-    batch_size: int = Field(default=1, description="批处理大小")
-    max_out_len: int = Field(default=512, description="最大输出长度")
+    retry: int = Field(default=2, ge=0, description="请求重试次数，必须 >= 0")
+    batch_size: Annotated[
+        int,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=1, description="批处理大小，必须 > 0")
+    max_out_len: Annotated[
+        int,
+        AfterValidator(greater_than_zero)
+    ] = Field(default=512, description="最大输出长度，必须 > 0")
     trust_remote_code: bool = Field(default=False, description="是否信任远程代码")
     generation_kwargs: Dict = Field(
         default_factory=dict,
@@ -78,17 +118,34 @@ class AisbenchConfig(BaseModel):
         default_factory=list,
         description="额外的命令行参数列表，默认为空列表"
     )
-    log_dir: str = Field(default="", description="日志目录路径，空字符串表示使用默认路径")
+    log_dir: Annotated[
+        str,
+        AfterValidator(validate_str_length())
+    ] = Field(default="", description="日志目录路径，空字符串表示使用默认路径")
 
 
 class DatasetConfig(BaseModel):
     """单个数据集的评测配置"""
-    config_name: str = Field(..., description="数据集在 ais_bench 中的配置名称（必需）")
-    mode: str = Field(default="", description="该数据集的评测模式，空字符串表示使用全局模式")
-    request_rate: float = Field(default=0.0, description="该数据集的请求速率，0.0 表示使用全局默认值")
-    max_out_len: Optional[int] = Field(default=None, description="该数据集的最大输出长度，None 表示使用全局默认值")
+    config_name: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length()),
+    ] = Field(..., description="数据集在 ais_bench 中的配置名称（必需）")
+    mode: Annotated[
+        str,
+        AfterValidator(validate_str_length()),
+    ] = Field(default="", description="该数据集的评测模式，空字符串表示使用全局模式")
+    request_rate: float = Field(default=0.0, ge=0.0, description="该数据集的请求速率，0.0 表示使用全局默认值")
+    max_out_len: Annotated[
+        Optional[int],
+        AfterValidator(greater_than_zero),
+    ] = Field(default=None, description="该数据集的最大输出长度，None 表示使用全局默认值")
     returns_tool_calls: Optional[bool] = Field(default=None, description="是否返回工具调用，None 表示不写入该字段")
-    api_chat_type: str = Field(default="VLLMCustomAPIChat", description="该数据集使用的 API Chat 类型")
+    api_chat_type: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length()),
+    ] = Field(default="VLLMCustomAPIChat", description="该数据集使用的 API Chat 类型")
     chat_template_kwargs: Dict = Field(
         default_factory=dict,
         description="chat_template 的额外参数，例如 aime25 需要 {\"thinking\": True}"
@@ -101,53 +158,20 @@ class DatasetConfig(BaseModel):
 
 class AisbenchServerConfig(BaseModel):
     """AISBench 评测服务配置"""
-    type: TypedConfig.TypeField = Literal['aisbench']
+    type: Literal['aisbench'] = 'aisbench'
     aisbench: AisbenchConfig = Field(default_factory=AisbenchConfig, description="AISBench 评测配置")
     datasets: Dict[str, DatasetConfig] = Field(default_factory=dict, description="数据集配置字典，键为数据集名称")
     host: Annotated[str, AfterValidator(is_safe_host)] = "localhost"
     port: Annotated[int, AfterValidator(is_port)] = 1234
-    served_model_name: str = Field(default='served_model_name', description="已部署的模型名称")
-    precheck: Optional[List[Dict[str, Any]]] = Field(
+    served_model_name: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length())
+    ] = Field(default='served_model_name', description="已部署的模型名称")
+    precheck: BasePrecheckConfigList = Field(
         default_factory=list, 
         description="模型预检配置列表，每个元素是一个字典，包含 'type' 字段（'garbled_text' 或 'expected_answer'）"
     )
-    
-    @field_validator('precheck', mode='before')
-    @classmethod
-    def parse_precheck(cls, v: Any) -> List[Dict[str, Any]]:
-        """
-        解析预检查配置。
-        
-        支持列表格式，每个元素是一个字典，包含 'type' 字段。
-        如果传入单个字典（包含 'type' 字段），会自动转换为列表。
-        类型验证由 TypedConfig 的验证机制自动处理，如果类型不存在会抛出异常。
-        """
-        if v is None:
-            return []
-        
-        config_list = []
-        
-        # 如果是列表，验证每个元素
-        if isinstance(v, list):
-            config_list = v
-        # 如果是字典且包含 'type' 字段，转换为列表
-        elif isinstance(v, dict) and 'type' in v:
-            config_list = [v]
-        else:
-            # 其他情况，返回空列表
-            get_logger().warning(
-                f"Invalid precheck config format: {type(v)}. "
-                "Expected a list of dicts with 'type' field or a single dict with 'type' field. "
-                "Using empty list."
-            )
-            return []
-        
-        # 验证每个配置项的基本格式
-        for config_dict in config_list:
-            if not isinstance(config_dict, dict):
-                raise ValueError(f"Invalid precheck config item: expected dict, got {type(config_dict)}")
-        
-        return config_list
 
 
 class AisBenchServer:

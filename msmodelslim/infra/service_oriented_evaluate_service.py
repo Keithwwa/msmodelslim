@@ -21,14 +21,14 @@ See the Mulan PSL v2 for more details.
 from pathlib import Path
 from typing import Literal, List, Annotated
 
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, model_validator
 
 from msmodelslim.app.auto_tuning import EvaluateServiceInfra, EvaluateServiceConfig
 from msmodelslim.app.auto_tuning.evaluation_service_infra import EvaluateContext
 from msmodelslim.core.tune_strategy import EvaluateResult, EvaluateAccuracy, AccuracyExpectation
 from msmodelslim.infra.evaluation.aisbench_server import AisBenchServer, AisbenchServerConfig
 from msmodelslim.infra.vllm_ascend_server import VllmAscendServer, VllmAscendConfig
-from msmodelslim.utils.exception import SpecError
+from msmodelslim.utils.exception import SpecError, SchemaValidateError
 from msmodelslim.utils.logging import logger_setter
 from msmodelslim.utils.plugin import TypedConfig
 from msmodelslim.utils.validation.pydantic import at_least_one_element
@@ -43,6 +43,28 @@ class ServiceOrientedEvaluateServiceConfig(EvaluateServiceConfig):
     demand: EvaluateDemand
     evaluation: AisbenchServerConfig
     inference_engine: VllmAscendConfig
+    
+    @model_validator(mode='after')
+    def validate_datasets_exist(self):
+        """校验 expectations 中的所有 dataset 都在 evaluation.evaluation.datasets 中配置了"""
+        if not self.demand.expectations:
+            return self
+        
+        available_datasets = set(self.evaluation.datasets.keys())
+        missing_datasets = []
+        
+        for expectation in self.demand.expectations:
+            if expectation.dataset not in available_datasets:
+                missing_datasets.append(expectation.dataset)
+        
+        if missing_datasets:
+            raise SchemaValidateError(
+                f"Dataset(s) {missing_datasets} in expectations are not configured in evaluation.datasets. "
+                f"Available datasets: {list(available_datasets)}",
+                action="Please add the missing dataset(s) to evaluation.aisbench.datasets or remove them from expectations"
+            )
+        
+        return self
 
 
 @logger_setter()

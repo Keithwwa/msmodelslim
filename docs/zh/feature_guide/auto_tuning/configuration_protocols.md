@@ -111,10 +111,10 @@ template:
 
 **字段说明**:
 
-| 字段名 | 作用 | 类型 | 说明 |
-|--------|------|------|------|
-| config_id | 配置ID | string | 量化配置的标识符 |
-| label | 标签 | object | 量化配置的标签信息，包括量化位数、稀疏性等 |
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| config_id | 配置ID | string | 可选 | 量化配置的标识符。默认值：`"Unknown"` |
+| label | 标签 | object | 可选 | 量化配置的标签信息，包括量化位数、稀疏性等。默认值：`{}` |
 
 **label 字段说明**:
 
@@ -141,6 +141,15 @@ metadata:
 
 **作用**: 定义模型精度评估的配置，包括评估服务类型、测评工具配置和推理引擎配置。
 
+**核心字段**:
+
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| type | 评估服务类型 | string | 必选 | 当前支持 `service_oriented`（面向服务的评估，通过服务化方式启动模型进行评估）。 |
+| demand | 精度需求配置 | object | 必选 | 定义模型精度评估的精度需求，包括数据集、目标精度和容差 |
+| evaluation | 测评工具配置 | object | 必选 | 定义测评工具的配置参数 |
+| inference_engine | 推理引擎配置 | object | 必选 | 定义推理引擎的配置参数，用于将量化后的模型以服务化方式启动 |
+
 #### type - 评估服务类型
 
 **作用**: 指定评估服务的类型。
@@ -155,17 +164,17 @@ metadata:
 
 **字段说明**:
 
-| 字段名 | 作用 | 类型 | 说明 |
-|--------|------|------|------|
-| expectations | 精度期望列表 | list | 精度需求的列表，每个元素包含数据集、目标精度和容差 |
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| expectations | 精度期望列表 | list | 必选 | 精度需求的列表，每个元素包含数据集、目标精度和容差，至少包含一个元素 |
 
 **expectations 字段说明**:
 
-| 字段名 | 作用 | 类型 | 说明 |
-|--------|------|------|------|
-| dataset | 数据集名称 | string | 需要评估的数据集名称，如 gsm8k、aime25 等 |
-| target | 目标精度 | float | 期望达到的精度目标值，单位为百分比，如 83 表示 83% 的精度 |
-| tolerance | 容差 | float | 精度允许的误差范围，单位为百分比，如 2 表示允许 ±2% 的误差 |
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| dataset | 指定要评估的数据集 | string | 必选 | 数据集名称，必须是在 evaluation.evaluation.datasets 中配置的数据集名称 |
+| target | 设置精度目标值 | float | 必选 | 期望达到的精度目标值，必须大于 0 |
+| tolerance | 设置精度容差 | float | 必选 | 精度允许的误差范围，必须大于等于 0 |
 
 **配置示例**:
 
@@ -192,7 +201,8 @@ demand:
 ```
 
 **注意**: 
-- 精度目标设置说明：文档中给出的精度数据仅供参考，请根据实际浮点模型的精度进行配置。理论上量化后模型不会超过原始浮点模型的精度，因此建议将精度目标设置为略低于或等于浮点模型的精度。
+- **精度单位说明**：不同数据集返回的精度格式可能不同，有些数据集返回小数形式（0.0-1.0，如 0.83 表示 83%），有些数据集返回百分制（0-100，如 83 表示 83%）。`target` 和 `tolerance` 的单位必须与对应数据集返回的精度格式保持一致。请根据测评工具实际数据集返回的精度格式来配置 `target` 和 `tolerance`。
+- **精度目标设置说明**：文档中给出的精度数据仅供参考，请根据实际浮点模型的精度进行配置。理论上量化后模型不会超过原始浮点模型的精度，因此建议将精度目标设置为略低于或等于浮点模型的精度。
 - 支持配置多个数据集的精度需求，每个数据集可以设置不同的目标精度和容差。
 
 #### evaluation - 测评工具配置
@@ -201,13 +211,15 @@ demand:
 
 **核心字段**:
 
-- **type**: 测评工具类型，当前支持 `aisbench`
-- **precheck**: 预检查配置（可选），定义正式评估前的预检查配置
-- **aisbench**: AISbench 测评工具的详细配置参数
-- **datasets**: 数据集配置，定义需要评估的数据集及其配置
-- **host**: 服务主机地址
-- **port**: 服务端口
-- **served_model_name**: 服务化模型名称
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| type | 测评工具类型 | string | 必选 | 当前支持 `aisbench`。 |
+| precheck | 预检查配置 | list | 可选 | 定义正式评估前的预检查配置，空列表表示跳过预检查。默认值：`[]` |
+| aisbench | AISbench 测评工具配置 | object | 必选 | AISbench 测评工具的详细配置参数。 |
+| datasets | 数据集配置 | dict | 必选 | 数据集配置，定义需要评估的数据集及其配置。必须至少包含 `demand.expectations` 中指定的所有数据集。 |
+| host | 服务主机地址 | string | 可选 | 服务主机地址。默认值：`"localhost"` |
+| port | 服务端口 | int | 可选 | 服务端口，范围：1-65535。默认值：`1234` |
+| served_model_name | 服务化模型名称 | string | 可选 | 服务化模型名称，非空字符串。默认值：`"served_model_name"` |
 
 **配置示例**:
 
@@ -256,9 +268,54 @@ evaluation:
 
 **datasets 字段说明**:
 
-该字段指定了不同的数据集字段对应的 AISbench 拉起测评服务的字段。当前示例中仅支持三个数据集（gsm8k、aime25、bfcl-simple），用户可以参考 [AISbench 文档数据集支持列表](https://gitee.com/aisbench/benchmark)添加更多支持的数据集。每个数据集需要配置 `config_name`（AISbench 中的配置名称）和 `mode`（评估模式）字段。
+该字段指定了不同的数据集字段对应的 AISbench 拉起测评服务的字段。当前示例中仅支持三个数据集（gsm8k、aime25、bfcl-simple），用户可以参考 [AISbench 文档数据集支持列表](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html)添加更多支持的数据集。
 
-**aisbench 字段说明**: AISbench 测评工具的详细参数配置请参考 [AISbench 官方文档](https://gitee.com/aisbench/benchmark)。
+每个数据集的配置字段说明：
+
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| config_name | 指定 AISbench 中的配置名称 | string | 必选 | 数据集在 AISbench 中的配置名称，非空字符串 |
+| mode | 设置该数据集的评测模式 | string | 可选 | 评测模式，空字符串表示使用全局模式。默认值：`""` |
+| request_rate | 设置该数据集的请求速率 | float | 可选 | 请求速率，0.0 表示使用全局默认值。必须大于等于 0。默认值：`0.0` |
+| max_out_len | 设置该数据集的最大输出长度 | int | 可选 | 最大输出长度，None 表示使用全局默认值。如果指定则必须大于 0。默认值：`None` |
+| returns_tool_calls | 控制是否返回工具调用 | bool | 可选 | 是否返回工具调用，None 表示不写入该字段。默认值：`None` |
+| api_chat_type | 指定该数据集使用的 API Chat 类型 | string | 可选 | API Chat 类型，非空字符串。默认值：`"VLLMCustomAPIChat"` |
+| chat_template_kwargs | 配置 chat_template 的额外参数 | dict | 可选 | chat_template 的额外参数。默认值：`{}` |
+| extra_args | 添加该数据集的额外命令行参数 | list | 可选 | 额外的命令行参数列表。默认值：`[]` |
+
+**aisbench 字段说明**:
+
+AISbench 测评工具的详细配置参数：
+
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| binary | 指定 aisbench 启动命令 | string | 可选 | 固定值：`ais_bench`。默认值：`"ais_bench"` |
+| mode | 设置评测模式 | string | 可选 | 评测模式。默认值：`"all"` |
+| timeout | 设置命令执行超时时间 | int | 可选 | 超时时间（秒），必须大于 0。默认值：`7200`（2小时） |
+| cleanup_model_config | 控制是否清理模型配置 | bool | 可选 | 是否清理生成的模型配置文件。默认值：`true` |
+| model_meta | 配置模型元数据 | object | 可选 | 模型配置元数据，详见下方说明。默认值：`ModelConfigMeta()` |
+| request_rate | 设置默认请求速率 | float | 可选 | 默认请求速率，必须大于 0。默认值：`1.0` |
+| pred_postprocessor | 指定预测后处理器 | string | 可选 | 预测后处理器名称。默认值：`"extract_non_reasoning_content"` |
+| retry | 设置请求重试次数 | int | 可选 | 请求重试次数，必须大于等于 0。默认值：`2` |
+| batch_size | 设置批处理大小 | int | 可选 | 批处理大小，必须大于 0。默认值：`1` |
+| max_out_len | 设置最大输出长度 | int | 可选 | 最大输出长度，必须大于 0。默认值：`512` |
+| trust_remote_code | 控制是否信任远程代码 | bool | 可选 | 是否信任远程代码。默认值：`false` |
+| generation_kwargs | 配置生成参数 | dict | 可选 | 生成参数配置字典。默认值：`{}` |
+| extra_args | 添加额外命令行参数 | list | 可选 | 额外的命令行参数列表。默认值：`[]` |
+| log_dir | 指定日志目录路径 | string | 可选 | 日志目录路径，空字符串表示使用默认路径。默认值：`""` |
+
+**model_meta 字段说明**:
+
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| directory | 指定模型配置目录路径 | string | 可选 | 模型配置目录的显式路径，空字符串表示使用默认路径。默认值：`""` |
+| subdir | 指定模型配置子目录 | string | 可选 | 模型配置子目录。默认值：`"vllm_api"` |
+| base_name | 指定模型配置基础名称 | string | 可选 | 模型配置基础名称。默认值：`"vllm_api_general_chat"` |
+| name_suffix | 指定模型配置名称后缀 | string | 可选 | 模型配置名称后缀，'auto'表示自动生成。默认值：`"auto"` |
+| abbr | 指定模型配置缩写 | string | 可选 | 模型配置缩写。默认值：`"vllm-api-general-chat"` |
+| attr | 指定模型配置属性 | string | 可选 | 模型配置属性。默认值：`"service"` |
+
+**注意**: 上面大部分参数来自于 aisbench 命令行参数与服务化推理后端参数，可以参考 [AISBench 详细参数说明](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/index.html) 进行配置。
 
 ##### precheck - 预检查配置（可选）
 
@@ -278,12 +335,12 @@ evaluation:
 
 **字段说明**:
 
-| 字段名 | 作用 | 类型 | 说明 |
-|--------|------|------|------|
-| type | 预检查类型 | string | 固定值：`expected_answer` |
-| test_cases | 测试用例列表 | list | 测试用例列表，使用键值对格式（问题: 答案）。如果不配置，默认使用一个测试用例（"What is 2+2?": "4"） |
-| max_tokens | 最大token数 | int | 可选，默认值：512 |
-| timeout | 超时时间 | float | 可选，默认值：60.0（秒） |
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| type | 指定预检查类型 | string | 必选 | 固定值：`expected_answer`。 |
+| test_cases | 配置测试用例列表 | list | 可选 | 测试用例列表，使用键值对格式（问题: 答案）。如果不配置，默认使用一个测试用例（"What is 2+2?": "4"）。默认值：`[{"What is 2+2?": "4"}]` |
+| max_tokens | 设置最大token数 | int | 可选 | 必须大于零。默认值：`512` |
+| timeout | 设置超时时间 | float | 可选 | 超时时间（秒），必须大于零。默认值：`60.0` |
 
 **test_cases 字段说明**:
 
@@ -323,21 +380,21 @@ precheck:
 
 **作用**: 定义推理引擎的配置参数，用于将量化后的模型以服务化方式启动。
 
-**核心字段**:
+**字段说明**:
 
-- **type**: 推理引擎类型，当前支持 `vllm-ascend`
-- **entrypoint**: 服务入口点
-- **env_vars**: 环境变量配置
-- **served_model_name**: 服务化模型名称
-- **host**: 服务主机地址
-- **port**: 服务端口
-- **health_check_endpoint**: 健康检查端点，用于检查 vLLM-Ascend 是否能正常拉起模型，固定为 `/v1/models`即可，
-- **startup_timeout**: 启动超时时间
-- **args**: 推理引擎启动参数
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| type | 指定推理引擎类型 | string | 必选 | 当前只支持 `vllm-ascend`。 |
+| entrypoint | 指定服务入口点 | string | 可选 | 服务入口点，非空字符串。默认值：`"vllm.entrypoints.openai.api_server"` |
+| env_vars | 配置环境变量 | dict | 可选 | 环境变量配置。默认值：`{}` |
+| served_model_name | 指定服务化模型名称 | string | 可选 | 服务化模型名称，非空字符串。默认值：`"served_model_name"` |
+| host | 指定服务主机地址 | string | 可选 | 服务主机地址。默认值：`"localhost"` |
+| port | 指定服务端口 | int | 可选 | 服务端口，范围：1-65535。默认值：`1234` |
+| health_check_endpoint | 指定健康检查端点 | string | 可选 | 健康检查端点，用于检查 vLLM-Ascend 是否能正常拉起模型，必须以 `/` 开头。默认值：`"/v1/models"` |
+| startup_timeout | 设置启动超时时间 | int | 可选 | 启动超时时间（秒），必须大于 0。默认值：`600` |
+| args | 配置推理引擎启动参数 | dict | 可选 | 推理引擎启动参数，用于添加其他vllm-ascend参数配置。默认值：`{}` |
 
-**详细参数说明**: vLLM-Ascend 推理引擎的详细参数配置请参考 [vLLM-Ascend 配置指南](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/user_guide/configuration/index.html)。
-
-**注意**: 不同模型拉起服务化时需要的参数可能不同，用户需要根据实际模型调整服务化参数。例如，不同模型可能需要不同的 `max-model-len`、`tensor-parallel-size` 等参数。
+**注意**: 不同模型拉起服务化时需要的参数可能不同，用户需要根据实际模型调整服务化参数。可以参考 [vLLM-Ascend 教程](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/tutorials/index.html) 适应不同模型的参数配置，启动参数可以在 `args` 中进行添加，环境变量可以在 `env_vars` 中添加。
 
 **配置示例**:
 

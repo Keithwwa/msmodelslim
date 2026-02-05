@@ -37,14 +37,22 @@ from msmodelslim.utils.validation.pydantic import (
     is_safe_endpoint,
     is_port,
     greater_than_zero,
+    non_empty_string,
+    validate_str_length,
 )
-
-
 class VllmAscendConfig(BaseModel):
     type: TypedConfig.TypeField = Literal['vllm-ascend']
-    entrypoint: str = "vllm.entrypoints.openai.api_server"
+    entrypoint: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length())
+    ] = "vllm.entrypoints.openai.api_server"
     env_vars: Dict = Field(default_factory=dict)
-    served_model_name: str = 'served_model_name'
+    served_model_name: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length())
+    ] = 'served_model_name'
     host: Annotated[str, AfterValidator(is_safe_host)] = "localhost"
     port: Annotated[int, AfterValidator(is_port)] = 1234
     health_check_endpoint: Annotated[

@@ -23,7 +23,7 @@ from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.plugin.plugin_utils import get_entry_points
 from msmodelslim.utils.plugin.typed_factory import TypedFactory
 
-from .base import BasePrecheckRule, BasePrecheckConfig
+from .base import BasePrecheckRule, BasePrecheckConfig, BasePrecheckConfigList
 
 PRECHECK_RULE_PLUGIN_PATH = "msmodelslim.precheck_rule.plugins"
 PRECHECK_CONFIG_PLUGIN_PATH = "msmodelslim.precheck_config.plugins"
@@ -73,15 +73,17 @@ class ModelOutputPrechecker:
     统一管理多个预检查器，支持多种预检类型。
     """
     
-    def __init__(self, configs: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, configs: Optional[List[BasePrecheckConfig]] = None):
         self.precheckers: List[BasePrecheckRule] = []
         self._factory = PrecheckerFactory()
         if configs:
-            for config_dict in configs:
+            for config in configs:
                 try:
+                    # 将 BasePrecheckConfig 转换为字典
+                    config_dict = config.model_dump() if isinstance(config, BasePrecheckConfig) else config
                     self.precheckers.append(self._factory.create(config_dict))
                 except Exception as e:
-                    get_logger().warning(f"Failed to create prechecker from config {config_dict}: {e}. Skipping.")
+                    get_logger().warning(f"Failed to create prechecker from config {config}: {e}. Skipping.")
     
     def check(
         self,

@@ -17,13 +17,14 @@ See the Mulan PSL v2 for more details.
 """
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional, Any, Literal, Dict
+from typing import List, Optional, Any, Literal, Dict, Annotated
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, AfterValidator
 
 from msmodelslim.core.tune_strategy import EvaluateAccuracy
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger
+from msmodelslim.utils.validation.pydantic import validate_str_length, non_empty_string
 
 from .base import BasePrecheckRule, BasePrecheckConfig
 
@@ -190,7 +191,11 @@ def get_all_check_item_names() -> List[str]:
 
 class TestCaseConfig(BaseModel):
     """测试用例配置"""
-    message: str = Field(min_length=1, description="Test message, must be a non-empty string")
+    message: Annotated[
+        str,
+        AfterValidator(non_empty_string),
+        AfterValidator(validate_str_length())
+    ] = Field(description="Test message, must be a non-empty string")
     items: List[str] = Field(
         default_factory=lambda: list(_CHECK_ITEM_REGISTRY.keys()),
         description="List of check item names to enable for this test case. If not specified, all items are enabled."
