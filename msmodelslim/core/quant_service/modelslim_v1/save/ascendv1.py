@@ -552,5 +552,5 @@ class AscendV1Saver(AutoSaverProcessor):
     def _process_module(self, prefix: str, module: nn.Module):
         if isinstance(self.adapter, AscendV1SaveInterface):
             self.processed_modules.add(module)
-            module = self.adapter.ascendv1_save_module_preprocess(prefix, module, self.model) or module
+            prefix, module = self.adapter.ascendv1_save_module_preprocess(prefix, module, self.model)
         super()._process_module(prefix=prefix, module=module)

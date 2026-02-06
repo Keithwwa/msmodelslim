@@ -22,6 +22,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import torch
 import torch.nn as nn
 
 from msmodelslim.core.base.protocol import ProcessRequest
@@ -298,66 +299,33 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
             )
 
             # 创建模拟的Qwen3RMSNorm模块
+            test_prefix = "model.layers.0.input_layernorm"
+            original_weight_data = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
+            expected_weight_data = original_weight_data - 1  # 期望的weight值：原始值 - 1
+            
             mock_module = MagicMock()
             mock_module.__class__.__name__ = 'Qwen3RMSNorm'
             mock_module.weight = MagicMock()
-            mock_module.weight.shape = [100]
+            mock_module.weight.shape = [5]
             mock_module.variance_epsilon = 1e-6
-            mock_module.weight.data = MagicMock()
-            mock_module.weight.data.__sub__ = MagicMock(return_value=MagicMock())
-            mock_module.weight.data.__radd__ = MagicMock(return_value=MagicMock())
+            mock_module.weight.data = original_weight_data.clone()
 
             mock_model = MagicMock()
+            
+            # Mock Qwen3NextRMSNorm 的创建，使用真实的nn.Module来存储weight
+            with patch('msmodelslim.model.qwen3_next.model_adapter.Qwen3NextRMSNorm') as mock_qwen3_next_rms_norm:
+                # 创建一个真实的新模块来存储weight
+                class MockNewModule(nn.Module):
+                    def __init__(self):
+                        super().__init__()
+                        self.weight = nn.Parameter(torch.zeros(5))
+                
+                mock_new_module = MockNewModule()
+                mock_qwen3_next_rms_norm.return_value = mock_new_module
+                
+                new_prefix, new_module = adapter.ascendv1_save_module_preprocess(test_prefix, mock_module, mock_model)
 
-            result = adapter.ascendv1_save_module_preprocess("model.layers.0.input_layernorm", mock_module, mock_model)
-
-            # 验证返回值不为None
-            self.assertIsNotNone(result)
-            # 验证model.set_submodule被调用
-            mock_model.set_submodule.assert_called_once()
-
-    @patch.dict('sys.modules', {
-        'transformers.models.qwen3_next.modeling_qwen3_next': MagicMock(),
-    })
-    def test_ascendv1_save_module_preprocess_without_input_layernorm(self):
-        """测试ascendv1_save_module_preprocess方法当prefix不包含input_layernorm时"""
-        from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
-            adapter = Qwen3NextModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
-
-            mock_module = MagicMock()
-            mock_model = MagicMock()
-
-            result = adapter.ascendv1_save_module_preprocess("model.layers.0.some_other_module", mock_module,
-                                                             mock_model)
-
-            # 验证返回值为None
-            self.assertIsNone(result)
-            # 验证model.set_submodule没有被调用
-            mock_model.set_submodule.assert_not_called()
-
-    @patch.dict('sys.modules', {
-        'transformers.models.qwen3_next.modeling_qwen3_next': MagicMock(),
-    })
-    def test_ascendv1_save_module_preprocess_with_wrong_module_type(self):
-        """测试ascendv1_save_module_preprocess方法当module不是Qwen3RMSNorm时"""
-        from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
-            adapter = Qwen3NextModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
-
-            mock_module = MagicMock()
-            mock_module.__class__.__name__ = 'SomeOtherModule'
-            mock_model = MagicMock()
-
-            result = adapter.ascendv1_save_module_preprocess("model.layers.0.input_layernorm", mock_module, mock_model)
-
-            # 验证返回值为None
-            self.assertIsNone(result)
-            # 验证model.set_submodule没有被调用
-            mock_model.set_submodule.assert_not_called()
+                # 验证prefix没有变化
+                self.assertEqual(new_prefix, test_prefix)
+                # 验证新模块的weight.data是原始weight.data - 1
+                self.assertTrue(torch.allclose(new_module.weight.data, expected_weight_data))

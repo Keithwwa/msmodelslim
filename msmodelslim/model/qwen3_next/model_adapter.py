@@ -113,10 +113,10 @@ class Qwen3NextModelAdapter(TransformersModel,
             ])
         return adapter_config
 
-    def ascendv1_save_module_preprocess(self, prefix: str, module: nn.Module, model: nn.Module) -> Optional[nn.Module]:
+    def ascendv1_save_module_preprocess(self, prefix: str, module: nn.Module, model: nn.Module) -> Tuple[str, nn.Module]:
         if 'input_layernorm' in prefix and module.__class__.__name__ == 'Qwen3RMSNorm':
             new_module = Qwen3NextRMSNorm(module.weight.shape[0], module.variance_epsilon)
             new_module.weight.data = module.weight.data - 1
             model.set_submodule(prefix, new_module)
-            return new_module
-        return None
+            return prefix, new_module
+        return prefix, module
