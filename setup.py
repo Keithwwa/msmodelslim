@@ -48,7 +48,7 @@ for group, models in config.items("ModelAdapter"):
 
 setup(
     name='msmodelslim',
-    version='8.2.0',
+    version='26.0.0.alpha01',
     description='msModelSlim, MindStudio ModelSlim Tools',
     long_description_content_type='text/markdown',
     url=config.get('URL', 'repository_url'),
