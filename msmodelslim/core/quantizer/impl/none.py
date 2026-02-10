@@ -26,6 +26,7 @@ from msmodelslim.ir.qal import QABCRegistry, QScheme, QParam
 from msmodelslim.utils.logging import logger_setter
 from ..base import AutoActQuantizer, QConfig
 
+
 @QABCRegistry.multi_register(
     dispatch_key=[
         (qir.float_per_tensor_sym, "none")
@@ -42,11 +43,17 @@ class ActPerTensorNone(AutoActQuantizer):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x
 
+    def is_data_free(self) -> bool:
+        """
+        空实现，data_free设置为True
+        """
+        return True
+
     def get_q_param(self) -> QParam:
         return QParam(
-        scheme=QScheme(
-            dtype=self.config.dtype,
-            scope=self.config.scope,
-            symmetric=self.config.symmetric,
+            scheme=QScheme(
+                dtype=self.config.dtype,
+                scope=self.config.scope,
+                symmetric=self.config.symmetric,
+            )
         )
-    )

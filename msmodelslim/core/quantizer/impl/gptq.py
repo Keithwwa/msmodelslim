@@ -19,19 +19,18 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+import math
 from typing import Optional
 
-import math
 import torch
-from pydantic import validate_call
 
 import msmodelslim.ir as qir
+from msmodelslim.core.observer import MsMinMaxObserver, MinMaxObserverConfig
 from msmodelslim.ir.api import quantize, fake_quantize, calculate_qparam
 from msmodelslim.ir.qal import QABCRegistry, QDType, QStorage, QParam, QScope, QScheme
-from msmodelslim.core.observer import MsMinMaxObserver, MinMaxObserverConfig
+from msmodelslim.utils.exception import SpecError
 from msmodelslim.utils.logging import logger_setter
 from ..base import AutoWeightQuantizer, QConfig
-from msmodelslim import logger
 
 PERCDAMP_KEY = "percdamp"  # percdamp值配置key
 PERCDAMP_DEFAULT = 0.01  # 默认percdamp值
@@ -136,7 +135,8 @@ class WeightPerChannelGPTQ(AutoWeightQuantizer):
             torch.Tensor: 反量化后的权重张量
         """
         # 收集并合并激活值到hessian矩阵中
-        self.hessian, self.nsamples = add_batch(self.hessian, self.nsamples, x.clone())
+        if x is not None and x.numel() != 0:
+            self.hessian, self.nsamples = add_batch(self.hessian, self.nsamples, x.clone())
         return self.weight.value
 
     def is_data_free(self) -> bool:
@@ -158,11 +158,21 @@ class WeightPerChannelGPTQ(AutoWeightQuantizer):
         self.bias = bias
 
     def get_q_storage(self) -> QStorage:
+        if self.hessian is None:
+            raise SpecError(
+                "No hessian was set",
+                action="Please call forward first"
+            )
         if self.w_q_storage is None:
             self.w_q_storage, self.w_q_param = self.__gptq_per_channel_quantize()
         return self.w_q_storage
 
     def get_q_param(self) -> QParam:
+        if self.hessian is None:
+            raise SpecError(
+                "No hessian was set",
+                action="Please call forward first"
+            )
         if self.w_q_param is None:
             self.w_q_storage, self.w_q_param = self.__gptq_per_channel_quantize()
         return self.w_q_param
@@ -272,7 +282,8 @@ class WeightPerGroupGPTQ(AutoWeightQuantizer):
             torch.Tensor: 反量化后的权重张量
         """
         # 收集并合并激活值到hessian矩阵中
-        self.hessian, self.nsamples = add_batch(self.hessian, self.nsamples, x.clone())
+        if x is not None and x.numel() != 0:
+            self.hessian, self.nsamples = add_batch(self.hessian, self.nsamples, x.clone())
         return self.weight.value
 
     def is_data_free(self) -> bool:
@@ -294,11 +305,21 @@ class WeightPerGroupGPTQ(AutoWeightQuantizer):
         self.bias = bias
 
     def get_q_storage(self) -> QStorage:
+        if self.hessian is None:
+            raise SpecError(
+                "No hessian was set",
+                action="Please call forward first"
+            )
         if self.w_q_storage is None:
             self.w_q_storage, self.w_q_param = self.__gptq_per_group_quantize()
         return self.w_q_storage
 
     def get_q_param(self) -> QParam:
+        if self.hessian is None:
+            raise SpecError(
+                "No hessian was set",
+                action="Please call forward first"
+            )
         if self.w_q_param is None:
             self.w_q_storage, self.w_q_param = self.__gptq_per_group_quantize()
         return self.w_q_param

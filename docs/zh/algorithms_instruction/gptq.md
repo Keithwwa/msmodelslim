@@ -25,8 +25,9 @@
 ### 实现
 
 算法实现在 [`msmodelslim/core/quantizer/impl/gptq.py`](../../../msmodelslim/core/quantizer/impl/gptq.py) 中：
-  - `per_channel`实现类：`WeightPerChannelGPTQ`
-  - `per_group`实现类：`WeightPerGroupGPTQ`
+
+- `per_channel`实现类：`WeightPerChannelGPTQ`
+- `per_group`实现类：`WeightPerGroupGPTQ`
 
 ## 适用要求
 
@@ -35,6 +36,7 @@
 - **使用限制**：
     - 目前支持int8场景的 per_channel/per_group 对称与非对称量化。
     - 当前暂不支持int4场景的 per_channel/per_group 对称与非对称量化（后续将支持）。
+    - 由于GPTQ量化算法依赖模型激活值，MOE模型量化场景要求校准集覆盖所有专家，对校准集要求较高，此场景不推荐使用。
     - per_tensor量化粒度暂不支持。
     - 权重必须是2D张量。
 
@@ -43,33 +45,35 @@
 ### YAML配置示例
 
 per_channel量化示例
+
 ```yaml
 spec:
   process:
-    - type: "linear_quant" 
+    - type: "linear_quant"
       qconfig:
         weight:
           scope: "per_channel"   # 量化范围
           dtype: "int8"          # 量化数据类型
           symmetric: true        # 是否对称量化
           method: "gptq"         # 量化算法-GPTQ
-          ext:                   # 可选，扩展参数
+          ext: # 可选，扩展参数
             percdamp: 0.01       # 可选，阻尼系数，默认值0.01
             block_size: 128      # 可选，分块大小，默认值128
 ```
 
 per_group量化示例
+
 ```yaml
 spec:
   process:
-    - type: "linear_quant" 
+    - type: "linear_quant"
       qconfig:
         weight:
           scope: "per_group"   # 量化范围
           dtype: "int8"        # 量化数据类型
           symmetric: true      # 是否对称量化
           method: "gptq"       # 量化算法-GPTQ
-          ext:                 # 可选，扩展参数
+          ext: # 可选，扩展参数
             percdamp: 0.01     # 可选，阻尼系数，默认值0.01
             block_size: 128    # 可选，分块大小，默认值128
             group_size: 256    # 可选，分组大小，默认值256
@@ -77,23 +81,23 @@ spec:
 
 ### YAML配置字段详解
 
-| 参数名 | 作用 | 可选值 | 说明 | 默认值                         |
-|--------|------|--------|------|-----------------------------|
-| scope | 量化范围 | `"per_channel"`, `"per_group"` | per_channel: 每个通道独立参数<br/>per_group: 每个分组独立参数 | `"per_channel"`             |
-| dtype | 量化数据类型 | `"int8"` | 8位整数量化 | `"int8"`                    |
-| symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `true`                      |
-| method | 量化方法 | `"gptq"` | gptq: gptq权重量化 | `"gptq"`                    |
-| ext | 扩展配置 | `object` | 包含GPTQ特有的配置参数 | 见下方 **ext (GPTQ扩展配置)** 详细配置 |
+| 参数名       | 作用     | 可选值                            | 说明                                            | 默认值                         |
+|-----------|--------|--------------------------------|-----------------------------------------------|-----------------------------|
+| scope     | 量化范围   | `"per_channel"`, `"per_group"` | per_channel: 每个通道独立参数<br/>per_group: 每个分组独立参数 | `"per_channel"`             |
+| dtype     | 量化数据类型 | `"int8"`                       | 8位整数量化                                        | `"int8"`                    |
+| symmetric | 是否对称量化 | `true`, `false`                | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整        | `true`                      |
+| method    | 量化方法   | `"gptq"`                       | gptq: gptq权重量化                                | `"gptq"`                    |
+| ext       | 扩展配置   | `object`                       | 包含GPTQ特有的配置参数                                 | 见下方 **ext (GPTQ扩展配置)** 详细配置 |
 
 **ext (GPTQ扩展配置)**
 
 **作用**: 配置GPTQ算法特有的参数。
 
-| 参数名 | 作用 | 类型 | 说明 | 示例值 |
-|--------|------|------|------|--------|
-| percdamp | 阻尼系数 | `float` | percdamp 用于平滑梯度更新，减少量化引入的噪声对训练的影响 | 默认值`0.01` |
-| block_size | 迭代分块大小 | `int` | 分组量化的大小，必须能被待量化nn.Linear层的out_features维度整除 | 默认值`128` |
-| group_size | 量化分组大小 | `int` | 分组量化的大小，必须能被待量化nn.Linear层的input_features维度整除 | 默认值`256` |
+| 参数名        | 作用     | 类型      | 说明                                           | 示例值       |
+|------------|--------|---------|----------------------------------------------|-----------|
+| percdamp   | 阻尼系数   | `float` | percdamp 用于平滑梯度更新，减少量化引入的噪声对训练的影响            | 默认值`0.01` |
+| block_size | 迭代分块大小 | `int`   | 分组量化的大小，必须能被待量化nn.Linear层的out_features维度整除   | 默认值`128`  |
+| group_size | 量化分组大小 | `int`   | 分组量化的大小，必须能被待量化nn.Linear层的input_features维度整除 | 默认值`256`  |
 
 ## 模型适配
 
@@ -103,13 +107,13 @@ spec:
 # GPTQ量化器类
 class WeightPerChannelGPTQ(AutoWeightQuantizer):
     def __init__(self, config: QConfig): ...
-    
+
     def forward(self, x: Optional[torch.Tensor] = None) -> torch.Tensor: ...
-    
+
     def init_weight(self, weight: QStorage, bias: Optional[torch.Tensor] = None) -> None: ...
-    
+
     def get_q_storage(self) -> QStorage: ...
-    
+
     def get_q_param(self) -> QParam: ...
 ```
 
