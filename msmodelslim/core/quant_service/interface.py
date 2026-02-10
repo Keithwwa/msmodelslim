@@ -22,15 +22,27 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.model import IModel
+from msmodelslim.utils.plugin import TypedConfig
+
+QUANT_SERVICE_PLUGIN_GROUP = "msmodelslim.quant_service.plugins"
 
 
+@TypedConfig.plugin_entry(entry_point_group=QUANT_SERVICE_PLUGIN_GROUP)
+class QuantServiceConfig(TypedConfig):
+    apiversion: TypedConfig.TypeField
+
+
+# --- BaseQuantConfig（QuantConfig）：任务级量化配置，用于 quantize(quant_config, ...) ---
 class BaseQuantConfig(BaseModel):
-    apiversion: str = 'Unknown'  # API version
-    spec: object = Field(default_factory=dict)  # spec of the quantization config
+    """量化任务配置：apiversion + spec，用于 quantize() 入参。与 QuantServiceConfig 区分。"""
+    apiversion: str = "Unknown"
+    spec: object = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="allow")
 
 
 class IQuantService(ABC):

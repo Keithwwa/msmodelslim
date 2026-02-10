@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 
 from msmodelslim.app.naive_quantization import NaiveQuantizationApplication
-from msmodelslim.core.quant_service.proxy import QuantServiceProxy
+from msmodelslim.core.quant_service.proxy import QuantServiceProxy, QuantServiceProxyConfig
 from msmodelslim.cli.utils import parse_device_string
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
 from msmodelslim.infra.vlm_dataset_loader import VLMDatasetLoader
@@ -58,7 +58,11 @@ def main(args):
     dataset_loader = FileDatasetLoader(dataset_dir)
     vlm_dataset_loader = VLMDatasetLoader(dataset_dir)
     device_type, device_index = parse_device_string(args.device)
-    quant_service = QuantServiceProxy(dataset_loader, vlm_dataset_loader)
+    quant_service = QuantServiceProxy(
+        QuantServiceProxyConfig(apiversion="proxy"),
+        dataset_loader,
+        vlm_dataset_loader,
+    )
 
     app = NaiveQuantizationApplication(
         practice_manager=practice_manager,

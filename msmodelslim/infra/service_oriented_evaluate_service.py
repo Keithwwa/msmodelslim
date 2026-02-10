@@ -132,3 +132,12 @@ def is_demand_satisfied(
             return False
 
     return True
+
+
+def get_plugin():
+    """
+    获取 service_oriented 评估服务插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (ServiceOrientedEvaluateServiceConfig, ServiceOrientedEvaluateService) 元组
+    """
+    return ServiceOrientedEvaluateServiceConfig, ServiceOrientedEvaluateService

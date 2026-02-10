@@ -18,14 +18,14 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+import copy
 import functools
 import os
-import copy
 from pathlib import Path
-from typing import Optional, List
-from msmodelslim.core.quant_service.base import BaseQuantService
-from msmodelslim.core.quant_service.dataset_loader_infra import DatasetLoaderInfra
+from typing import Optional, List, Literal
+
 from msmodelslim.core.const import DeviceType
+from msmodelslim.core.quant_service.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.runner.layer_wise_runner import LayerWiseRunner
 from msmodelslim.model import IModel
 from msmodelslim.utils.cache import load_cached_data_for_models, to_device
@@ -33,16 +33,25 @@ from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from .pipeline_interface import MultimodalPipelineInterface
 from .quant_config import MultimodalSDModelslimV1QuantConfig, MultiExpertQuantConfig
-from ..interface import BaseQuantConfig
+from ..interface import BaseQuantConfig, QuantServiceConfig, IQuantService
 
 
+class MultimodalSDModelslimV1QuantServiceConfig(QuantServiceConfig):
+    """multimodal_sd_modelslim_v1 量化服务配置，用于插件选择与 QuantService 初始化。"""
+    apiversion: Literal["multimodal_sd_modelslim_v1"] = "multimodal_sd_modelslim_v1"
 
-@logger_setter(prefix='msmodelslim.core.quant_service.multimodal_sd_v1')  # 4-level: msmodelslim.core.quant_service.multimodal_sd_v1
-class MultimodalSDModelslimV1QuantService(BaseQuantService):
+
+@logger_setter(
+    prefix='msmodelslim.core.quant_service.multimodal_sd_v1')  # 4-level: msmodelslim.core.quant_service.multimodal_sd_v1
+class MultimodalSDModelslimV1QuantService(IQuantService):
     backend_name: str = "multimodal_sd_modelslim_v1"
 
-    def __init__(self, dataset_loader: DatasetLoaderInfra):
-        super().__init__(dataset_loader)
+    def __init__(self,
+                 quant_service_config: MultimodalSDModelslimV1QuantServiceConfig,
+                 dataset_loader: DatasetLoaderInfra,
+                 **kwargs):
+        self.quant_service_config = quant_service_config
+        self.dataset_loader = dataset_loader
 
     def quantize(
             self,
@@ -60,7 +69,7 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
             raise SchemaValidateError("save_path must be a Path or None")
         if not isinstance(device, DeviceType):
             raise SchemaValidateError("device must be a DeviceType")
-        
+
         if device_indices is not None:
             get_logger().warning(
                 "Specifying device indices is not supported in %s quant_service. "
@@ -118,7 +127,8 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
 
             try:
                 model_adapter.apply_quantization(functools.partial(runner.run,
-                    calib_data=calib_data[expert_name], device=device, model=expert_model))
+                                                                   calib_data=calib_data[expert_name], device=device,
+                                                                   model=expert_model))
                 get_logger().info(f"========== {expert_name} quantized, save to {expert_save_path} ==========")
             except Exception as e:
                 get_logger().error(f"========== {expert_name} quantization failed: {str(e)} ==========")
@@ -127,8 +137,8 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
         model_adapter.transformer = original_transformer
 
     def quant_process(self, quant_config: MultimodalSDModelslimV1QuantConfig,
-                  model_adapter: MultimodalPipelineInterface,
-                  save_path: Optional[Path], device: DeviceType = DeviceType.NPU):
+                      model_adapter: MultimodalPipelineInterface,
+                      save_path: Optional[Path], device: DeviceType = DeviceType.NPU):
 
         model_adapter.set_model_args(quant_config.spec.multimodal_sd_config.model_extra['model_config'])
         model_adapter.load_pipeline()
@@ -146,7 +156,7 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
         pth_file_path_list = {}
         for expert_name, _ in models.items():
             pth_file_path_list[expert_name] = os.path.join(base_dir,
-                f"calib_data_{model_adapter.model_args.task_config}_{expert_name}.pth")
+                                                           f"calib_data_{model_adapter.model_args.task_config}_{expert_name}.pth")
 
         calib_data = load_cached_data_for_models(
             pth_file_path_list=pth_file_path_list,
@@ -172,3 +182,12 @@ class MultimodalSDModelslimV1QuantService(BaseQuantService):
         self.quantize_multi_expert_models(config)
 
         get_logger().info(f"==========QUANTIZATION: END==========")
+
+
+def get_plugin():
+    """
+    获取 multimodal_sd_modelslim_v1 量化服务插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (MultimodalSDModelslimV1QuantServiceConfig, MultimodalSDModelslimV1QuantService) 元组
+    """
+    return MultimodalSDModelslimV1QuantServiceConfig, MultimodalSDModelslimV1QuantService

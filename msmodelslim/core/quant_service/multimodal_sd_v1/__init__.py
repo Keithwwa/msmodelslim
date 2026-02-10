@@ -19,6 +19,11 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-__all__ = ["MultimodalSDModelslimV1QuantService"]
+__all__ = [
+    "MultimodalSDModelslimV1QuantService",
+    "MultimodalSDModelslimV1QuantServiceConfig",
+    "MultimodalSDModelslimV1QuantConfig",
+]
 
-from .quant_service import MultimodalSDModelslimV1QuantService
+from .quant_service import MultimodalSDModelslimV1QuantService, MultimodalSDModelslimV1QuantServiceConfig
+from .quant_config import MultimodalSDModelslimV1QuantConfig

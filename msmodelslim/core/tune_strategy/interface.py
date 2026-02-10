@@ -29,7 +29,7 @@ from msmodelslim.model import IModel
 from msmodelslim.utils.plugin import TypedConfig
 from msmodelslim.utils.validation.pydantic import validate_str_length
 
-TUNING_STRATEGY_CONFIG_PLUGIN_PATH = "msmodelslim.strategy_config.plugins"
+TUNING_STRATEGY_PLUGIN_PATH = "msmodelslim.tuning_strategy.plugins"
 
 
 class EvaluateAccuracy(BaseModel):
@@ -52,7 +52,7 @@ class EvaluateResult(BaseModel):
     is_satisfied: bool
 
 
-@TypedConfig.plugin_entry(entry_point_group=TUNING_STRATEGY_CONFIG_PLUGIN_PATH)
+@TypedConfig.plugin_entry(entry_point_group=TUNING_STRATEGY_PLUGIN_PATH)
 class StrategyConfig(TypedConfig):
     type: TypedConfig.TypeField
 

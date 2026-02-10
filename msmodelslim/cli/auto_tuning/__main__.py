@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 
 from msmodelslim.app.auto_tuning import AutoTuningApplication
-from msmodelslim.core.quant_service.proxy import QuantServiceProxy
+from msmodelslim.core.quant_service.proxy import QuantServiceProxy, QuantServiceProxyConfig
 from msmodelslim.core.tune_strategy.plugin_factory import PluginTuningStrategyFactory
 from msmodelslim.cli.utils import parse_device_string
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
@@ -64,7 +64,11 @@ def main(args):
     dataset_loader = FileDatasetLoader(dataset_dir)
     vlm_dataset_loader = VLMDatasetLoader(dataset_dir)
     evaluation_service = ServiceOrientedEvaluateService()
-    quant_service = QuantServiceProxy(dataset_loader, vlm_dataset_loader)
+    quant_service = QuantServiceProxy(
+        QuantServiceProxyConfig(apiversion="proxy"),
+        dataset_loader,
+        vlm_dataset_loader,
+    )
     model_factory = PluginModelFactory()
     tuning_history_manager = YamlTuningHistoryManager()
     tuning_accuracy_manager = YamlTuningAccuracyManager()

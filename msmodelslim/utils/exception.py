@@ -45,11 +45,11 @@ class ModelslimError(Exception):
         message = super().__str__()
         if not message or message == "None":
             message = self.default_message
-        
+
         desc = f"[{error_type}] Code: {self.code}, Message: {message}"
         if self.action:
             desc += f", TIP: {self.action}"
-        
+
         return desc
 
     @classmethod
@@ -79,12 +79,18 @@ SecurityError: Type[ModelslimError] = MisbehaviorError.create_exception("Securit
                                                                         "Potential security risk.")
 
 # TrivialError
-TrivialError: Type[ModelslimError] = ModelslimError.create_exception("TrivialError", 300,
-                                                                     "Trivial error, no need to resolve.")
-UnsupportedError: Type[ModelslimError] = TrivialError.create_exception("UnsupportedError", 301,
-                                                                       "Unsupported operation.")
-SpecError: Type[ModelslimError] = TrivialError.create_exception("SpecError", 302,
-                                                                "Specific scenario error.")
+TrivialError: Type[ModelslimError] = ModelslimError.create_exception(
+    "TrivialError", 300, "Trivial error, no need to resolve."
+)
+UnsupportedError: Type[ModelslimError] = TrivialError.create_exception(
+    "UnsupportedError", 301, "Unsupported operation."
+)
+SpecError: Type[ModelslimError] = TrivialError.create_exception(
+    "SpecError", 302, "Specific scenario error."
+)
+TimeoutError: Type[ModelslimError] = TrivialError.create_exception(
+    "TimeoutError", 303, "Timeout error."
+)
 
 # ToDoError
 ToDoError: Type[ModelslimError] = ModelslimError.create_exception("ToDoError", 400, "Bug to be fixed soon.")

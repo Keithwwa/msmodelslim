@@ -35,12 +35,13 @@ from unittest.mock import Mock, MagicMock, patch, call
 
 import pytest
 
+from msmodelslim.core.const import RunnerType, DeviceType
 from msmodelslim.core.quant_service.interface import BaseQuantConfig
+from msmodelslim.core.quant_service.multimodal_vlm_v1.quant_config import MultimodalVLMModelslimV1QuantConfig
 from msmodelslim.core.quant_service.multimodal_vlm_v1.quant_service import (
     MultimodalVLMModelslimV1QuantService,
-    MultimodalVLMModelslimV1QuantConfig,
+    MultimodalVLMModelslimV1QuantServiceConfig,
 )
-from msmodelslim.core.const import RunnerType, DeviceType
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.utils.exception import SchemaValidateError
 
@@ -53,7 +54,11 @@ class TestMultimodalVLMModelslimV1QuantService:
         self.dataset_loader = Mock()
         self.dataset_loader.get_dataset_by_name.return_value = "mock_dataset"
 
-        self.service = MultimodalVLMModelslimV1QuantService(self.dataset_loader)
+        # QuantService 初始化使用 QuantServiceConfig（仅 apiversion），不是 QuantConfig
+        self.quant_service_config = MultimodalVLMModelslimV1QuantServiceConfig()
+        self.service = MultimodalVLMModelslimV1QuantService(
+            self.quant_service_config, self.dataset_loader
+        )
 
         # 模型适配器使用 PipelineInterface 的 spec，确保类型检查分支可被命中
         self.model_adapter = Mock(spec=PipelineInterface)
@@ -70,36 +75,36 @@ class TestMultimodalVLMModelslimV1QuantService:
         "case_name, quant_cfg, model_adap, save_p, device, expected_msg",
         [
             (
-                "invalid_quant_config",
-                Mock(),  # 非 BaseQuantConfig
-                Mock(spec=PipelineInterface),
-                Path("test"),
-                DeviceType.NPU,
-                "task is not a BaseTask",
+                    "invalid_quant_config",
+                    Mock(),  # 非 BaseQuantConfig
+                    Mock(spec=PipelineInterface),
+                    Path("test"),
+                    DeviceType.NPU,
+                    "task is not a BaseTask",
             ),
             (
-                "invalid_model_adapter",
-                Mock(spec=BaseQuantConfig),
-                Mock(),  # 非 PipelineInterface
-                Path("test"),
-                DeviceType.NPU,
-                "model_adapter must be a PipelineInterface",
+                    "invalid_model_adapter",
+                    Mock(spec=BaseQuantConfig),
+                    Mock(),  # 非 PipelineInterface
+                    Path("test"),
+                    DeviceType.NPU,
+                    "model_adapter must be a PipelineInterface",
             ),
             (
-                "invalid_save_path",
-                Mock(spec=BaseQuantConfig),
-                Mock(spec=PipelineInterface),
-                "not-a-path",  # type: ignore[arg-type]
-                DeviceType.NPU,
-                "save_path must be a Path or None",
+                    "invalid_save_path",
+                    Mock(spec=BaseQuantConfig),
+                    Mock(spec=PipelineInterface),
+                    "not-a-path",  # type: ignore[arg-type]
+                    DeviceType.NPU,
+                    "save_path must be a Path or None",
             ),
             (
-                "invalid_device",
-                Mock(spec=BaseQuantConfig),
-                Mock(spec=PipelineInterface),
-                Path("test"),
-                "invalid-device",  # type: ignore[arg-type]
-                "device must be a DeviceType",
+                    "invalid_device",
+                    Mock(spec=BaseQuantConfig),
+                    Mock(spec=PipelineInterface),
+                    Path("test"),
+                    "invalid-device",  # type: ignore[arg-type]
+                    "device must be a DeviceType",
             ),
         ],
     )
@@ -162,11 +167,11 @@ class TestMultimodalVLMModelslimV1QuantService:
     @patch("msmodelslim.core.quant_service.multimodal_vlm_v1.quant_service.torch")
     @patch("msmodelslim.core.quant_service.multimodal_vlm_v1.quant_service.seed_all")
     def test_quant_process_full_flow_with_save_path_and_npu(
-        self,
-        mock_seed_all,
-        mock_torch,
-        mock_runner_cls,
-        mock_get_logger,
+            self,
+            mock_seed_all,
+            mock_torch,
+            mock_runner_cls,
+            mock_get_logger,
     ):
         """
         完整流程测试（带 save_path & NPU 设备）：
@@ -234,10 +239,10 @@ class TestMultimodalVLMModelslimV1QuantService:
     @patch("msmodelslim.core.quant_service.multimodal_vlm_v1.quant_service.LayerWiseRunner")
     @patch("msmodelslim.core.quant_service.multimodal_vlm_v1.quant_service.seed_all")
     def test_quant_process_without_save_path_and_non_layerwise_runner(
-        self,
-        mock_seed_all,
-        mock_runner_cls,
-        mock_get_logger,
+            self,
+            mock_seed_all,
+            mock_runner_cls,
+            mock_get_logger,
     ):
         """
         测试以下组合场景：

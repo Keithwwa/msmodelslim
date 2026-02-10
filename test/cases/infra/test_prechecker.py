@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details.
 """
 """
 msmodelslim.infra.evaluation.precheck 模块的单元测试
-主要测试模型输出预检功能
+主要测试模型输出预检功能。单测不依赖插件加载，通过 mock 直接验证工厂与规则类业务逻辑。
 """
 from unittest.mock import patch, MagicMock
 import pytest
@@ -30,6 +30,7 @@ from msmodelslim.infra.evaluation.precheck.prechecker import (
     ModelOutputPrechecker,
     model_output_precheck,
 )
+from msmodelslim.infra.evaluation.precheck.prechecker import PRECHECK_PLUGIN_PATH
 from msmodelslim.infra.evaluation.precheck.expected_answer_rule import (
     ExpectedAnswerRule,
     ExpectedAnswerPrecheckConfig,
@@ -46,63 +47,90 @@ from msmodelslim.infra.evaluation.precheck.garbled_text_rule import (
     RepeatedPatternCheckItem,
     get_all_check_item_names,
 )
+from msmodelslim.infra.evaluation.precheck.base import BasePrecheckConfig
 from msmodelslim.core.tune_strategy import EvaluateAccuracy
+from typing import Literal
+
+
+class _InvalidTypePrecheckConfig(BasePrecheckConfig):
+    """单测用：不存在的插件类型，用于测试 create 失败时被跳过"""
+    type: Literal["invalid_type"] = "invalid_type"
+
+
+def _fake_load_plugin_function(entry_point_group: str, plugin_type: str):
+    """不依赖 entry_points，直接返回预检查规则类（用于单测 mock）。"""
+    if entry_point_group != PRECHECK_PLUGIN_PATH:
+        from msmodelslim.utils.exception import UnsupportedError
+        raise UnsupportedError(f"No plugin found for type {plugin_type!r} in group {entry_point_group!r}.")
+    if plugin_type == "expected_answer":
+        return (ExpectedAnswerPrecheckConfig, ExpectedAnswerRule)
+    if plugin_type == "garbled_text":
+        return (GarbledTextPrecheckConfig, GarbledTextRule)
+    from msmodelslim.utils.exception import UnsupportedError
+    raise UnsupportedError(f"No plugin found for type {plugin_type!r} in group {entry_point_group!r}.")
 
 
 class TestPrecheckerFactory:
-    """测试PrecheckerFactory类"""
-    
-    def test_get_supported_types_return_list_when_call(self):
-        """测试获取和检查支持的类型"""
+    """测试 PrecheckerFactory 类（mock 插件加载，只测工厂与规则业务逻辑）"""
+
+    @patch('msmodelslim.infra.evaluation.precheck.prechecker.get_entry_points')
+    def test_get_supported_types_return_list_when_call(self, mock_get_entry_points):
+        """测试 get_supported_types 返回列表，is_supported_type 按类型判断正确（不依赖真实 entry_points）"""
+        def _entry_point(plugin_name):
+            ep = MagicMock()
+            ep.name = plugin_name
+            return ep
+        mock_get_entry_points.return_value = [
+            _entry_point("expected_answer"),
+            _entry_point("garbled_text"),
+        ]
         types = PrecheckerFactory.get_supported_types()
-        assert isinstance(types, list)  # 校验返回类型为列表
-        assert PrecheckerFactory.is_supported_type("expected_answer") is True  # 校验支持expected_answer类型
-        assert PrecheckerFactory.is_supported_type("garbled_text") is True  # 校验支持garbled_text类型
-    
-    def test_create_return_expected_answer_rule_when_type_expected_answer(self):
-        """测试创建期望答案验证规则"""
+        assert isinstance(types, list)
+        assert "expected_answer" in types
+        assert "garbled_text" in types
+        assert PrecheckerFactory.is_supported_type("expected_answer") is True
+        assert PrecheckerFactory.is_supported_type("garbled_text") is True
+        assert PrecheckerFactory.is_supported_type("unknown_type") is False
+
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_create_return_expected_answer_rule_when_type_expected_answer(self, mock_load_plugin):
+        """测试 create 在 type=expected_answer 时返回 ExpectedAnswerRule 并校验业务字段"""
         factory = PrecheckerFactory()
-        config_dict = {
-            "type": "expected_answer",
-            "test_cases": [
-                {"What is 2+2?": "4"}
-            ]
-        }
-        
-        rule = factory.create(config_dict)
-        assert isinstance(rule, ExpectedAnswerRule)  # 校验返回ExpectedAnswerRule实例
-        assert len(rule.config.test_cases) == 1  # 校验test_cases数量正确
-    
-    def test_create_return_garbled_text_rule_when_type_garbled_text(self):
-        """测试创建乱码检测规则"""
+        config = ExpectedAnswerPrecheckConfig(test_cases=[{"What is 2+2?": "4"}])
+        rule = factory.create(config)
+        assert isinstance(rule, ExpectedAnswerRule)
+        assert len(rule.config.test_cases) == 1
+        assert rule.config.test_cases[0].message == "What is 2+2?"
+        assert rule.config.test_cases[0].expected_answer == "4"
+
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_create_return_garbled_text_rule_when_type_garbled_text(self, mock_load_plugin):
+        """测试 create 在 type=garbled_text 时返回 GarbledTextRule 并校验业务字段"""
         factory = PrecheckerFactory()
-        config_dict = {
-            "type": "garbled_text",
-            "test_cases": [
-                {"message": "How are you?", "items": ["empty_text"]}
-            ]
-        }
-        
-        rule = factory.create(config_dict)
-        assert isinstance(rule, GarbledTextRule)  # 校验返回GarbledTextRule实例
-        assert len(rule.config.test_cases) == 1  # 校验test_cases数量正确
+        config = GarbledTextPrecheckConfig(test_cases=[{"message": "How are you?", "items": ["empty_text"]}])
+        rule = factory.create(config)
+        assert isinstance(rule, GarbledTextRule)
+        assert len(rule.config.test_cases) == 1
 
 
 class TestModelOutputPrechecker:
-    """测试ModelOutputPrechecker类"""
-    
+    """测试 ModelOutputPrechecker 类（mock 插件加载，只测管理器与规则业务逻辑）"""
+
     @pytest.mark.parametrize("configs,expected_count", [
         (None, 0),
-        ([{"type": "expected_answer", "test_cases": [{"test": "answer"}]}], 1),
-        ([{"type": "invalid_type", "test_cases": []}], 0),
+        ([ExpectedAnswerPrecheckConfig(test_cases=[{"test": "answer"}])], 1),
+        ([_InvalidTypePrecheckConfig()], 0),
     ])
-    def test_init_set_precheckers_count_when_config_none_valid_invalid(self, configs, expected_count):
-        """测试空配置、有效配置、无效配置初始化"""
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_init_set_precheckers_count_when_config_none_valid_invalid(
+            self, mock_load_plugin, configs, expected_count
+    ):
+        """测试空配置、有效配置、无效配置初始化时 precheckers 数量"""
         prechecker = ModelOutputPrechecker(configs=configs)
-        assert len(prechecker.precheckers) == expected_count  # 校验precheckers数量与配置对应
-    
+        assert len(prechecker.precheckers) == expected_count
+
     def test_check_return_none_when_no_precheckers(self):
-        """测试没有预检查器时返回None"""
+        """测试没有预检查器时返回 None"""
         prechecker = ModelOutputPrechecker(configs=None)
         result = prechecker.check(
             host="localhost",
@@ -110,79 +138,53 @@ class TestModelOutputPrechecker:
             served_model_name="test_model",
             datasets=["test_dataset"]
         )
-        assert result is None  # 校验返回None
-    
+        assert result is None
+
     @patch('msmodelslim.infra.evaluation.precheck.prechecker.BasePrecheckRule.test_chat_via_api')
-    def test_check_return_none_when_all_passed(self, mock_test_chat):
-        """测试所有预检查通过时返回None"""
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_check_return_none_when_all_passed(self, mock_load_plugin, mock_test_chat):
+        """测试所有预检查通过时返回 None"""
         mock_test_chat.return_value = "The answer is 4"
-        
-        configs = [
-            {
-                "type": "expected_answer",
-                "test_cases": [{"What is 2+2?": "4"}]
-            }
-        ]
+        configs = [ExpectedAnswerPrecheckConfig(test_cases=[{"What is 2+2?": "4"}])]
         prechecker = ModelOutputPrechecker(configs=configs)
-        
         result = prechecker.check(
-            host="localhost",
-            port=8000,
-            served_model_name="test_model",
-            datasets=["test_dataset"]
+            host="localhost", port=8000,
+            served_model_name="test_model", datasets=["test_dataset"]
         )
-        assert result is None  # 校验返回None
-    
+        assert result is None
+
     @patch('msmodelslim.infra.evaluation.precheck.prechecker.BasePrecheckRule.test_chat_via_api')
-    def test_check_return_failed_results_when_one_failed(self, mock_test_chat):
-        """测试一个预检查失败时返回失败结果"""
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_check_return_failed_results_when_one_failed(self, mock_load_plugin, mock_test_chat):
+        """测试一个预检查失败时返回失败结果列表"""
         mock_test_chat.return_value = "I don't know"
-        
-        configs = [
-            {
-                "type": "expected_answer",
-                "test_cases": [{"What is 2+2?": "4"}]
-            }
-        ]
+        configs = [ExpectedAnswerPrecheckConfig(test_cases=[{"What is 2+2?": "4"}])]
         prechecker = ModelOutputPrechecker(configs=configs)
-        
         result = prechecker.check(
-            host="localhost",
-            port=8000,
-            served_model_name="test_model",
-            datasets=["test_dataset"]
+            host="localhost", port=8000,
+            served_model_name="test_model", datasets=["test_dataset"]
         )
-        assert result is not None  # 校验返回失败结果列表
-        assert len(result) == 1  # 校验结果数量为1
-        assert result[0].dataset == "test_dataset"  # 校验dataset正确
-        assert result[0].accuracy == 0.0  # 校验accuracy为0.0
-    
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].dataset == "test_dataset"
+        assert result[0].accuracy == 0.0
+
     @patch('msmodelslim.infra.evaluation.precheck.prechecker.BasePrecheckRule.test_chat_via_api')
-    def test_check_return_failed_results_when_first_fails(self, mock_test_chat):
+    @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
+    def test_check_return_failed_results_when_first_fails(self, mock_load_plugin, mock_test_chat):
         """测试多个预检查器中第一个失败时不执行后续预检查器"""
         mock_test_chat.return_value = "I don't know"
-        
         configs = [
-            {
-                "type": "expected_answer",
-                "test_cases": [{"What is 2+2?": "4"}]
-            },
-            {
-                "type": "garbled_text",
-                "test_cases": [{"message": "How are you?"}]
-            }
+            ExpectedAnswerPrecheckConfig(test_cases=[{"What is 2+2?": "4"}]),
+            GarbledTextPrecheckConfig(test_cases=[{"message": "How are you?"}]),
         ]
         prechecker = ModelOutputPrechecker(configs=configs)
-        
         result = prechecker.check(
-            host="localhost",
-            port=8000,
-            served_model_name="test_model",
-            datasets=["test_dataset"]
+            host="localhost", port=8000,
+            served_model_name="test_model", datasets=["test_dataset"]
         )
-        
-        assert result is not None # 校验返回失败结果列表
-        assert len(result) == 1 # 校验结果数量为1
+        assert result is not None
+        assert len(result) == 1
 
 
 class TestExpectedAnswerRule:

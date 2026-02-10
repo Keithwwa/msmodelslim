@@ -20,10 +20,13 @@ See the Mulan PSL v2 for more details.
 """
 __all__ = [
     "ModelslimV1QuantService",
+    "ModelslimV1QuantServiceConfig",
+    "ModelslimV1QuantConfig",
     "AscendV1Saver",
     "MindIEFormatSaver",
 ]
 
-from .quant_service import ModelslimV1QuantService
+from .quant_config import ModelslimV1QuantConfig
+from .quant_service import ModelslimV1QuantService, ModelslimV1QuantServiceConfig
 from .save.ascendv1 import AscendV1Saver
 from .save.mindie_format import MindIEFormatSaver

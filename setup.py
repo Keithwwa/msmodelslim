@@ -46,6 +46,20 @@ for group, models in config.items("ModelAdapter"):
     for model in model_list:
         model_adapter_plugins.append(f"{model}={entry_point}")
 
+# 从 config.ini 读取插件配置
+plugin_entry_points = {}
+for section_name in config.sections():
+    if section_name.startswith("Plugin:"):
+        # 提取插件名称（去掉 "Plugin:" 前缀）
+        plugin_name = section_name[7:]  # len("Plugin:") = 7
+        # 自动补全为 msmodelslim.xxx.plugins 格式
+        plugin_path = f"msmodelslim.{plugin_name}.plugins"
+        plugin_list = []
+        for plugin_type, plugin_func_path in config.items(section_name):
+            plugin_list.append(f"{plugin_type}={plugin_func_path}")
+        if plugin_list:
+            plugin_entry_points[plugin_path] = plugin_list
+
 setup(
     name='msmodelslim',
     version='26.0.0.alpha01',
@@ -86,31 +100,7 @@ setup(
         'console_scripts': [
             'msmodelslim=msmodelslim.cli.__main__:main'
         ],
-        "msmodelslim.quant_service.plugins": [
-            "modelslim_v0=msmodelslim.core.quant_service.modelslim_v0.quant_service:ModelslimV0QuantService",
-            "modelslim_v1=msmodelslim.core.quant_service.modelslim_v1:ModelslimV1QuantService",
-            "multimodal_sd_modelslim_v1="
-            "msmodelslim.core.quant_service.multimodal_sd_v1:MultimodalSDModelslimV1QuantService",
-            "multimodal_vlm_modelslim_v1="
-            "msmodelslim.core.quant_service.multimodal_vlm_v1:MultimodalVLMModelslimV1QuantService",
-        ],
         "msmodelslim.model_adapter.plugins": model_adapter_plugins,
-        "msmodelslim.strategy_config.plugins": [
-            "standing_high=msmodelslim.core.tune_strategy.standing_high.strategy:StandingHighStrategyConfig",
-        ],
-        "msmodelslim.strategy.plugins": [
-            "standing_high=msmodelslim.core.tune_strategy.standing_high.strategy:StandingHighStrategy",
-        ],
-        "msmodelslim.evaluate_config.plugins": [
-            "service_oriented=msmodelslim.infra.service_oriented_evaluate_service:ServiceOrientedEvaluateServiceConfig",
-        ],
-        "msmodelslim.precheck_config.plugins": [
-            "garbled_text=msmodelslim.infra.evaluation.precheck.garbled_text_rule:GarbledTextPrecheckConfig",
-            "expected_answer=msmodelslim.infra.evaluation.precheck.expected_answer_rule:ExpectedAnswerPrecheckConfig",
-        ],
-        "msmodelslim.precheck_rule.plugins": [
-            "garbled_text=msmodelslim.infra.evaluation.precheck.garbled_text_rule:GarbledTextRule",
-            "expected_answer=msmodelslim.infra.evaluation.precheck.expected_answer_rule:ExpectedAnswerRule",
-        ],
+        **plugin_entry_points,  # 从 config.ini 读取的插件配置（含 quant_service、tuning_strategy、evaluation 等）
     },
 )

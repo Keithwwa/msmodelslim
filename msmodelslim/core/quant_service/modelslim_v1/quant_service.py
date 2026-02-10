@@ -23,9 +23,8 @@ from typing import Optional, Literal, List
 
 import torch
 
-from msmodelslim.core.quant_service.base import BaseQuantService
-from msmodelslim.core.quant_service.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.const import RunnerType, DeviceType
+from msmodelslim.core.quant_service.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.runner.layer_wise_runner import LayerWiseRunner
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.runner.pipeline_parallel_runner import PPRunner
@@ -34,15 +33,25 @@ from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.seed import seed_all
 from .quant_config import ModelslimV1QuantConfig
-from ..interface import BaseQuantConfig
+from ..interface import BaseQuantConfig, QuantServiceConfig, IQuantService
 
 
-@logger_setter(prefix='msmodelslim.core.quant_service.modelslim_v1')  # 4-level: msmodelslim.core.quant_service.modelslim_v1
-class ModelslimV1QuantService(BaseQuantService):
+class ModelslimV1QuantServiceConfig(QuantServiceConfig):
+    """modelslim_v1 量化服务配置，用于插件选择与 QuantService 初始化。"""
+    apiversion: Literal["modelslim_v1"] = "modelslim_v1"
+
+
+@logger_setter(
+    prefix='msmodelslim.core.quant_service.modelslim_v1')  # 4-level: msmodelslim.core.quant_service.modelslim_v1
+class ModelslimV1QuantService(IQuantService):
     backend_name: str = "modelslim_v1"
 
-    def __init__(self, dataset_loader: DatasetLoaderInfra):
-        super().__init__(dataset_loader)
+    def __init__(self,
+                 quant_service_config: ModelslimV1QuantServiceConfig,
+                 dataset_loader: DatasetLoaderInfra,
+                 **kwargs):
+        self.quant_service_config = quant_service_config
+        self.dataset_loader = dataset_loader
 
     @staticmethod
     def _choose_runner_type(quant_config: ModelslimV1QuantConfig,
@@ -161,3 +170,12 @@ class ModelslimV1QuantService(BaseQuantService):
 
         runner.run(calib_data=dataset, device=device, device_indices=device_indices)
         get_logger().info(f"==========QUANTIZATION: END==========")
+
+
+def get_plugin():
+    """
+    获取 modelslim_v1 量化服务插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (ModelslimV1QuantServiceConfig, ModelslimV1QuantService) 元组
+    """
+    return ModelslimV1QuantServiceConfig, ModelslimV1QuantService

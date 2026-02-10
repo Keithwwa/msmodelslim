@@ -25,7 +25,6 @@ from typing import Optional, Literal, Any, List
 import torch
 
 from msmodelslim.core.const import RunnerType, DeviceType
-from msmodelslim.core.quant_service.base import BaseQuantService
 from msmodelslim.core.quant_service import DatasetLoaderInfra
 from msmodelslim.core.runner.layer_wise_runner import LayerWiseRunner
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
@@ -33,11 +32,17 @@ from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.seed import seed_all
 from .quant_config import MultimodalVLMModelslimV1QuantConfig
-from ..interface import BaseQuantConfig
+from ..interface import BaseQuantConfig, IQuantService, QuantServiceConfig
 
 
-@logger_setter(prefix='msmodelslim.core.quant_service.multimodal_vlm_modelslim_v1')  # 4-level: msmodelslim.core.quant_service.multimodal_vlm_modelslim_v1
-class MultimodalVLMModelslimV1QuantService(BaseQuantService):
+class MultimodalVLMModelslimV1QuantServiceConfig(QuantServiceConfig):
+    """multimodal_vlm_modelslim_v1 量化服务配置，用于插件选择与 QuantService 初始化。"""
+    apiversion: Literal["multimodal_vlm_modelslim_v1"] = "multimodal_vlm_modelslim_v1"
+
+
+@logger_setter(
+    prefix='msmodelslim.core.quant_service.multimodal_vlm_modelslim_v1')  # 4-level: msmodelslim.core.quant_service.multimodal_vlm_modelslim_v1
+class MultimodalVLMModelslimV1QuantService(IQuantService):
     """
     Quantization service for multimodal vision-language models (V1 framework).
     
@@ -51,17 +56,22 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
     - Qwen3-VL-MoE
     - Other multimodal VLM models (extensible)
     """
-    
+
     backend_name: str = "multimodal_vlm_modelslim_v1"
 
-    def __init__(self, dataset_loader: DatasetLoaderInfra):
+    def __init__(self,
+                 quant_service_config: MultimodalVLMModelslimV1QuantServiceConfig,
+                 dataset_loader: DatasetLoaderInfra,
+                 **kwargs):
         """
         Initialize multimodal VLM quantization service.
         
         Args:
-            dataset_loader: Dataset loader for multimodal data.
+            quant_service_config: MultimodalVLMModelslimV1QuantServiceConfig.
+            dataset_loader: DatasetLoaderInfra（用于加载数据集）.
         """
-        super().__init__(dataset_loader)
+        self.quant_service_config = quant_service_config
+        self.dataset_loader = dataset_loader
 
     @staticmethod
     def _choose_runner_type(quant_config: MultimodalVLMModelslimV1QuantConfig,
@@ -115,7 +125,7 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
         if not isinstance(device, DeviceType):
             raise SchemaValidateError("device must be a DeviceType",
                                       action="Please make sure the device is a DeviceType")
-        
+
         if device_indices is not None:
             get_logger().warning(
                 "Specifying device indices is not supported in %s quant_service. "
@@ -163,7 +173,7 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
             torch.npu.set_compile_mode(jit_compile=False)
 
         get_logger().info(f"==========QUANTIZATION: Prepare Dataset==========")
-        
+
         dataset_path = quant_config.spec.dataset
         # Set default_text to dataset_loader
         self.dataset_loader.default_text = quant_config.spec.default_text
@@ -171,10 +181,10 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
         get_logger().info(f"Prepared dataset from {dataset_path} successfully")
 
         final_process_cfg = quant_config.spec.process.copy()
-        
+
         # Note: MoE conversion is now handled automatically in model_adapter during layer loading
         # No need for separate MoeConverterProcessor
-        
+
         if save_path is not None:
             get_logger().info(f"==========QUANTIZATION: Prepare Persistence==========")
             for save_cfg in quant_config.spec.save:
@@ -185,11 +195,11 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
             get_logger().info(f"Prepared persistence to {save_path} successfully")
 
         get_logger().info(f"==========QUANTIZATION: Run Quantization==========")
-        
+
         if quant_config.spec.runner != "layer_wise":
             get_logger().warning(
                 f"runner for multimodal_vlm_modelslim_v1 is not layer_wise, will be converted to layer_wise.")
-        
+
         runner = LayerWiseRunner(adapter=model_adapter)
 
         get_logger().info(f"Created runner LayerWiseRunner successfully")
@@ -201,3 +211,12 @@ class MultimodalVLMModelslimV1QuantService(BaseQuantService):
         # Run quantization
         runner.run(calib_data=dataset, device=device)
         get_logger().info(f"==========QUANTIZATION: END==========")
+
+
+def get_plugin():
+    """
+    获取 multimodal_vlm_modelslim_v1 量化服务插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (MultimodalVLMModelslimV1QuantServiceConfig, MultimodalVLMModelslimV1QuantService) 元组
+    """
+    return MultimodalVLMModelslimV1QuantServiceConfig, MultimodalVLMModelslimV1QuantService

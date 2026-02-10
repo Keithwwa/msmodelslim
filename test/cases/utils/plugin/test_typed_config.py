@@ -31,7 +31,7 @@ from pydantic import BaseModel, ValidationError
 
 from msmodelslim.utils.exception import ToDoError, UnsupportedError, SchemaValidateError
 from msmodelslim.utils.plugin import TypedConfig
-from msmodelslim.utils.plugin.plugin_utils import load_plugin_class
+from msmodelslim.utils.plugin.plugin_utils import load_plugin_config_class
 
 typed_config_module = importlib.import_module("msmodelslim.utils.plugin.typed_config")
 plugin_utils_module = importlib.import_module("msmodelslim.utils.plugin.plugin_utils")
@@ -64,18 +64,25 @@ class TestTypedConfig(unittest.TestCase):
         self.assertIn("No type field found in MyConfig", msg)
         self.assertIn("TypedConfig.TypeField", msg)
 
-    def test_load_plugin_class_return_class_when_entry_exists_and_is_subclass(self):
-        """当 entry 存在且为子类时，应成功返回（每次都重新加载，不使用缓存）"""
+    def test_load_plugin_config_class_return_class_when_entry_exists(self):
+        """当 entry 存在且配置类符合规范（继承 TypedConfig 并使用 plugin_entry）时，应成功返回配置类（每次都重新加载，不使用缓存）"""
 
-        class BaseCfg(BaseModel):
+        @TypedConfig.plugin_entry(entry_point_group="test.group")
+        class BaseCfg(TypedConfig):
             apiversion: TypedConfig.TypeField
 
         class PluginCfg(BaseCfg):
             pass
 
+        class PluginComponent:
+            pass
+
+        def plugin_func():
+            return PluginCfg, PluginComponent
+
         fake_entry = SimpleNamespace(
             name="v1",
-            load=MagicMock(return_value=PluginCfg),
+            load=MagicMock(return_value=plugin_func),
         )
 
         with patch.object(
@@ -83,10 +90,9 @@ class TestTypedConfig(unittest.TestCase):
                 "get_entry_points",
                 return_value=[fake_entry],
         ):
-            cls = load_plugin_class(
+            cls = load_plugin_config_class(
                 entry_point_group="test.group",
                 plugin_type="v1",
-                base_class=BaseCfg,
             )
 
         self.assertIs(PluginCfg, cls)
@@ -96,27 +102,29 @@ class TestTypedConfig(unittest.TestCase):
                 "get_entry_points",
                 return_value=[fake_entry],
         ):
-            cls2 = load_plugin_class(
+            cls2 = load_plugin_config_class(
                 entry_point_group="test.group",
                 plugin_type="v1",
-                base_class=BaseCfg,
             )
         self.assertIs(PluginCfg, cls2)
         # 验证 load 被调用了两次（因为不使用缓存）
         self.assertEqual(fake_entry.load.call_count, 2)
 
-    def test_load_plugin_class_raise_todo_error_when_plugin_not_subclass(self):
-        """当插件类不是基类子类时，应抛出 ToDoError（每次都重新加载，不使用缓存）"""
+    def test_load_plugin_config_class_raise_todo_error_when_config_not_basemodel(self):
+        """当配置类不是 BaseModel 子类时，应抛出 ToDoError（每次都重新加载，不使用缓存）"""
 
-        class BaseCfg(BaseModel):
-            apiversion: TypedConfig.TypeField
-
-        class NotSubClass:
+        class NotBaseModel:
             pass
+
+        class PluginComponent:
+            pass
+
+        def plugin_func():
+            return NotBaseModel, PluginComponent
 
         fake_entry = SimpleNamespace(
             name="v1",
-            load=MagicMock(return_value=NotSubClass),
+            load=MagicMock(return_value=plugin_func),
         )
 
         with patch.object(
@@ -125,14 +133,13 @@ class TestTypedConfig(unittest.TestCase):
                 return_value=[fake_entry],
         ):
             with self.assertRaises(ToDoError) as cm:
-                load_plugin_class(
+                load_plugin_config_class(
                     entry_point_group="test.group",
                     plugin_type="v1",
-                    base_class=BaseCfg,
                 )
 
         msg = str(cm.exception)
-        self.assertIn("Plugin v1 is not a subclass of BaseCfg", msg)
+        self.assertIn("Config class NotBaseModel is not a subclass of BaseModel", msg)
 
         # 再次调用时会重新尝试加载（不使用缓存）
         fake_entry.load.reset_mock()
@@ -142,22 +149,18 @@ class TestTypedConfig(unittest.TestCase):
                 return_value=[fake_entry],
         ):
             with self.assertRaises(ToDoError) as cm2:
-                load_plugin_class(
+                load_plugin_config_class(
                     entry_point_group="test.group",
                     plugin_type="v1",
-                    base_class=BaseCfg,
                 )
 
         msg2 = str(cm2.exception)
-        self.assertIn("Plugin v1 is not a subclass of BaseCfg", msg2)
+        self.assertIn("Config class NotBaseModel is not a subclass of BaseModel", msg2)
         # 验证 load 被再次调用（因为不使用缓存）
         fake_entry.load.assert_called_once()
 
-    def test_load_plugin_class_raise_unsupported_error_when_no_entry_found(self):
+    def test_load_plugin_config_class_raise_unsupported_error_when_no_entry_found(self):
         """当没有找到对应 entry 时，应抛出 UnsupportedError"""
-
-        class BaseCfg(BaseModel):
-            apiversion: TypedConfig.TypeField
 
         with patch.object(
                 plugin_utils_module,
@@ -165,21 +168,17 @@ class TestTypedConfig(unittest.TestCase):
                 return_value=[],
         ):
             with self.assertRaises(UnsupportedError) as cm:
-                load_plugin_class(
+                load_plugin_config_class(
                     entry_point_group="test.group",
                     plugin_type="v-not-exist",
-                    base_class=BaseCfg,
                 )
 
         msg = str(cm.exception)
         self.assertIn("No plugin found for type 'v-not-exist'", msg)
         self.assertIn("Please install plugin before using", msg)
 
-    def test_load_plugin_class_raise_todo_error_when_entry_load_raises(self):
+    def test_load_plugin_config_class_raise_todo_error_when_entry_load_raises(self):
         """当 entry.load 抛出异常时，应抛出 ToDoError（每次都重新加载，不使用缓存）"""
-
-        class BaseCfg(BaseModel):
-            apiversion: TypedConfig.TypeField
 
         def _raise_error():
             raise RuntimeError("load failed")
@@ -195,10 +194,9 @@ class TestTypedConfig(unittest.TestCase):
                 return_value=[fake_entry],
         ):
             with self.assertRaises(ToDoError) as cm:
-                load_plugin_class(
+                load_plugin_config_class(
                     entry_point_group="test.group",
                     plugin_type="v1",
-                    base_class=BaseCfg,
                 )
 
         msg = str(cm.exception)
@@ -216,9 +214,15 @@ class TestTypedConfig(unittest.TestCase):
         class PluginCfg(BaseCfg):
             extra: int = 1
 
+        class PluginComponent:
+            pass
+
+        def plugin_func():
+            return PluginCfg, PluginComponent
+
         fake_entry = SimpleNamespace(
             name="v1",
-            load=MagicMock(return_value=PluginCfg),
+            load=MagicMock(return_value=plugin_func),
         )
         with patch.object(
                 plugin_utils_module,
@@ -271,9 +275,15 @@ class TestTypedConfig(unittest.TestCase):
         class PluginCfg(BaseCfg):
             new_field: int = 100
 
+        class PluginComponent:
+            pass
+
+        def plugin_func():
+            return PluginCfg, PluginComponent
+
         fake_entry = SimpleNamespace(
             name="v1",
-            load=MagicMock(return_value=PluginCfg),
+            load=MagicMock(return_value=plugin_func),
         )
         with patch.object(
                 plugin_utils_module,
@@ -323,7 +333,7 @@ class TestTypedConfig(unittest.TestCase):
         # 空字符串是有效的字符串值，所以会正常创建实例
         with patch.object(
                 plugin_utils_module,
-                "load_plugin_class",
+                "load_plugin_config_class",
         ) as mock_load:
             obj = BaseCfg.model_validate({"apiversion": ""})
 
@@ -345,13 +355,19 @@ class TestTypedConfig(unittest.TestCase):
         class PluginStrategyConfig(StrategyConfig):
             extra: int = 1
 
+        class PluginComponent:
+            pass
+
         class TuningPlanConfig(BaseModel):
             strategy: StrategyConfig
+
+        def plugin_func():
+            return PluginStrategyConfig, PluginComponent
 
         # 创建假的 entry point 来模拟插件加载
         fake_entry = SimpleNamespace(
             name="plugin",
-            load=MagicMock(return_value=PluginStrategyConfig),
+            load=MagicMock(return_value=plugin_func),
         )
 
         with patch.object(

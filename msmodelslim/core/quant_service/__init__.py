@@ -20,12 +20,8 @@ See the Mulan PSL v2 for more details.
 """
 __all__ = [
     "IQuantService",
-    'BaseQuantService',
-    'QuantServiceProxy',
-    'DatasetLoaderInfra',
+    "DatasetLoaderInfra",
 ]
 
-from .base import BaseQuantService
 from .dataset_loader_infra import DatasetLoaderInfra
 from .interface import IQuantService
-from .proxy import QuantServiceProxy

@@ -35,8 +35,9 @@ Supported models:
 
 __all__ = [
     'MultimodalVLMModelslimV1QuantService',
+    'MultimodalVLMModelslimV1QuantServiceConfig',
     'MultimodalVLMModelslimV1QuantConfig',
 ]
 
-from .quant_service import MultimodalVLMModelslimV1QuantService
 from .quant_config import MultimodalVLMModelslimV1QuantConfig
+from .quant_service import MultimodalVLMModelslimV1QuantService, MultimodalVLMModelslimV1QuantServiceConfig

@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details.
 """
 import os
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 import torch
 
@@ -33,9 +33,8 @@ from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import safe_copy_file
 from .pipeline_interface import PipelineInterface
 from .quant_config import ModelslimV0QuantConfig
-from ..base import BaseQuantService
 from ..dataset_loader_infra import DatasetLoaderInfra
-from ..interface import BaseQuantConfig
+from ..interface import BaseQuantConfig, QuantServiceConfig, IQuantService
 
 
 def copy_files(input_path, output_path):
@@ -57,12 +56,21 @@ def copy_files(input_path, output_path):
         os.chmod(dest_file, int("600", 8))
 
 
+class ModelslimV0QuantServiceConfig(QuantServiceConfig):
+    """modelslim_v0 量化服务配置，用于插件选择与 QuantService 初始化。"""
+    apiversion: Literal["modelslim_v0"] = "modelslim_v0"
+
+
 @logger_setter('msmodelslim.core.quant_service.modelslim_v0')  # 4-level: msmodelslim.core.quant_service.modelslim_v0
-class ModelslimV0QuantService(BaseQuantService):
+class ModelslimV0QuantService(IQuantService):
     backend_name: str = "modelslim_v0"
 
-    def __init__(self, dataset_loader: DatasetLoaderInfra):
-        super().__init__(dataset_loader)
+    def __init__(self,
+                 quant_service_config: ModelslimV0QuantServiceConfig,
+                 dataset_loader: DatasetLoaderInfra,
+                 **kwargs):
+        self.quant_service_config = quant_service_config
+        self.dataset_loader = dataset_loader
 
     def quantize(
             self,
@@ -84,7 +92,7 @@ class ModelslimV0QuantService(BaseQuantService):
         if not isinstance(device, DeviceType):
             raise SchemaValidateError("device must be a DeviceType",
                                       action='Please make sure the device is a DeviceType')
-        
+
         if device_indices is not None:
             get_logger().warning(
                 "Specifying device indices is not supported in %s quant_service. "
@@ -181,3 +189,12 @@ class ModelslimV0QuantService(BaseQuantService):
         copy_files(str(model_adapter.model_path), str(save_path))
 
         get_logger().info(f"==========QUANTIZATION: END==========")
+
+
+def get_plugin():
+    """
+    获取 modelslim_v0 量化服务插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (ModelslimV0QuantServiceConfig, ModelslimV0QuantService) 元组
+    """
+    return ModelslimV0QuantServiceConfig, ModelslimV0QuantService

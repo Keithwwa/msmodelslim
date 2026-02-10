@@ -28,7 +28,7 @@ from msmodelslim.core.tune_strategy import EvaluateResult
 from msmodelslim.core.const import DeviceType
 from msmodelslim.utils.plugin import TypedConfig
 
-EVALUATE_CONFIG_PLUGIN_PATH = "msmodelslim.evaluate_config.plugins"
+EVALUATE_PLUGIN_PATH = "msmodelslim.evaluation.plugins"
 
 
 class EvaluateContext(BaseModel):
@@ -38,7 +38,7 @@ class EvaluateContext(BaseModel):
     working_dir: Path
 
 
-@TypedConfig.plugin_entry(entry_point_group=EVALUATE_CONFIG_PLUGIN_PATH)
+@TypedConfig.plugin_entry(entry_point_group=EVALUATE_PLUGIN_PATH)
 class EvaluateServiceConfig(TypedConfig):
     type: TypedConfig.TypeField
 

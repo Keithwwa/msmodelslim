@@ -22,22 +22,22 @@ from typing import Generator, List, Optional, Literal, Annotated
 
 from pydantic import Field, model_validator, AfterValidator
 
+from msmodelslim.core.const import DeviceType
 from msmodelslim.core.practice import PracticeConfig, Metadata
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1ServiceConfig
 from msmodelslim.core.quant_service.modelslim_v1.save import AscendV1Config
+from msmodelslim.core.quantizer.base import QConfig
+from msmodelslim.core.quantizer.linear import LinearQConfig
 from msmodelslim.core.tune_strategy import ITuningStrategy
 from msmodelslim.core.tune_strategy.base import BaseTuningStrategy
 from msmodelslim.core.tune_strategy.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.tune_strategy.interface import StrategyConfig, EvaluateResult
 from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.ir.qal import QScope, QDType
-from msmodelslim.core.const import DeviceType
 from msmodelslim.model import IModel
-from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.layer_select import LayerSelector
 from msmodelslim.processor.base import AutoProcessorConfigList
 from msmodelslim.processor.quant.linear import LinearProcessorConfig
-from msmodelslim.core.quantizer.base import QConfig
-from msmodelslim.core.quantizer.linear import LinearQConfig
+from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.layer_select import LayerSelector
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.validation.pydantic import at_least_one_element
@@ -105,16 +105,12 @@ class StandingHighStrategyConfig(StrategyConfig):
         return self
 
 
-@logger_setter("msmodelslim.core.tune_strategy.standing_high") 
+@logger_setter("msmodelslim.core.tune_strategy.standing_high")
 class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
-    def __init__(self, config: StrategyConfig, dataset_loader: DatasetLoaderInfra):
-        super().__init__(config, dataset_loader)
-
-        if not isinstance(config, StandingHighStrategyConfig):
-            raise SchemaValidateError(f"StandingHighStrategy requires StandingHighStrategyConfig, got {type(config)}")
-
-        self.config: StandingHighStrategyConfig = config
+    def __init__(self, config: StandingHighStrategyConfig, dataset_loader: DatasetLoaderInfra, **kwargs):
+        self.config = config
         self.__counter = 0
+        super().__init__(config, dataset_loader, **kwargs)
 
     def generate_practice(self,
                           model: IModel,
@@ -251,7 +247,16 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
                     return
                 reduce_level = 1
                 get_logger().info("Reset reduce level to 1")
-            
+
         yield best_practice_config
 
         get_logger().info("No disable layer can satisfy demand")
+
+
+def get_plugin():
+    """
+    获取 standing_high 策略插件（返回配置类与组件类，由框架完成注册）。
+    Returns:
+        (StandingHighStrategyConfig, StandingHighStrategy) 元组
+    """
+    return StandingHighStrategyConfig, StandingHighStrategy

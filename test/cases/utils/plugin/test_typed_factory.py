@@ -31,35 +31,53 @@ from msmodelslim.utils.exception import ToDoError, UnsupportedError
 from msmodelslim.utils.plugin import TypedConfig, TypedFactory
 
 
+@TypedConfig.plugin_entry(entry_point_group="test.group")
+class TestPluginConfig(TypedConfig):
+    """测试用配置类，继承 TypedConfig；单测中通过 mock 插件加载避免依赖真实 entry_points。"""
+    kind: TypedConfig.TypeField
+    value: int = 0
+
+
+def _mock_load_plugin_config_class(entry_point_group: str, plugin_type: str):
+    """单测用：对 test.group 直接返回 TestPluginConfig，不走真实插件加载。"""
+    if entry_point_group == "test.group":
+        return TestPluginConfig
+    raise NotImplementedError("Only test.group is mocked in this test module.")
+
+
 class TestTypedFactory(unittest.TestCase):
     """测试 TypedFactory 工厂类（一一对应 TypedFactory 代码类）"""
 
-    class MyConfig(BaseModel):
-        kind: TypedConfig.TypeField
-        value: int = 0
+    def test_init_raise_todo_error_when_config_base_class_not_plugin_entry(self):
+        """当 config_base_class 未经 @TypedConfig.plugin_entry 装饰时，应抛出 ToDoError"""
+
+        class PlainConfig(BaseModel):
+            kind: TypedConfig.TypeField
+            value: int = 0
+
+        with self.assertRaises(ToDoError) as cm:
+            TypedFactory[object](config_base_class=PlainConfig)
+        self.assertIn("must be decorated with", str(cm.exception))
+        self.assertIn("plugin_entry", str(cm.exception))
 
     def test_create_raise_unsupported_error_when_config_type_mismatch(self):
         """当 config 不是指定基类实例时，应抛出 UnsupportedError"""
 
-        factory = TypedFactory[object](
-            entry_point_group="test.group",
-            config_base_class=TestTypedFactory.MyConfig,
-        )
+        class OtherConfig(BaseModel):
+            x: int = 0
 
+        factory = TypedFactory[object](config_base_class=TestPluginConfig)
         with self.assertRaises(UnsupportedError) as cm:
-            factory.create(BaseModel())  # type: ignore[arg-type]
-
+            factory.create(OtherConfig())
         msg = str(cm.exception)
-        self.assertIn("Config must be an instance of MyConfig", msg)
+        self.assertIn("Config must be an instance of TestPluginConfig", msg)
 
-    def test_create_raise_todo_error_when_missing_type_field_value(self):
+    @patch('msmodelslim.utils.plugin.typed_config.load_plugin_config_class', side_effect=_mock_load_plugin_config_class)
+    def test_create_raise_todo_error_when_missing_type_field_value(self, mock_load_config):
         """当 config 中类型字段值为空时，应抛出 ToDoError"""
 
-        factory = TypedFactory[object](
-            entry_point_group="test.group",
-            config_base_class=TestTypedFactory.MyConfig,
-        )
-        cfg = TestTypedFactory.MyConfig(kind="")
+        factory = TypedFactory[object](config_base_class=TestPluginConfig)
+        cfg = TestPluginConfig(kind="")
 
         with self.assertRaises(ToDoError) as cm:
             factory.create(cfg)
@@ -67,78 +85,66 @@ class TestTypedFactory(unittest.TestCase):
         msg = str(cm.exception)
         self.assertIn("Attr kind is required in the configuration", msg)
 
-    def test_create_return_instance_when_plugin_accepts_config_positional(self):
-        """当插件类 __init__ 接受 (config, *args, **kwargs) 形式时，应按位置参数创建实例"""
+    @patch('msmodelslim.utils.plugin.typed_config.load_plugin_config_class', side_effect=_mock_load_plugin_config_class)
+    def test_create_return_instance_when_plugin_accepts_config_positional(self, mock_load_config):
+        """当插件类 __init__ 接受 (config, **kwargs) 形式时，应按关键字参数创建实例"""
 
         from msmodelslim.utils.plugin import typed_factory as typed_factory_module
 
-        factory = TypedFactory[object](
-            entry_point_group="test.group",
-            config_base_class=TestTypedFactory.MyConfig,
-        )
-        cfg = TestTypedFactory.MyConfig(kind="service_a", value=5)
+        factory = TypedFactory[object](config_base_class=TestPluginConfig)
+        cfg = TestPluginConfig(kind="service_a", value=5)
 
         class ServiceA:
-            def __init__(self, config, *args, **kwargs):
+            def __init__(self, config, **kwargs):
                 self.config = config
-                self.args = args
                 self.kwargs = kwargs
 
-        def fake_load(group, plugin_type, base):
+        def fake_load(group, plugin_type):
             self.assertEqual("test.group", group)
             self.assertEqual("service_a", plugin_type)
-            self.assertIs(object, base)
             return ServiceA
 
-        with patch.object(typed_factory_module, "load_plugin_class", fake_load):
-            inst = factory.create(cfg, 1, flag=True)
+        with patch.object(typed_factory_module, "load_plugin_component_class", fake_load):
+            inst = factory.create(cfg, flag=True)
 
         self.assertIsInstance(inst, ServiceA)
         self.assertIs(cfg, inst.config)
-        self.assertEqual((1,), inst.args)
         self.assertEqual({"flag": True}, inst.kwargs)
 
-    def test_create_return_instance_when_plugin_accepts_config_keyword(self):
+    @patch('msmodelslim.utils.plugin.typed_config.load_plugin_config_class', side_effect=_mock_load_plugin_config_class)
+    def test_create_return_instance_when_plugin_accepts_config_keyword(self, mock_load_config):
         """当插件类 __init__ 接受 config 关键字参数时，应按照关键字参数创建实例"""
 
         from msmodelslim.utils.plugin import typed_factory as typed_factory_module
 
-        factory = TypedFactory[object](
-            entry_point_group="test.group",
-            config_base_class=TestTypedFactory.MyConfig,
-        )
-        cfg = TestTypedFactory.MyConfig(kind="service_b", value=7)
+        factory = TypedFactory[object](config_base_class=TestPluginConfig)
+        cfg = TestPluginConfig(kind="service_b", value=7)
 
         class ServiceB:
-            def __init__(self, *args, config: TestTypedFactory.MyConfig, **kwargs):
+            def __init__(self, config: TestPluginConfig, **kwargs):
                 self.config = config
-                self.args = args
                 self.kwargs = kwargs
 
-        def fake_load(group, plugin_type, base):
+        def fake_load(group, plugin_type):
             self.assertEqual("test.group", group)
             self.assertEqual("service_b", plugin_type)
-            self.assertIs(object, base)
             return ServiceB
 
-        with patch.object(typed_factory_module, "load_plugin_class", fake_load):
-            inst = factory.create(cfg, "x", y=2)
+        with patch.object(typed_factory_module, "load_plugin_component_class", fake_load):
+            inst = factory.create(cfg, x="x", y=2)
 
         self.assertIsInstance(inst, ServiceB)
         self.assertIs(cfg, inst.config)
-        self.assertEqual(("x",), inst.args)
-        self.assertEqual({"y": 2}, inst.kwargs)
+        self.assertEqual({"x": "x", "y": 2}, inst.kwargs)
 
-    def test_create_return_instance_when_use_config_model_dump(self):
-        """当既不能按位置也不能按关键字传递 config 时，应使用 config.model_dump 展开参数"""
+    @patch('msmodelslim.utils.plugin.typed_config.load_plugin_config_class', side_effect=_mock_load_plugin_config_class)
+    def test_create_raise_todo_error_when_plugin_accepts_only_field_args(self, mock_load_config):
+        """当插件类既不接受 (config, **kwargs) 也不接受 (config=config, **kwargs) 时，应抛出 ToDoError"""
 
         from msmodelslim.utils.plugin import typed_factory as typed_factory_module
 
-        factory = TypedFactory[object](
-            entry_point_group="test.group",
-            config_base_class=TestTypedFactory.MyConfig,
-        )
-        cfg = TestTypedFactory.MyConfig(kind="service_c", value=3)
+        factory = TypedFactory[object](config_base_class=TestPluginConfig)
+        cfg = TestPluginConfig(kind="service_c", value=3)
 
         class ServiceC:
             def __init__(self, kind: str, value: int, **kwargs):
@@ -146,17 +152,13 @@ class TestTypedFactory(unittest.TestCase):
                 self.value = value
                 self.kwargs = kwargs
 
-        def fake_load(group, plugin_type, base):
+        def fake_load(group, plugin_type):
             self.assertEqual("test.group", group)
             self.assertEqual("service_c", plugin_type)
-            self.assertIs(object, base)
             return ServiceC
 
-        with patch.object(typed_factory_module, "load_plugin_class", fake_load):
-            inst = factory.create(cfg, extra="ok")
-
-        self.assertIsInstance(inst, ServiceC)
-        self.assertEqual("service_c", inst.kind)
-        self.assertEqual(3, inst.value)
-        # kwargs 中应同时包含 config 字段和额外参数
-        self.assertEqual("ok", inst.kwargs["extra"])
+        with patch.object(typed_factory_module, "load_plugin_component_class", fake_load):
+            with self.assertRaises(ToDoError) as cm:
+                factory.create(cfg, extra="ok")
+        self.assertIn("Failed to instantiate", str(cm.exception))
+        self.assertIn("ServiceC", str(cm.exception))

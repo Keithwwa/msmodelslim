@@ -30,9 +30,12 @@ from msmodelslim.core.quant_service.interface import BaseQuantConfig
 from msmodelslim.core.quant_service.multimodal_sd_v1.quant_config import (
     MultimodalSDModelslimV1QuantConfig,
     MultimodalPipelineInterface,
-    SchemaValidateError
+    SchemaValidateError,
 )
-from msmodelslim.core.quant_service.multimodal_sd_v1.quant_service import MultimodalSDModelslimV1QuantService
+from msmodelslim.core.quant_service.multimodal_sd_v1.quant_service import (
+    MultimodalSDModelslimV1QuantService,
+    MultimodalSDModelslimV1QuantServiceConfig,
+)
 
 
 class TestQuantProcessComplete:
@@ -43,7 +46,6 @@ class TestQuantProcessComplete:
     def setup_method(self):
         # 基础服务与核心依赖
         self.dataset_loader = Mock()
-        self.service = MultimodalSDModelslimV1QuantService(self.dataset_loader)
 
         # 1. 简化配置层级：用MagicMock自动支持属性访问
         self.mock_quant_spec = MagicMock()
@@ -59,8 +61,15 @@ class TestQuantProcessComplete:
 
         # 2. 只保留BaseQuantConfig的spec（推荐，符合实际类型约束）
         self.quant_config = Mock(spec=BaseQuantConfig)
+        self.quant_config.apiversion = "multimodal_sd_modelslim_v1"
         # 给quant_config添加spec属性，模拟原意图（关联mock_quant_spec）
         self.quant_config.spec = self.mock_quant_spec
+
+        # QuantService 初始化使用 QuantServiceConfig（仅 apiversion），不是 QuantConfig
+        self.quant_service_config = MultimodalSDModelslimV1QuantServiceConfig()
+        self.service = MultimodalSDModelslimV1QuantService(
+            self.quant_service_config, self.dataset_loader
+        )
 
         # 模型适配器（保持原逻辑）
         self.model_adapter = Mock(spec=MultimodalPipelineInterface)
@@ -139,16 +148,17 @@ class TestQuantProcessComplete:
         # 模型配置与加载
         self.model_adapter.set_model_args.assert_called_once_with("test_config")
         self.model_adapter.load_pipeline.assert_called_once()
-        # 数据加载与设备转换
-        pth_file_path_list = {'model1': '/test/dump/calib_data_mock_model1.pth',
-                              'model2': '/test/dump/calib_data_mock_model2.pth'}
+        # 数据加载与设备转换（路径用 Path 规范化，避免 Windows/Unix 分隔符差异）
+        expected_pth_list = {'model1': Path('/test/dump/calib_data_mock_model1.pth'),
+                             'model2': Path('/test/dump/calib_data_mock_model2.pth')}
         model = {'model1': self.mock_model1, 'model2': self.mock_model2}
-        mock_load_cache.assert_called_once_with(
-            pth_file_path_list=pth_file_path_list,
-            generate_func=self.model_adapter.run_calib_inference,
-            models=model,
-            dump_config=self.mock_quant_spec.multimodal_sd_config.dump_config
-        )
+        assert mock_load_cache.call_count == 1
+        call_kw = mock_load_cache.call_args[1]
+        actual_pth_list = {k: Path(v).as_posix() for k, v in call_kw["pth_file_path_list"].items()}
+        assert actual_pth_list == {k: Path(v).as_posix() for k, v in expected_pth_list.items()}
+        assert call_kw["generate_func"] == self.model_adapter.run_calib_inference
+        assert call_kw["models"] == model
+        assert call_kw["dump_config"] == self.mock_quant_spec.multimodal_sd_config.dump_config
         mock_to_device.assert_called_once_with("raw_calib_data", self.device.value)
         # 保存配置与Runner处理
         expert_save_path1 = self.save_path.joinpath(f"{self.model_adapter.model_args.task_config}_model1")
@@ -190,15 +200,16 @@ class TestQuantProcessComplete:
         # 模型配置与加载
         self.model_adapter.set_model_args.assert_called_once_with("test_config")
         self.model_adapter.load_pipeline.assert_called_once()
-        # 数据加载与设备转换
-        pth_file_path_list = {'': '/test/dump/calib_data__.pth'}
+        # 数据加载与设备转换（路径用 Path 规范化，避免 Windows/Unix 分隔符差异）
+        expected_pth_list = {'': Path('/test/dump/calib_data__.pth')}
         model = {'': self.mock_model1}
-        mock_load_cache.assert_called_once_with(
-            pth_file_path_list=pth_file_path_list,
-            generate_func=self.model_adapter.run_calib_inference,
-            models=model,
-            dump_config=self.mock_quant_spec.multimodal_sd_config.dump_config
-        )
+        assert mock_load_cache.call_count == 1
+        call_kw = mock_load_cache.call_args[1]
+        actual_pth_list = {k: Path(v).as_posix() for k, v in call_kw["pth_file_path_list"].items()}
+        assert actual_pth_list == {k: Path(v).as_posix() for k, v in expected_pth_list.items()}
+        assert call_kw["generate_func"] == self.model_adapter.run_calib_inference
+        assert call_kw["models"] == model
+        assert call_kw["dump_config"] == self.mock_quant_spec.multimodal_sd_config.dump_config
         mock_to_device.assert_called_once_with("raw_calib_data", self.device.value)
         # 保存配置与Runner处理
         expert_save_path1 = self.save_path

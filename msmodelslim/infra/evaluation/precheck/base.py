@@ -25,10 +25,10 @@ from msmodelslim.utils.plugin import TypedConfig
 from msmodelslim.utils.security import build_safe_url, safe_post
 from msmodelslim.utils.validation.pydantic import greater_than_zero
 
-PRECHECK_CONFIG_PLUGIN_PATH = "msmodelslim.precheck_config.plugins"
+PRECHECK_PLUGIN_PATH = "msmodelslim.precheck_rule.plugins"
 
 
-@TypedConfig.plugin_entry(entry_point_group=PRECHECK_CONFIG_PLUGIN_PATH)
+@TypedConfig.plugin_entry(entry_point_group=PRECHECK_PLUGIN_PATH)
 class BasePrecheckConfig(TypedConfig):
     """预检查配置基类"""
     type: TypedConfig.TypeField  # 类型字段，用于插件注册

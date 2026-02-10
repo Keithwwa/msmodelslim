@@ -19,10 +19,8 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 __all__ = [
-    "ModelslimV0QuantService",
-    "ModelslimV0QuantServiceConfig",
-    "ModelslimV0QuantConfig",
+    "QuantServiceProxy",
+    "QuantServiceProxyConfig",
 ]
 
-from .quant_config import ModelslimV0QuantConfig
-from .quant_service import ModelslimV0QuantService, ModelslimV0QuantServiceConfig
+from .quant_service import QuantServiceProxy, QuantServiceProxyConfig

@@ -21,7 +21,9 @@ See the Mulan PSL v2 for more details.
 __all__ = [
     "TypedConfig",
     "TypedFactory",
+    "register_plugin",
 ]
 
+from msmodelslim.utils.plugin.plugin_utils import register_plugin
 from msmodelslim.utils.plugin.typed_config import TypedConfig
 from msmodelslim.utils.plugin.typed_factory import TypedFactory
