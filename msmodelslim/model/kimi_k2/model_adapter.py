@@ -37,13 +37,12 @@ from safetensors import safe_open
 from torch import distributed as dist
 from tqdm import tqdm
 
+from msmodelslim import ir as qir
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.graph import AdapterConfig, MappingConfig, FusionConfig
 from msmodelslim.model.common.layer_wise_forward import generated_decoder_layer_visit_func, \
     TransformersForwardBreak
-from msmodelslim.model.common.transformers import TransformersModel
-from msmodelslim import ir as qir
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import json_safe_load, json_safe_dump, get_valid_read_path, MAX_READ_FILE_SIZE_32G
@@ -51,6 +50,7 @@ from msmodelslim.utils.security.model import SafeGenerator
 from .convert_fp8_to_bf16 import auto_convert_module_fp8_to_bf16
 from .mtp_quant_module import get_mtp_layer, wrap_mtp_decoder
 from .quarot import get_ln_fuse_map, get_rotate_map
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV1, IterSmoothInterface, \
     FlexSmoothQuantInterface, QuaRotInterface, AscendV1SaveInterface
 
@@ -67,14 +67,14 @@ def default_dtype(dtype):
 
 
 @logger_setter("msmodelslim.model.kimi_k2")
-class KimiK2ModelAdapter(TransformersModel,
-                             ModelInfoInterface,  # support naive quantization
-                             ModelSlimPipelineInterfaceV1,  # support modelslim v1
-                             IterSmoothInterface,  # support iter smooth
-                             FlexSmoothQuantInterface,  # support flex smooth quant
-                             QuaRotInterface,
-                             AscendV1SaveInterface,
-                             ):
+class KimiK2ModelAdapter(DefaultModelAdapter,
+                         ModelInfoInterface,  # support naive quantization
+                         ModelSlimPipelineInterfaceV1,  # support modelslim v1
+                         IterSmoothInterface,  # support iter smooth
+                         FlexSmoothQuantInterface,  # support flex smooth quant
+                         QuaRotInterface,
+                         AscendV1SaveInterface,
+                         ):
     def get_model_type(self) -> str:
         return self.model_type
 

@@ -42,7 +42,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_get_model_type(self):
         """测试get_model_type方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -58,7 +58,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_get_model_pedigree(self):
         """测试get_model_pedigree方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -73,7 +73,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_load_model(self):
         """测试load_model方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -93,7 +93,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_handle_dataset(self):
         """测试handle_dataset方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -113,7 +113,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_handle_dataset_by_batch(self):
         """测试handle_dataset_by_batch方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -141,7 +141,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_init_model(self):
         """测试init_model方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -161,7 +161,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_generate_model_visit(self):
         """测试generate_model_visit方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -189,7 +189,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_generate_model_visit_with_none_transformer_blocks(self):
         """测试generate_model_visit方法当transformer_blocks为None时"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -214,7 +214,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_generate_model_forward(self):
         """测试generate_model_forward方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -241,7 +241,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_enable_kv_cache(self):
         """测试enable_kv_cache方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -261,7 +261,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_get_adapter_config_for_subgraph(self):
         """测试get_adapter_config_for_subgraph方法"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -292,7 +292,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
     def test_ascendv1_save_module_preprocess_with_input_layernorm(self):
         """测试ascendv1_save_module_preprocess方法当prefix包含input_layernorm且module是Qwen3RMSNorm时"""
         from msmodelslim.model.qwen3_next.model_adapter import Qwen3NextModelAdapter
-        with patch('msmodelslim.model.qwen3_next.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_next.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3NextModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -302,7 +302,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
             test_prefix = "model.layers.0.input_layernorm"
             original_weight_data = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
             expected_weight_data = original_weight_data - 1  # 期望的weight值：原始值 - 1
-            
+
             mock_module = MagicMock()
             mock_module.__class__.__name__ = 'Qwen3RMSNorm'
             mock_module.weight = MagicMock()
@@ -311,7 +311,7 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
             mock_module.weight.data = original_weight_data.clone()
 
             mock_model = MagicMock()
-            
+
             # Mock Qwen3NextRMSNorm 的创建，使用真实的nn.Module来存储weight
             with patch('msmodelslim.model.qwen3_next.model_adapter.Qwen3NextRMSNorm') as mock_qwen3_next_rms_norm:
                 # 创建一个真实的新模块来存储weight
@@ -319,10 +319,10 @@ class TestQwen3NextModelAdapter(unittest.TestCase):
                     def __init__(self):
                         super().__init__()
                         self.weight = nn.Parameter(torch.zeros(5))
-                
+
                 mock_new_module = MockNewModule()
                 mock_qwen3_next_rms_norm.return_value = mock_new_module
-                
+
                 new_prefix, new_module = adapter.ascendv1_save_module_preprocess(test_prefix, mock_module, mock_model)
 
                 # 验证prefix没有变化

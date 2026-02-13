@@ -43,7 +43,6 @@ from msmodelslim.core.const import DeviceType
 from msmodelslim.core.graph import AdapterConfig, MappingConfig, FusionConfig
 from msmodelslim.model.common.layer_wise_forward import generated_decoder_layer_visit_func, \
     TransformersForwardBreak
-from msmodelslim.model.common.transformers import TransformersModel
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import json_safe_load, json_safe_dump, get_valid_read_path, MAX_READ_FILE_SIZE_32G
@@ -51,6 +50,7 @@ from msmodelslim.utils.security.model import SafeGenerator
 from .convert_fp8_to_bf16 import auto_convert_module_fp8_to_bf16
 from .mtp_quant_module import remove_zero_and_shift, get_mtp_layer, wrap_mtp_decoder
 from .quarot import get_ln_fuse_map, get_rotate_map
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV1, IterSmoothInterface, \
     FlexSmoothQuantInterface, FA3QuantAdapterInterface, FA3QuantPlaceHolder, QuaRotInterface, AscendV1SaveInterface
 
@@ -67,7 +67,7 @@ def default_dtype(dtype):
 
 
 @logger_setter("msmodelslim.model.deepseek_v3")
-class DeepSeekV3ModelAdapter(TransformersModel,
+class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                              ModelInfoInterface,  # support naive quantization
                              ModelSlimPipelineInterfaceV1,  # support modelslim v1
                              IterSmoothInterface,  # support iter smooth

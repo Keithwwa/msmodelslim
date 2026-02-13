@@ -31,13 +31,13 @@ from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter
 from msmodelslim.utils.security.model import SafeGenerator
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
-from ..common.transformers import TransformersModel
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
     AnalyzePipelineInterface, KVSmoothFusedInterface
 
 
 @logger_setter()
-class Qwen2ModelAdapter(TransformersModel,
+class Qwen2ModelAdapter(DefaultModelAdapter,
                          ModelInfoInterface,
                          ModelSlimPipelineInterfaceV0,
                          ModelSlimPipelineInterfaceV1,

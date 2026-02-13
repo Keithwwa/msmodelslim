@@ -26,13 +26,13 @@ from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
 from msmodelslim.utils.logging import logger_setter
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
-from ..common.transformers import TransformersModel
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
     AnalyzePipelineInterface
 
 
 @logger_setter()
-class QwqModelAdapter(TransformersModel,
+class QwqModelAdapter(DefaultModelAdapter,
                       ModelInfoInterface,
                       ModelSlimPipelineInterfaceV0,
                       ModelSlimPipelineInterfaceV1,

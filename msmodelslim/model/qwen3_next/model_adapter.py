@@ -26,11 +26,11 @@ from transformers.models.qwen3.modeling_qwen3 import Qwen3RMSNorm
 from transformers.models.qwen3_next.modeling_qwen3_next import Qwen3NextRMSNorm
 
 from msmodelslim.core.base.protocol import ProcessRequest
-from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.core.const import DeviceType
+from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.utils.logging import logger_setter
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
-from ..common.transformers import TransformersModel
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import (
     ModelInfoInterface,
     ModelSlimPipelineInterfaceV0,
@@ -42,7 +42,7 @@ from ..interface_hub import (
 
 
 @logger_setter()
-class Qwen3NextModelAdapter(TransformersModel,
+class Qwen3NextModelAdapter(DefaultModelAdapter,
                             ModelInfoInterface,
                             ModelSlimPipelineInterfaceV0,
                             ModelSlimPipelineInterfaceV1,
@@ -113,7 +113,8 @@ class Qwen3NextModelAdapter(TransformersModel,
             ])
         return adapter_config
 
-    def ascendv1_save_module_preprocess(self, prefix: str, module: nn.Module, model: nn.Module) -> Tuple[str, nn.Module]:
+    def ascendv1_save_module_preprocess(self, prefix: str, module: nn.Module, model: nn.Module) -> Tuple[
+        str, nn.Module]:
         if 'input_layernorm' in prefix and module.__class__.__name__ == 'Qwen3RMSNorm':
             new_module = Qwen3NextRMSNorm(module.weight.shape[0], module.variance_epsilon)
             new_module.weight.data = module.weight.data - 1

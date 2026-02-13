@@ -47,7 +47,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_get_model_type_when_initialized_then_return_model_type(self):
         """测试get_model_type方法：初始化后应返回正确的模型类型"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path,
@@ -61,7 +61,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_get_model_pedigree_when_called_then_return_qwen3_moe(self):
         """测试get_model_pedigree方法：应返回'qwen3_moe'"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -73,7 +73,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_load_model_when_called_then_delegate_to_load_model(self):
         """测试load_model方法：应委托给_load_model方法"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -89,7 +89,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_handle_dataset_when_called_then_return_tokenized_data(self):
         """测试handle_dataset方法：应返回tokenized数据"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -105,7 +105,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_handle_dataset_by_batch_when_called_then_return_batch_tokenized_data(self):
         """测试handle_dataset_by_batch方法：应返回批量tokenized数据"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -129,7 +129,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_init_model_when_called_then_delegate_to_load_model(self):
         """测试init_model方法：应委托给_load_model方法"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -145,7 +145,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_enable_kv_cache_when_called_then_delegate_to_enable_kv_cache(self):
         """测试enable_kv_cache方法：应委托给_enable_kv_cache方法"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -161,7 +161,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_enable_kv_cache_with_false_then_disable_cache(self):
         """测试enable_kv_cache方法：传入False时应禁用缓存"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -177,7 +177,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_get_adapter_config_for_subgraph_when_called_then_return_adapter_configs(self):
         """测试get_adapter_config_for_subgraph方法：应返回适配器配置列表"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path
@@ -198,7 +198,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
     def test_get_adapter_config_for_subgraph_when_zero_layers_then_return_empty_list(self):
         """测试get_adapter_config_for_subgraph方法：0层时应返回空列表"""
-        with patch('msmodelslim.model.qwen3_moe.model_adapter.TransformersModel.__init__', return_value=None):
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
                 model_type=self.model_type,
                 model_path=self.model_path

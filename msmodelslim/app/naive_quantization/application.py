@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 import re
+from enum import Enum
 from pathlib import Path
 from typing import Optional, List
 
@@ -43,7 +44,55 @@ from .model_info_interface import ModelInfoInterface
 from .practice_manager_infra import PracticeManagerInfra
 
 DEFAULT_PEDIGREE = 'default'
-DEFAULT_CONFIG_ID = 'default'
+DEFAULT_QUANT_TYPE = QuantType.W8A8
+
+
+class TipsType(str, Enum):
+    """
+    Q1_C0_B0:
+    含义解读：
+    Q：量化方式是否指定 Q1-指定；Q0-未指定
+    C：量化方式是否更改 C1-更改；C0-未更改
+    B：是否是最佳实践  B1-是最佳实践；B0-非最佳实践
+    """
+    Q0C0B0 = "Q0_C0_B0"  # 未指定量化方式，未更改量化方式，非最佳实践，未指定量化方式场景不存在量化方式变更场景
+    Q0C0B1 = "Q0_C0_B1"  # 未指定量化方式，未更改量化方式，是最佳实践，未指定量化方式场景不存在量化方式变更场景
+    Q1C0B0 = "Q1_C0_B0"  # 已指定量化方式，未更改量化方式，非最佳实践
+    Q1C0B1 = "Q1_C0_B1"  # 已指定量化方式，未更改量化方式，是最佳实践，原正常匹配最佳实践场景
+    Q1C1B0 = "Q1_C1_B0"  # 已指定量化方式，已更改量化方式，非最佳实践
+    Q1C1B1 = "Q1_C1_B1"  # 已指定量化方式，已更改量化方式，是最佳实践
+
+
+def _build_quant_tips(tips_type: TipsType, model_type: str, quant_type: QuantType, config_id: str) -> str:
+    """
+    Args:
+        tips_type: 提示类型
+        model_type:模型类型
+        quant_type:量化方式
+        config_id:最佳实践文件config_id
+
+    Returns: 提示词
+    """
+
+    if tips_type == TipsType.Q0C0B0:
+        return (f"No quant_type or config_path provided. Default quant_type:{DEFAULT_QUANT_TYPE} will be used."
+                f"The default practice:{config_id} for {DEFAULT_QUANT_TYPE} will be used.")
+    elif tips_type == TipsType.Q0C0B1:
+        return (f"No quant_type or config_path provided. Default quant_type{DEFAULT_QUANT_TYPE} will be used."
+                f"The best practice:{config_id} for {DEFAULT_QUANT_TYPE} will be used.")
+    elif tips_type == TipsType.Q1C0B0:
+        return (f"No best practice found for model_type={model_type} and quant_type={quant_type}. "
+                f"The default practice:{config_id} for {quant_type} will be used.")
+    elif tips_type == TipsType.Q1C0B1:
+        return ""
+    elif tips_type == TipsType.Q1C1B0:
+        return (f"No best practice found for model_type={model_type} and quant_type={quant_type}. "
+                f"The default practice:{config_id} for {DEFAULT_QUANT_TYPE} will be used.")
+    elif tips_type == TipsType.Q1C1B1:
+        return (f"No best practice found for model_type={model_type} and quant_type={quant_type}. "
+                f"The best practice:{config_id} for {DEFAULT_QUANT_TYPE} will be used.")
+    else:
+        raise UnsupportedError(f"Get best practice error", action="Please use the correct msmodelslim version.")
 
 
 def validate_device_index(device_index: Optional[List[int]], device_type: DeviceType):
@@ -112,7 +161,20 @@ class NaiveQuantizationApplication:
         self.model_factory = model_factory
 
     @staticmethod
-    def check_label(label, w_bit, a_bit, use_kv_cache, is_sparse):
+    def check_config(config: PracticeConfig, model_type: str, quant_type: QuantType):
+        if config.metadata.verified_model_types and model_type not in config.metadata.verified_model_types:
+            return False
+
+        label = config.metadata.label
+        # Parse quant_type parameters
+        match_result = re.match(r'^w(\d+)a(\d+)(c?8?)(s?)$', quant_type.value)
+        if not match_result:
+            raise ValueError(f"Invalid quant_type format: {quant_type.value}")
+        w_bit = int(match_result.group(1))
+        a_bit = int(match_result.group(2))
+        use_kv_cache = bool(match_result.group(3))
+        is_sparse = bool(match_result.group(4))
+
         """Check if the label matches the quantization parameters"""
         if label.get('w_bit') != w_bit:
             return False
@@ -124,24 +186,19 @@ class NaiveQuantizationApplication:
             return False
         return True
 
-    def get_default_practice(self,
-                             prompt="No configuration found.",
-                             error_msg="The corresponding configuration is not currently supported"
-                             ) -> PracticeConfig:
-        user_input = input(
-            prompt +
-            " Default configuration will be used. (Enter y to continue, otherwise it will exit): ").strip().lower()[:3]
-        if user_input != 'y':
-            raise UnsupportedError(error_msg,
-                                   action="Please write your own configuration file and use via --config_path.")
-        return self.practice_manager.get_config_by_id(DEFAULT_PEDIGREE, DEFAULT_CONFIG_ID)
-
     def get_best_practice(self,
                           model_adapter: IModel,
                           quant_type: Optional[QuantType] = None,
                           config_path: Optional[Path] = None,
                           ) -> PracticeConfig:
-
+        """
+        获取最佳实践匹配规则如下：
+        场景1：指定config_path配置文件，直接采用，忽略quant_type配置
+        场景2：未指定config_path和quant_type，将quant_type置为默认quant_type，然后按照场景3处理
+        场景3：指定quant_type，查找最佳实践规则如下（优先级从高到低）：
+        当前pedigree + 指定quant_type > 默认pedigree + 指定quant_type
+        > 当前pedigree + 默认quant_type > 默认pedigree + 默认quant_type
+        """
         # Handle explicit config path
         if config_path is not None:
             config_dict = yaml_safe_load(str(config_path))
@@ -159,33 +216,65 @@ class NaiveQuantizationApplication:
 
         # Handle unknown model
         if model_pedigree not in self.practice_manager:
-            return self.get_default_practice(
-                prompt=f"No matching configuration found for model_pedigree={model_pedigree}.")
+            raise ToDoError(f"model_pedigree {model_pedigree} does NOT exist",
+                            action=f"Maybe you need change model_pedigree of model_adapter "
+                                   f"or add {model_pedigree} in lab_practice.")
 
-        # Handle quant_type matching
-        if quant_type is None:
-            raise ValueError(f"Quant_type must be provided")
+        config, tips = self.get_config(model_pedigree, model_type, quant_type)
+        if tips != "":
+            user_input = input(tips + "(Enter y to continue, otherwise it will exit): ").strip().lower()[:3]
+            if user_input != 'y':
+                raise UnsupportedError(
+                    f"No best practice found for model_type={model_type} and quant_type={quant_type}",
+                    action="You can specify the quantization configuration through config_path or change the "
+                           "quant_type.")
+        return config
 
-        # Parse quant_type parameters
-        match_result = re.match(r'^w(\d+)a(\d+)(c?8?)(s?)$', quant_type.value)
-        if not match_result:
-            raise ValueError(f"Invalid quant_type format: {quant_type.value}")
-        w_bit = int(match_result.group(1))
-        a_bit = int(match_result.group(2))
-        use_kv_cache = bool(match_result.group(3))
-        is_sparse = bool(match_result.group(4))
-
+    def get_config(self, model_pedigree: str, model_type: str, quant_type: Optional[QuantType] = None):
+        has_quant_type = True if quant_type is not None else False
+        use_quant_type = quant_type if quant_type is not None else DEFAULT_QUANT_TYPE
+        # 场景1：【指定量化方式】在模型适配器的最佳实践目录搜索指定量化类型的最佳实践
         for config in self.practice_manager.iter_config(model_pedigree):
-            if config.metadata.verified_model_types and model_type not in config.metadata.verified_model_types:
+            if not self.check_config(config, model_type, use_quant_type):
                 continue
+            # 默认模型适配器（未知模型）
+            if has_quant_type:
+                tips_type = TipsType.Q1C0B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q1C0B1
+            else:
+                tips_type = TipsType.Q0C0B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q0C0B1
+            tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
+            return config, tips
 
-            if not self.check_label(config.metadata.label, w_bit, a_bit, use_kv_cache, is_sparse):
+        # 泛化匹配
+        # 场景2：【指定量化方式】在最佳实践的default目录搜索指定量化类型的最佳实践
+        if model_pedigree != DEFAULT_PEDIGREE:
+            for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
+                if not self.check_config(config, model_type, use_quant_type):
+                    continue
+                tips_type = TipsType.Q1C0B0 if has_quant_type else TipsType.Q0C0B0
+                tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
+                return config, tips
+
+        # 更改量化方式查找
+        if use_quant_type == DEFAULT_QUANT_TYPE or not has_quant_type:
+            raise UnsupportedError(f"Get best practice error", action="Please use the correct msmodelslim version.")
+        # 场景3：【默认量化方式】在模型适配器的最佳实践目录搜索默认量化类型的最佳实践
+        for config in self.practice_manager.iter_config(model_pedigree):
+            if not self.check_config(config, model_type, DEFAULT_QUANT_TYPE):
                 continue
+            # 默认模型适配器（未知模型）
+            tips_type = TipsType.Q1C1B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q1C1B1
+            tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
+            return config, tips
 
-            get_logger().info(f"Naive Quant apply config_id: {config.metadata.config_id}")
-            return config
-
-        return self.get_default_practice(prompt=f"No matching configuration found for model_type={model_type}.")
+        # 场景4：【默认量化方式】在最佳实践的default目录搜索默认量化类型的最佳实践
+        if model_pedigree != DEFAULT_PEDIGREE:
+            for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
+                if not self.check_config(config, model_type, DEFAULT_QUANT_TYPE):
+                    continue
+                tips = _build_quant_tips(TipsType.Q1C1B0, model_type, quant_type, config.metadata.config_id)
+                return config, tips
+        raise UnsupportedError(f"Get best practice error", action="Please use the correct msmodelslim version.")
 
     @exception_catcher
     def quant(self,
@@ -236,7 +325,8 @@ class NaiveQuantizationApplication:
         if config_path is not None:
             validate_str_length(input_str=config_path, str_name='config_path')
             config_path = convert_to_readable_file(config_path)
-        if not ((quant_type is None) ^ (config_path is None)):
+        # 允许quant_type和config_path均为空的场景
+        if quant_type is not None and config_path is not None:
             raise SchemaValidateError(f"quant_type and config_path only one can be provided")
         if quant_type is not None and not isinstance(quant_type, QuantType):
             raise SchemaValidateError(f"quant_type must be a QuantType")

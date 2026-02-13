@@ -34,7 +34,7 @@ from msmodelslim.processor.quarot import (
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
-from ..common.transformers import TransformersModel
+from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
     AnalyzePipelineInterface, KVSmoothFusedInterface, SmoothQuantInterface, IterSmoothInterface, \
     FlexSmoothQuantInterface
@@ -48,7 +48,7 @@ from msmodelslim.processor.flat_quant.flat_quant_utils.structure_pair import(
 
 
 @logger_setter()
-class Qwen3ModelAdapter(TransformersModel,
+class Qwen3ModelAdapter(DefaultModelAdapter,
                         ModelInfoInterface,
                         ModelSlimPipelineInterfaceV0,
                         ModelSlimPipelineInterfaceV1,
