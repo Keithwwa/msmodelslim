@@ -90,6 +90,7 @@ setup(
         'msmodelslim.config': ['*'],
         'msmodelslim.lab_calib': ['**'],
         'msmodelslim.lab_practice': ['**'],
+        'msmodelslim.core.tune_strategy.common.config_builder.expert_experience': ['*.yaml', '*.yml'],
     },
     data_files=[('', ['requirements.txt'])],
     license='Mulan PSL v2',

@@ -46,6 +46,8 @@ __all__ = [
     'ModelSlimPipelineInterfaceV0',  # For ModelSlim V0 quant service, describing the pipeline of model inference.
     'MultimodalSDPipelineInterface',  # For MultimodalSD quant service, describing the pipeline of model inference.
     'ModelSlimPipelineInterfaceV1',  # For ModelSlim V1 quant service, describing the pipeline of model inference.
+    'StandingHighInterface',  # For Standing High strategy, describing the pipeline of model inference.
+    'StandingHighWithExperienceInterface',  # For Standing High with Experience strategy, describing the pipeline of model inference.
 
     # FA3 activation quantization interface
     'FA3QuantAdapterInterface',  # For FA3 activation quantization, inject placeholders.
@@ -71,6 +73,8 @@ from msmodelslim.core.quant_service.multimodal_sd_v1.pipeline_interface import \
     MultimodalPipelineInterface as MultimodalSDPipelineInterface
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface as ModelSlimPipelineInterfaceV1
 from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface as shpi
+from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_with_experience_interface import \
+    StandingHighWithExperienceInterface as shwepi
 from msmodelslim.model import IModel
 from msmodelslim.processor.anti_outlier.flex_smooth.interface import FlexSmoothQuantInterface
 from msmodelslim.processor.anti_outlier.iter_smooth.interface import IterSmoothInterface
@@ -80,7 +84,7 @@ from msmodelslim.processor.quant.fa3.interface import FA3QuantPlaceHolder, FA3Qu
 from msmodelslim.processor.quarot import QuaRotInterface, LAOSOnlineRotationInterface, OnlineQuaRotInterface
 
 
-class AnalyzePipelineInterface(aspi, shpi):
+class AnalyzePipelineInterface(aspi, shpi, shwepi):
     ...
 
 

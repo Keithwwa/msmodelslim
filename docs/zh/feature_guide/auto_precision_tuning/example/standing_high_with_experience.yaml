@@ -1,41 +1,18 @@
-### Here is an template of an auto-tuning config 
-### With strategy standing_high, inference engine vllm-ascend and evaluator aisbench
+### Here is a template of an auto-tuning config
+### With strategy standing_high_with_experience, inference engine vllm-ascend and evaluator aisbench
+### Strategy uses expert experience to auto-generate quant config by model structure; no need to set anti_outlier_strategies or template manually
 ### Before running the config, please make sure you have replaced necessary fields with your own values
 
 strategy:
-  type: standing_high # first fix anti method and search rollback layers, then change anti method and reduce rollback layers
-  anti_outlier_strategies:
-    - - type: "iter_smooth"
-        alpha: 0.5
-    - - type: "flex_smooth_quant"
-  template:
-    runner: auto
-    process: # only support one and only one linear_quant processor
-      - type: linear_quant
-        qconfig:
-          act:
-            scope: per_tensor
-            dtype: int8
-            symmetric: false
-            method: minmax
-          weight:
-            scope: per_channel
-            dtype: int8
-            symmetric: true
-            method: minmax
-        include: [ "*" ]
-        exclude: [ ]
-    save:
-      - type: ascendv1_saver
-        part_file_size: 4
-    dataset: mix_calib.jsonl
-  metadata:
-    config_id: standing_high
-    label:
-      w_bit: 8
-      a_bit: 8
-      is_sparse: false
-      kv_cache: false
+  type: standing_high_with_experience  # standing high with expert experience
+  quant_type: w8a8                    # quant type, e.g. w4a8, w8a8
+  structure_configs:                   # list of model structure configs
+    - type: "GQA"                      # structure type: GQA (Grouped Query Attention)
+      include:                         # module name patterns to match
+        - "*self_attn*"
+    - type: "FFN"                      # structure type: FFN (Feed-Forward Network)
+      include:
+        - "*mlp*"
 
 evaluation:
   type: service_oriented
@@ -124,4 +101,5 @@ evaluation:
         ascend_scheduler_config:
           enable: true
         enable_weight_nz_layout: true
+
 

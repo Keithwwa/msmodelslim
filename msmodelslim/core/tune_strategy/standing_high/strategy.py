@@ -41,6 +41,7 @@ from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.layer_select import LayerSelector
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.validation.pydantic import at_least_one_element
+from msmodelslim.utils.config_map import ConfigSet
 
 
 def _create_default_template() -> ModelslimV1ServiceConfig:
@@ -96,11 +97,11 @@ class StandingHighStrategyConfig(StrategyConfig):
 
     @model_validator(mode='after')
     def validate_template_has_linear_quant(self):
-        """校验template中必须有且只有一个linear_quant配置"""
+        """校验template中至少有一个linear_quant配置"""
         linear_quant_count = sum(
             1 for proc in self.template.process if isinstance(proc, LinearProcessorConfig))
-        if linear_quant_count != 1:
-            raise SchemaValidateError(f"template_practice must contain exactly one linear_quant processor, "
+        if linear_quant_count < 1:
+            raise SchemaValidateError(f"template_practice must contain at least one linear_quant processor, "
                                       f"found {linear_quant_count}")
         return self
 
@@ -147,14 +148,50 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
             anti_outlier_processors: AutoProcessorConfigList,
             linear_quant_exclude: List[str],
     ) -> PracticeConfig:
-        """构建PracticeConfig：离群值抑制processors放在最前面，然后拼接模板中的所有processors"""
+        """构建PracticeConfig：离群值抑制processors放在最前面，然后拼接模板中的所有processors
+        
+        针对每个 linear_quant 的 include 模式分别分配回退层，只回退匹配该 linear_quant include 模式的层。
+        """
         process: AutoProcessorConfigList = list(anti_outlier_processors)
         template = self.config.template
-
+        
+        # 为每个 linear_quant 分配对应的回退层
         for proc in template.process:
             if isinstance(proc, LinearProcessorConfig):
-                process.append(LinearProcessorConfig(type="linear_quant", qconfig=proc.qconfig, include=proc.include,
-                                                     exclude=linear_quant_exclude))
+                # 根据 include 模式过滤回退层
+                include_patterns = proc.include or ["*"]
+                include_set = ConfigSet(include_patterns)
+                
+                # 过滤出匹配 include 模式的回退层，并去重
+                filtered_exclude = list(set([
+                    layer 
+                    for layer in linear_quant_exclude 
+                    if layer in include_set
+                ]))
+                
+                # 合并原始的 exclude 模式（去重）
+                exclude_list = list(dict.fromkeys(proc.exclude or []))
+                
+                # 如果原始 exclude 中有模式，需要检查 filtered_exclude 中的具体层名是否已被模式匹配
+                if exclude_list:
+                    exclude_set = ConfigSet(exclude_list)
+                    # 过滤掉已被模式匹配的具体层名
+                    filtered_exclude = [
+                        layer 
+                        for layer in filtered_exclude 
+                        if layer not in exclude_set
+                    ]
+                    # 合并模式和剩余的具体层名（保持顺序：模式在前，具体层名在后）
+                    exclude_list.extend(filtered_exclude)
+                else:
+                    exclude_list = filtered_exclude
+                
+                process.append(LinearProcessorConfig(
+                    type="linear_quant",
+                    qconfig=proc.qconfig,
+                    include=proc.include,
+                    exclude=exclude_list
+                ))
             else:
                 process.append(proc)
 
