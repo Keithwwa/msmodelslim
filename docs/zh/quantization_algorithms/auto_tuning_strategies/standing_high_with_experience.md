@@ -1,0 +1,101 @@
+# Standing High With Experience 调优算法
+
+## 算法概述
+
+Standing High With Experience（基于专家经验的摸高算法）是在 [Standing High](standing_high.md) 摸高算法基础上、结合**专家经验**的自动调优策略。该策略基于专家经验自动生成完整的摸高配置，用户只需指定**量化类型**（`quant_type`）和**模型结构配置**（`structure_configs`），无需提供完整的量化配置，即可启动摸高调优。
+
+算法内部将生成的完整配置委托给 Standing High 策略执行，因此摸高流程（二分搜索最小回退级别、摸高过程、离群值抑制策略遍历等）与 Standing High 一致，区别仅在于**配置来源**由专家经验自动填充。
+
+## 算法原理
+
+Standing High With Experience 的核心思想是**配置简化 + 专家经验填充**，流程即以下三阶段：
+
+1. **用户侧**：仅配置 `quant_type`（如 `w8a8`、`w4a8`）和 `structure_configs`（如 GQA、FFN 等结构类型及其 `include`/`exclude` 模式）。
+2. **策略侧**：根据 `quant_type` 和 `structure_configs` 基于专家经验生成完整摸高配置，并组装为 `StandingHighStrategyConfig`。
+3. **执行侧**：将生成的配置交给 `StandingHighStrategy` 执行摸高，后续与 [Standing High](standing_high.md) 一致，迭代优化直至得到满足精度要求的最优配置。
+
+## 关键参数
+
+### type - 策略类型
+
+**作用**：指定调优算法类型。使用基于专家经验的摸高时，应设置为 `standing_high_with_experience`。
+
+**类型**：`string`
+
+**值**：`standing_high_with_experience`
+
+### quant_type - 量化类型
+
+**作用**：指定目标量化类型，须在专家经验 `expert_experience.yaml` 的 `supported_quant_types` 范围内。常用取值为 `w8a8`、`w4a8`。
+
+**类型**：`string`
+
+**示例**：`w8a8`、`w4a8`
+
+**说明**：专家经验会据此选择对应的量化配置模板与离群值抑制策略列表。
+
+### structure_configs - 模型结构配置列表
+
+**作用**：描述当前模型的结构类型及各自参与量化的模块范围（include/exclude），用于从专家经验中查找每种结构对应的量化配置。
+
+**类型**：`list`，每个元素为包含以下字段的对象：
+
+| 字段名   | 作用         | 类型  | 说明 |
+|----------|--------------|-------|------|
+| type     | 结构类型     | string | 如 `GQA`、`FFN`、`MHA`、`MoE` 等，须在专家经验中存在 |
+| include  | 包含的模式   | list[string]，可选 | 模块名匹配模式，如 `["*self_attn*"]`、`["*mlp*"]` |
+| exclude  | 排除的模式   | list[string]，可选 | 需要排除的模块名模式，如 `["*kv_b_proj"]` |
+
+**说明**：`include` 与 `exclude` 均支持通配符形式（如 `*`）用于层名匹配。
+
+**配置示例**：
+
+```yaml
+structure_configs:
+  - type: "GQA"
+    include:
+      - "*self_attn*"
+    exclude:
+      - "*kv_b_proj*"
+  - type: "FFN"
+    include:
+      - "*mlp*"
+```
+
+## 与 Standing High 的对比
+
+| 维度           | Standing High | Standing High With Experience |
+|----------------|---------------|--------------------------------|
+| 配置复杂度     | 需手写初始量化配置、离群值抑制策略等 | 仅需量化类型和模型结构 |
+| 摸高执行逻辑   | 一致           | 一致（委托同一套 StandingHighStrategy） |
+| 适用场景       | 需要精细控制每项量化与策略时 | 希望开箱即用、按模型结构自动选策略时 |
+
+## 使用示例
+
+### 配置文件示例
+
+```yaml
+strategy:
+  type: standing_high_with_experience
+  quant_type: w8a8
+  structure_configs:
+    - type: "GQA"
+      include:
+        - "*self_attn*"
+    - type: "FFN"
+      include:
+        - "*mlp*"
+```
+
+## 算法特点
+
+1. **开箱即用**：无需手动提供初始量化配置与离群值抑制策略，降低配置门槛，帮助用户快速上手。
+2. **专家经验驱动**：量化配置与策略统一由预置的专家经验模板管理，便于维护与复用。
+3. **与 Standing High 一致的效果**：执行阶段复用 Standing High 的二分搜索、摸高与策略遍历逻辑，在保证精度的前提下最大化量化层数。
+4. **可扩展性好**：新增量化类型或结构类型时，仅需更新专家经验配置，无需修改策略代码，灵活易扩展。
+
+## 注意事项
+
+1. **专家经验当前支持范围**：当前专家经验仅支持 **LLM 模型**量化。支持的量化类型为 `w8a8`、`w4a8`；子结构类型包括 MHA、GQA、MLA、FFN、MoE、DSA、SWA、GatedDeltaNet，具体以 `expert_experience.yaml` 为准。
+2. **structure_configs 范围须互不重叠**：各条配置的 include/exclude 范围须**互不重叠**（正交），即每一层仅被一条配置覆盖；否则同一层可能被重复量化，导致结果异常。
+3. **推理引擎与回退支持**：与 Standing High 相同，需确保推理引擎（如 vLLM-Ascend）支持量化回退；使用混合算子时可能不支持任意回退，需根据实际环境确认。

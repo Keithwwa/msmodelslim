@@ -89,7 +89,7 @@ quantization_mapping:
       MoE: "w8a8_dynamic"
       DSA: "bf16"
       SWA: "bf16"
-      GatedDelatNet: "bf16"
+      GatedDeltaNet: "bf16"
   
   w4a8:
     anti_outlier_strategies:
@@ -102,4 +102,4 @@ quantization_mapping:
       MoE: "w4a8_dynamic"
       DSA: "bf16"
       SWA: "bf16"
-      GatedDelatNet: "bf16"
+      GatedDeltaNet: "bf16"

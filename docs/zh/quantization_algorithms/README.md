@@ -39,7 +39,8 @@ msModelSlim 支持多种先进的量化算法，涵盖了从离群值抑制到�
 
 | 算法名称 | 核心思想 | 适用场景 | 详细说明 |
 | :--- | :--- | :--- | :--- |
-| **Standing High** | 针对特定层的精度保护策略 | 解决关键层量化损失 | [查看详情](auto_tuning_strategies/standing_high.md) |
+| **Standing High** | 结合离群值策略，在满足精度条件下基于二分法尽量减少回退层数 | 需精细控制模板与策略，需要提供完整量化配置 | [查看详情](auto_tuning_strategies/standing_high.md) |
+| **Standing High With Experience** | 仅需量化类型与结构配置，根据专家经验自动生成量化配置 | 熟悉模型结构，无需提供完整量化配置 | [查看详情](auto_tuning_strategies/standing_high_with_experience.md) |
 
 ## 敏感层分析
 评估模型各层对量化的敏感程度，辅助决定精度保护策略。
