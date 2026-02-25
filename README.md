@@ -15,7 +15,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Keithwwa/msmodelslim)
 <br><br>
 [🌐项目主页](https://gitcode.com/Ascend/msmodelslim) |
-[📖工具文档](https://modelslim.readthedocs.io/zh-cn/latest/) |
+[📖工具文档](https://msmodelslim.readthedocs.io/zh-cn/latest/) |
 [🔥最新进展](#最新消息)|
 [🤔报告问题](https://gitcode.com/Ascend/msmodelslim/issues/new)
 <br><br>
