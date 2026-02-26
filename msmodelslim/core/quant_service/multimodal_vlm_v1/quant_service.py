@@ -200,7 +200,7 @@ class MultimodalVLMModelslimV1QuantService(IQuantService):
             get_logger().warning(
                 f"runner for multimodal_vlm_modelslim_v1 is not layer_wise, will be converted to layer_wise.")
 
-        runner = LayerWiseRunner(adapter=model_adapter)
+        runner = LayerWiseRunner(adapter=model_adapter, offload_device="cpu")
 
         get_logger().info(f"Created runner LayerWiseRunner successfully")
 

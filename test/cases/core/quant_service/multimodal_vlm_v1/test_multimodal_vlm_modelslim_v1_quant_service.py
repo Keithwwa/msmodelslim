@@ -226,7 +226,7 @@ class TestMultimodalVLMModelslimV1QuantService:
             save_cfg.set_save_directory.assert_called_once_with(self.save_path)
 
         # Runner 创建与 Processor 注册
-        mock_runner_cls.assert_called_once_with(adapter=self.model_adapter)
+        mock_runner_cls.assert_called_once_with(adapter=self.model_adapter, offload_device="cpu")
         expected_calls = [call(processor_cfg=cfg) for cfg in process_cfgs + save_cfgs]
         runner.add_processor.assert_has_calls(expected_calls, any_order=False)
 
@@ -284,7 +284,7 @@ class TestMultimodalVLMModelslimV1QuantService:
             save_cfg.set_save_directory.assert_not_called()
 
         # Runner 仍然需要创建并执行
-        mock_runner_cls.assert_called_once_with(adapter=self.model_adapter)
+        mock_runner_cls.assert_called_once_with(adapter=self.model_adapter, offload_device="cpu")
         runner.add_processor.assert_has_calls(
             [call(processor_cfg=cfg) for cfg in process_cfgs],
             any_order=False,
