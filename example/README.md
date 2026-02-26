@@ -26,6 +26,7 @@ msModelSlim 推荐实践集提供了各种大语言模型、多模态理解模�
   - Qwen3-VL 系列模型
   - Qwen3-VL-MoE 系列模型
   - GLM-4.1V 系列模型
+  - Qwen3-Omni 系列模型
 
 ### 多模态生成模型量化说明
 - **[multimodal_sd](./multimodal_sd/)** - 多模态生成模型量化说明

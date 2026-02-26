@@ -313,6 +313,33 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
+      <td rowspan="2"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen3-Omni/README.md">Qwen3-Omni系列</a></strong></td>
+      <td>Qwen3-Omni-30B-A3B-Thinking</td>
+      <td>transformers==4.57.3</td>
+      <td>-</td>
+      <td>√</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Qwen3-Omni-30B-A3B-Instruct</td>
+      <td>transformers==4.57.3</td>
+      <td>-</td>
+      <td>√</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen3-Next/README.md">Qwen3-Next系列</a></strong></td>
       <td>Qwen3-Next-80B-A3B-Instruct</td>
       <td>transformers>=4.57.0</td>
