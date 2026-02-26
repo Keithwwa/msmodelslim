@@ -60,7 +60,12 @@ __all__ = [
 
     # save interface
     'AscendV1SaveInterface',  # For AscendV1 save.
+
+    # DynamicCache interface
+    'DynamicCacheInterface',  # For DynamicCache.
+
     'AscendV1GlobalModelDtypeInterface',  # For global model torch dtype (e.g. Saver deq_scale int64).
+
 ]
 
 from msmodelslim.app.auto_tuning.model_info_interface import ModelInfoInterface as atmi
@@ -82,7 +87,7 @@ from msmodelslim.processor.anti_outlier.smooth_quant.interface import SmoothQuan
 from msmodelslim.processor.kv_smooth import KVSmoothFusedInterface
 from msmodelslim.processor.quant.fa3.interface import FA3QuantPlaceHolder, FA3QuantAdapterInterface
 from msmodelslim.processor.quarot import QuaRotInterface, LAOSOnlineRotationInterface, OnlineQuaRotInterface
-
+from msmodelslim.processor.quant.attention import DynamicCacheInterface
 
 class AnalyzePipelineInterface(aspi, shpi, shwepi):
     ...

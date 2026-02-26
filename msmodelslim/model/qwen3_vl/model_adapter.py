@@ -30,6 +30,7 @@ from safetensors import safe_open
 from torch import nn
 from tqdm import tqdm
 from transformers import AutoProcessor
+from transformers.cache_utils import DynamicCache
 from transformers.masking_utils import create_causal_mask
 from transformers.models.qwen3_vl.modeling_qwen3_vl import Qwen3VLTextDecoderLayer
 
@@ -44,6 +45,7 @@ from msmodelslim.model.interface_hub import (
     IterSmoothInterface,
     FlexSmoothQuantInterface,
     ModelSlimPipelineInterfaceV1,
+    DynamicCacheInterface
 )
 from msmodelslim.processor.quarot import QuaRotInterface
 from msmodelslim.model.common.vlm_base import VLMBaseModelAdapter
@@ -65,6 +67,7 @@ class Qwen3VLModelAdapter(
     IterSmoothInterface,
     FlexSmoothQuantInterface,
     QuaRotInterface,
+    DynamicCacheInterface
 ):
 
     def __init__(
@@ -391,7 +394,11 @@ class Qwen3VLModelAdapter(
 
         # Extract text position ids
         text_position_ids = position_ids[0]
-
+        past_key_values = sample.get("past_key_values", None)
+        if model.config.use_cache and past_key_values is None:
+            past_key_values = DynamicCache(config=self.config)
+        else:
+            past_key_values = None
         # CRITICAL: Convert 2D attention_mask to 4D causal mask
         # This is what Qwen3VLTextModel.forward does internally
         attention_mask = create_causal_mask(
@@ -399,7 +406,7 @@ class Qwen3VLModelAdapter(
             input_embeds=inputs_embeds,
             attention_mask=attention_mask,
             cache_position=cache_position,
-            past_key_values=None,
+            past_key_values=past_key_values,
             position_ids=text_position_ids,
         )
 
@@ -421,8 +428,8 @@ class Qwen3VLModelAdapter(
                     "position_ids": text_position_ids,
                     "cache_position": cache_position,
                     "position_embeddings": position_embeddings,
-                    "past_key_values": None,
-                    "use_cache": False,
+                    "past_key_values": past_key_values,
+                    "use_cache": model.config.use_cache,
                 },
             )
 
@@ -736,6 +743,12 @@ class Qwen3VLModelAdapter(
         # Perform architecture adaptation if needed
         # Similar to DeepSeek-V3's MTP layer wrapping in load_mtp_if_not_load
         return decoder
+
+    def get_dynamic_cache_layers(self):
+        res = {}
+        for layer_idx in range(self.config.text_config.num_hidden_layers):
+            res[layer_idx] = f"model.language_model.layers.{layer_idx}.self_attn"
+        return res
 
 
 def _qwen3_vl_get_ln_fuse_map(config):

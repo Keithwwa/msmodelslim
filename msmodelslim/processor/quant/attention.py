@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
+from abc import abstractmethod
 import re
 from collections import defaultdict
 from typing import List, Optional, Dict, Literal
@@ -97,11 +97,16 @@ def _detect_attention_layers(model: torch.nn.Module) -> Dict[int, str]:
     return attention_layers
 
 
-def _get_first_layer(model: torch.nn.Module):
-    attention_layers = _detect_attention_layers(model)
+def _get_first_layer(model, attention_layers):
     layer_name = '.'.join(attention_layers[0].split('.')[:-1])
     mod = _get_module_by_name(model, layer_name)
     return mod
+
+
+class DynamicCacheInterface:
+    @abstractmethod
+    def get_dynamic_cache_layers(self):
+        pass
 
 
 @QABCRegistry.register(dispatch_key=DynamicCacheProcessorConfig, abc_class=AutoSessionProcessor)
@@ -137,12 +142,16 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
             lambda: {quant_name: None for quant_name in self.input_name_map.values()}
         )
         # add trigger hook on module who first uses kvcache
-        self.first_layer = _get_first_layer(self.model)
+        if isinstance(adapter, DynamicCacheInterface):
+            self._attention_layers_map = adapter.get_dynamic_cache_layers()
+        else:
+            self._attention_layers_map = _detect_attention_layers(self.model)
+        self.first_layer = _get_first_layer(self.model, self._attention_layers_map)
         self.trigger_hook_target = (self.first_layer, 'forward')
         self.cache_target = HOOK_TARGET
         self._trigger_hook_installed = False
         self._use_global_hook = False
-        self._attention_layers_map = _detect_attention_layers(self.model)
+        
         # Hook registry to avoid duplicate hook installation using cache IDs
         self._installed_cache_ids = set()
 
