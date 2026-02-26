@@ -16,6 +16,10 @@ Qwen3-Omni 是阿里云 Qwen 团队推出的多模态 Omni 模型，支持语音
   ```bash
   pip install transformers==4.57.3
   ```
+- 需要安装 qwen_omni_utils 依赖用于模型本身数据预处理：
+  ```bash
+  pip install qwen_omni_utils
+  ```
 
 - 需在环境中**额外安装 ffmpeg**（用于音视频预处理）：
 
