@@ -27,7 +27,7 @@ from msmodelslim.core.tune_strategy.plugin_factory import PluginTuningStrategyFa
 from msmodelslim.cli.utils import parse_device_string
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
 from msmodelslim.infra.service_oriented_evaluate_service import ServiceOrientedEvaluateService
-from msmodelslim.infra.vlm_dataset_loader import VLMDatasetLoader
+from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VLMDatasetLoader
 from msmodelslim.infra.yaml_plan_manager import YamlTuningPlanManager
 from msmodelslim.infra.yaml_practice_history_manager import YamlTuningHistoryManager
 from msmodelslim.infra.yaml_practice_accuracy_manager import YamlTuningAccuracyManager

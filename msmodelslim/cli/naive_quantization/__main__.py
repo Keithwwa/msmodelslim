@@ -25,7 +25,7 @@ from msmodelslim.app.naive_quantization import NaiveQuantizationApplication
 from msmodelslim.core.quant_service.proxy import QuantServiceProxy, QuantServiceProxyConfig
 from msmodelslim.cli.utils import parse_device_string
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
-from msmodelslim.infra.vlm_dataset_loader import VLMDatasetLoader
+from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VLMDatasetLoader
 from msmodelslim.infra.yaml_practice_manager import YamlPracticeManager
 from msmodelslim.model import PluginModelFactory
 from msmodelslim.utils.config import msmodelslim_config

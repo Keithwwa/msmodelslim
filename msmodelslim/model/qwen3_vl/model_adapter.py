@@ -47,7 +47,7 @@ from msmodelslim.model.interface_hub import (
 )
 from msmodelslim.processor.quarot import QuaRotInterface
 from msmodelslim.model.common.vlm_base import VLMBaseModelAdapter
-from msmodelslim.infra.vlm_dataset_loader import VlmCalibSample
+from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VLMDatasetLoader
 from msmodelslim.utils.exception import InvalidModelError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import (
