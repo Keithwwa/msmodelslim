@@ -5,6 +5,7 @@
 本文档面向需要将自有多模态理解模型（Vision-Language Model, VLM）接入 msModelSlim 的开发者。
 
 多模态理解模型通常由视觉编码器、视觉特征投影层和语言模型组成，能够同时处理图像和文本输入。相比纯语言模型，多模态理解模型的量化接入需要额外考虑：
+
 - **多模态校准数据的准备**：支持图像和文本prompt结合等模态融合的校准数据类型
 - **视觉特征与语言特征的融合**：如Merger、DeepStack等特殊架构的适配
 - **视觉部分完整处理**：视觉部分一次性加载并处理，简化多模态融合逻辑
@@ -36,10 +37,12 @@ flowchart TD
 ### 多模态模型适配器
 
 多模态模型适配器继承自 `VlmBaseModelAdapter`，提供了一些通用的多模态处理能力：
+
 - `_load_config`：模型config加载
 - `_collect_inputs_to_device`：批量收集预处理过的多模态数据并移动输入到目标设备
 
 同时需要实现 `ModelSlimPipelineInterfaceV1` 接口，与纯语言模型的主要区别在于：
+
 - **`init_model`**：需要完整加载视觉部分，仅加载语言部分首层
 - **`generate_model_visit`**：先处理整个视觉部分，再逐层处理语言部分
 - **`generate_model_forward`**：需要实现视觉部分完整前向、特征融合、语言部分逐层前向的流程
@@ -50,6 +53,7 @@ flowchart TD
 以下内容将以 [Qwen3-VL-MoE](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/model_adapter.py) W8A8混合量化场景（简称"场景示例"）的模型接入为例。
 
 **Qwen3-VL-MoE的加载策略**：
+
 - **视觉部分**：完整加载（包含所有blocks、mergers等），作为一个整体进行处理和量化
 - **语言部分**：逐层加载和处理，节省内存
 
@@ -58,6 +62,7 @@ flowchart TD
 ### 1. 新建模型适配器目录和文件
 
 建议在 [`msmodelslim/model/`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/model) 下创建独立目录，如 `qwen3_vl_moe/`，包含以下文件：
+
 - `model_adapter.py`：模型适配器主文件
 - `__init__.py`：导出适配器类
 - `moe_utils.py`（可选）：MoE融合权重等特殊结构的辅助转换工具
@@ -90,6 +95,7 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,  # 提供多模态通用能力
 将校准数据（`VlmCalibSample`）转换为多模态理解模型支持的输入，`VlmCalibSample`的定义可参考[`vlm_dataset_loader.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/vlm_dataset_loader.py)：
 
 **关键点**：
+
 - 使用 `VlmCalibSample` 结构体统一数据格式，校准数据支持的格式参考：[校准数据准备](#5-校准数据准备)
 - **加载processor或tokenizer**：主流多模态理解模型（如Qwen3-VL）一般使用processor对数据做预处理，但以InternVL2-8B为例的模型则使用tokenizer对数据做预处理，需要根据模型官方给出的推理示例进行设置
 - **构建messages**：使用processor对数据做预处理的多模态理解模型，一般有自己特定的messages形式，需要参考模型官方给出的推理示例实现定义
@@ -164,11 +170,13 @@ def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> L
 #### 3.2 `init_model`：初始化模型（视觉部分完整加载+语言部分首层加载）
 
 多模态理解模型的初始化需要注意：
+
 - **视觉部分完整加载**：一次性加载整个视觉部分
 - **语言部分仅加载首层**：仅加载第一个文本解码层，其余层按需动态加载
 - **设置推理模式**：设置`_attn_implementation='eager'`等
 
 **关键点**：
+
 - 通过临时设置 `num_hidden_layers=1` 来控制仅加载一个语言部分解码层
 - 视觉部分会被完整加载（所有blocks、patch_embed、merger、deepstack_merger_list等）
 - 使用 `from_pretrained` 而非手动加载权重，更简洁可靠
@@ -226,6 +234,7 @@ def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
 按照模型结构的拓扑顺序，依次yield各个需要量化的模块。**顺序非常重要**，必须与前向传播顺序一致。
 
 **关键点**：
+
 - **视觉部分作为整体**：`model.visual` 一次性yield，包含所有子模块
 - **语言部分逐层yield**：使用 `generated_decoder_layer_visit_func` 标准函数
 - 使用 `generate_decoder_layer` 生成器动态加载文本层
@@ -272,7 +281,7 @@ def generate_decoder_layer(self, model: nn.Module) -> Generator[Tuple[str, nn.Mo
         yield name, layer
 ```
 
-#### 3.4 辅助方法：动态加载语言部分的权重 {#34-辅助方法动态加载语言部分的权重}
+#### 3.4 辅助方法：动态加载语言部分的权重
 
 由于视觉部分已在 `init_model` 中完整加载，只需实现语言部分文本解码器的动态加载逻辑。
 
@@ -355,6 +364,7 @@ def _convert_single_moe_layer(self, layer: nn.Module, layer_idx: int):
 实现模型的完整前向传播，同时yield每一层的处理请求。视觉部分一次性运行，语言部分逐层运行。
 
 **关键点**：
+
 - **前向逻辑梳理**：相比大语言模型，多模态理解模型涉及模态融合等操作，其逐层前向传播序列处理更为复杂。所以必须对原始模型文件中的前向传播定义进行充分了解，以Qwen3-VL-235B-A22B为例，需要查看transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe.py获取原模型定义
 - **视觉编码器一次性运行**：调用 `model.model.visual()` 获取所有输出
 - **视觉特征融合**：使用 `masked_scatter` 将图像特征替换到文本序列中，每个模型的具体操作需要参考原模型定义
@@ -386,17 +396,12 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
     
     with torch.no_grad():
         # 一次性运行整个视觉部分
-        image_embeds, deepstack_image_embeds = model.model.visual(
-            pixel_values, grid_thw=image_grid_thw
+        image_embeds, deepstack_image_embeds = yield ProcessRequest(
+            name="model.visual",
+            module=model.model.visual,
+            args=(pixel_values, image_grid_thw),
+            kwargs={},
         )
-    
-    # Yield视觉部分的处理结果
-    yield ProcessRequest(
-        name="model.visual",
-        module=model.model.visual,
-        args=(pixel_values, image_grid_thw),
-        kwargs={}
-    )
     
     # ========== 阶段2: 构建语言模型输入（融合视觉特征） ==========
     # 根据inputs中不为None的字段，明确语言部分的输入参数
@@ -428,35 +433,25 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
     for layer_idx, (name, layer) in enumerate(self.generate_decoder_layer(model)):
         with torch.no_grad():
             # 前向传播
-            hidden_states = layer(
-                hidden_states,
-                attention_mask=attention_mask,
-                position_ids=text_position_ids,
-                cache_position=cache_position,
-                position_embeddings=position_embeddings,
-                past_key_values=None,
-                use_cache=False,
+            hidden_states = yield ProcessRequest(
+                name=name,
+                module=layer,
+                args=(hidden_states,),
+                kwargs={
+                    'attention_mask': attention_mask,
+                    'position_ids': text_position_ids,
+                    'cache_position': cache_position,
+                    'position_embeddings': position_embeddings,
+                    'past_key_values': None,
+                    'use_cache': False,
+                },
             )
             
             # DeepStack注入（如果该层需要）
             """
             DeepStack注入的实现
             """
-        
-        # Yield当前层处理结果
-        yield ProcessRequest(
-            name=name,
-            module=layer,
-            args=(hidden_states,),
-            kwargs={
-                'attention_mask': attention_mask,
-                'position_ids': text_position_ids,
-                'cache_position': cache_position,
-                'position_embeddings': position_embeddings,
-                'past_key_values': None,
-                'use_cache': False,
-            }
-        )
+
 ```
 
 ### 4. 注册模型名
@@ -473,15 +468,47 @@ qwen3_vl_moe = Qwen3-VL-30B-A3B, Qwen3-VL-235B-A22B
 qwen3_vl_moe = msmodelslim.model.qwen3_vl_moe.model_adapter:Qwen3VLMoeModelAdapter
 ```
 
-### 5. 校准数据准备 {#5-校准数据准备}
+### 5. 校准数据准备
 
-#### 类型1：纯图像（默认文本prompt）
+校准数据由 YAML 的 `dataset` 字段指定。`dataset` 可配置为短名称（在 dataset_dir 下查找）、绝对路径或相对路径。支持以下三种使用方式。
 
-用户可通过在yaml配置文件的dataset字段传入图像目录，以及设置default_text字段作为所有图像统一的默认文本prompt。
+#### 方式一：index.json / index.jsonl（推荐）
 
-**格式**：图片目录，无 `.json`/`.jsonl` 文件
+指向 **index.json** 或 **index.jsonl** 文件，或指向**仅包含一个 index.json 或 index.jsonl** 的目录。支持多模态（图像、音频、视频），格式规范，后续功能会在此方式上演进。
 
+目录示例：
+
+```text
+calib_dir/
+├── index.jsonl
+├── img1.jpg
+├── img2.png
+└── a.wav
 ```
+
+**index.jsonl 内容**（每行一个 JSON 对象，至少含 `text`，可选 image/audio/video）：
+
+```json
+{"image": "img1.jpg", "text": "Describe this image."}
+{"image": "img2.png", "audio": "a.wav", "text": "What do you see and hear?"}
+```
+
+字段说明：`text` 必填（或依赖 default_text）；可选 `image`（.jpg/.jpeg/.png）、`audio`（.wav/.mp3）、`video`（.mp4），路径相对 index 文件所在目录。
+
+**配置**：
+
+```yaml
+dataset: calib_dir    # 或 index 文件路径、绝对路径
+default_text: "Describe this image in detail."
+```
+
+#### 方式二：纯图像目录
+
+目录内仅包含图像文件，无 .json/.jsonl。所有图像使用 `default_text` 作为统一文本 prompt。
+
+**说明**：此方式后续不再演进，新场景请使用方式一。
+
+```text
 calibImages/
 ├── img1.jpg
 ├── img2.png
@@ -489,19 +516,19 @@ calibImages/
 ```
 
 **配置**：
+
 ```yaml
 dataset: calibImages
 default_text: "Describe this image in detail."
 ```
 
-#### 类型2：纯图像（自定义文本prompt）
+#### 方式三：图像目录 + 单个 .json/.jsonl（任意文件名）
 
-用户可通过在yaml配置文件的dataset字段传入图像目录，并通过符合要求的单个 `.json`/`.jsonl` 文件设置每个图像独立的文本prompt。
+目录内包含图像及**一个**任意文件名的 .json 或 .jsonl 文件（文件名不为 index.json/index.jsonl），用于为每张图指定自定义文本。仅支持图像，不支持 audio/video。
 
-**格式**：图片目录 + 单个 `.json`/`.jsonl` 文件
+**说明**：此方式后续不再演进，新场景请使用方式一。
 
-**图片目录 + 单个 `.jsonl` 文件**
-```
+```text
 calibImages/
 ├── img1.jpg
 ├── img2.png
@@ -510,31 +537,15 @@ calibImages/
 ```
 
 **calib_data.jsonl**：
+
 ```json
 {"image": "img1.jpg", "text": "What objects are in this image?"}
 {"image": "img2.png", "text": "Describe the scene."}
 {"image": "img3.jpeg", "text": "What is the main subject?"}
 ```
 
-**图片目录 + 单个 `.json` 文件**
-```
-calibImages/
-├── img1.jpg
-├── img2.png
-├── img3.jpeg
-└── calib_data.json
-```
-
-**calib_data.json**：
-```json
-[
-{"image": "img1.jpg", "text": "What objects are in this image?"},
-{"image": "img2.png", "text": "Describe the scene."},
-{"image": "img3.jpeg", "text": "What is the main subject?"}
-]
-```
-
 **配置**：
+
 ```yaml
 dataset: calibImages
 ```
@@ -625,6 +636,7 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 **症状**：量化时显存溢出
 
 **原因和解决方案**：
+
 - 对于**视觉部分**：当前Qwen3-VL-MoE采用完整加载方案，如遇OOM，可考虑：
   - 减少校准数据中的图片数量
   - 使用较小分辨率的图片进行校准
@@ -641,6 +653,7 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 **原因**：原始模型使用3D参数存储所有专家权重
 
 **解决**：
+
 - 参考[辅助方法动态加载语言部分的权重](#34-辅助方法动态加载语言部分的权重)中 `_convert_single_moe_layer` 方法，实现3D权重切分为多个Linear层
 - 参考 [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/moe_utils.py) 的等价替换底层逻辑实现
 
@@ -651,12 +664,13 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 **原因**：校准数据格式不符合要求或模型不支持该类型
 
 **解决**：
+
 - 检查数据格式是否符合: [校准数据准备](#5-校准数据准备)
 - 确保图片路径可访问、格式正确（.jpg/.png/.jpeg）
 
 ## 附录
 
-### 可用算法接口适配指导 {#可用算法接口适配指导}
+### 可用算法接口适配指导
 
 #### 支持IterSmooth离群值抑制算法
 
@@ -746,8 +760,10 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
 详见：[QuaRot 适配](../quantization_algorithms/outlier_suppression_algorithms/quarot.md#模型适配)
 
 ### 参考资料
+
 - [模型接入指南](integrating_models.md)：大模型基础接入指导
+- [Qwen2.5-Omni模型适配器](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen2_5_omni_thinker/model_adapter.py)：端到端多模态（文本/图像/音频/视频）适配示例
 - [Qwen3-VL-MoE模型适配器](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/model_adapter.py)：完整实现示例
-- [VLM数据集加载器](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/vlm_dataset_loader.py)：校准数据加载处理
+- [VLM数据集加载器](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/vlm_dataset_loader.py)与[dataset_loader](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/dataset_loader/)：校准数据加载处理
 - [多模态VLM量化服务](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/core/quant_service/multimodal_vlm_v1)：服务层实现
 - [一键量化使用说明](../feature_guide/quick_quantization_v1/usage.md)：命令行参数详解

@@ -47,6 +47,7 @@ msmodelslim quant [ARGS]
 用户输入命令后，系统将根据指定需求，在最佳实践库中匹配到最佳配置从而实施量化。
 
 **注意事项**：
+
 1. 最佳实践库中的配置文件放在 `msmodelslim/lab_practice` 中。
 2. 若最佳实践库中未搜寻到最佳配置，系统则会向用户询问是否采用默认配置，即使用 `msmodelslim/lab_practice/default/default.yaml` 实施量化。
 3. 如果需要打印量化运行日志，可通过以下环境变量进行设置：
@@ -85,6 +86,7 @@ msmodelslim quant \
 ```
 
 其中：
+
 - `${MODEL_PATH}` 为 Qwen2.5-7B-Instruct 原始浮点权重路径
 - `${SAVE_PATH}` 为用户自定义的量化权重保存路径
 
@@ -183,9 +185,9 @@ msmodelslim quant --device npu:0,1,2,3 ...
 
 #### 注意事项
 
-1.  **分布式算法支持**：使用 `dp_layer_wise` 时，必须确保所有处理器（如 `linear_quant`）和算法（如 `minmax`, `ssz`, `iter_smooth`）均支持分布式执行。
-2.  **加速比说明**：多卡加速效果受校准集大小影响。若校准集过小，通信开销可能导致加速效果不明显。
-3.  **多模态限制**：分布式逐层量化暂不支持多模态模型，多模态场景请使用单卡 `layer_wise`。
+1. **分布式算法支持**：使用 `dp_layer_wise` 时，必须确保所有处理器（如 `linear_quant`）和算法（如 `minmax`, `ssz`, `iter_smooth`）均支持分布式执行。
+2. **加速比说明**：多卡加速效果受校准集大小影响。若校准集过小，通信开销可能导致加速效果不明显。
+3. **多模态限制**：分布式逐层量化暂不支持多模态模型，多模态场景请使用单卡 `layer_wise`。
 
 #### 模型适配
 
@@ -343,6 +345,7 @@ spec:
 #### 使用示例
 
 在一键量化中，通过 `qconfig.act.scope` 字段来区分 **静态量化** 与 **动态量化**：
+
 - **静态量化 (`per_tensor`)**：在校准阶段统计并固定量化参数，推理时不再计算。特点是**推理性能最优**，硬件兼容性好。
 - **动态量化 (`per_token`)**：在推理时为每个 token 动态计算量化参数。特点是**精度更高**，能有效应对激活值中的离群值分布。
 以下示例展示了一份稠密模型的静态量化配置：
@@ -558,15 +561,15 @@ multimodal_vlm_modelslim_v1是专门为多模态视觉语言模型（VLM）设�
 
 **适用模型类型**:
 
+- Qwen2.5-Omni系列：Qwen2.5-Omni-7B 等多模态端到端模型（文本/图像/音频/视频）
 - Qwen3-VL-MoE系列：Qwen3-VL-235B-A22B、Qwen3-VL-30B-A3B等多模态模型
 - 其他多模态VLM模型：待后续逐步支持
 
 **配置特点**:
 
-- 支持`dataset`字段配置校准数据集，可以是仅包含图像目录路径或包含JSON/JSONL文件（用于描述每个图像的自定义文本prompt）的图像目录路径
-- 支持`default_text`字段配置模型自定义文本prompt
-- 默认使用layer_wise（逐层量化）模式，针对大规模多模态模型优化
-- 继承modelslim_v1的所有处理器和保存器配置
+- 支持`dataset`字段配置校准数据集，支持三种使用方式：方式一 index.json/index.jsonl（推荐，支持多模态）、方式二 纯图像目录（后续不再演进）、方式三 图像目录+单个 json/jsonl（后续不再演进），详见下方 [dataset - 校准数据路径配置](#dataset---校准数据路径配置)
+- 支持`default_text`字段配置默认文本 prompt（方式二必填；方式一在条目缺 text 字段时使用）
+- 默认使用 layer_wise（逐层量化）模式，针对大规模多模态模型优化
 
 #### runner - 量化调度器类型
 
@@ -602,56 +605,92 @@ spec:
 
 **类型**: `string`
 
-**支持的格式**:
+支持以下三种使用方式。`dataset` 可配置为**短名称**（在 lab_calib 等 dataset_dir 下查找）、**绝对路径**或**相对路径**。
 
-| 格式类型                             | 说明 | 示例 |
-|----------------------------------|------|------|
-| 短名称                              | lab_calib目录下的数据集名称 | `"calibImages"` |
-| 纯图像目录                            | 包含图像文件的目录路径（支持相对路径和绝对路径） | `"/path/to/images"` 或 `"./images"` |
-| 包含JSON/JSONL文件描述自定义文本prompt的图像目录 | 包含图像文件和JSON/JSONL文件（用于描述每个图像的自定义文本prompt）的目录路径（支持相对路径和绝对路径） | `"/path/to/images"` 或 `"./images"` |
+---
 
-**JSON/JSONL文件格式说明**:
+**方式一：index.json / index.jsonl（推荐）**
 
-JSON文件的整个文件必须是一个合法的JSON值（通常是数组或对象）；示例格式如下：
+指向 **index.json** 或 **index.jsonl** 文件，或指向**仅包含一个 index.json 或 index.jsonl** 的目录。支持多模态（图像、音频、视频），格式规范，后续功能会在此方式上演进。
+
+- 每条为 JSON 对象，**至少包含 `text`**（非空字符串）；缺省时使用配置中的 `default_text`。
+- 可选字段（若提供则路径必须存在）：`image`（.jpg/.jpeg/.png）、`audio`（.wav/.mp3）、`video`（.mp4）；路径相对 index 文件所在目录。
+
+目录示例：
+
+```text
+calib_dir/
+├── index.jsonl
+├── img1.jpg
+├── img2.png
+└── a.wav
+```
+
+index.jsonl 示例：
 
 ```json
-[
-  {"image": "/path/to/image1.jpg", "text": "Describe this image."},
-  {"image": "/path/to/image2.jpg", "text": "What is in this picture?"}
-]
+{"image": "img1.jpg", "text": "Describe this image."}
+{"image": "img2.jpg", "audio": "a.wav", "text": "What is in this picture?"}
 ```
 
-JSONL文件的每行是一个独立、完整的JSON值，不能跨行，不能有逗号或方括号包裹整体；示例格式如下：
+配置示例：`dataset: "/path/to/calib_dir"` 或 `dataset: "/path/to/index.jsonl"` 或短名称解析到上述路径。
+
+---
+
+**方式二：纯图像目录**
+
+目录内仅包含图像文件，无 .json/.jsonl。所有图像使用配置中的 `default_text` 作为统一文本 prompt。
+
+**说明**：此方式后续不再演进，新场景请使用方式一。
+
+目录示例：
+
+```text
+calibImages/
+├── img1.jpg
+├── img2.png
+└── img3.jpeg
+```
+
+配置示例：
+
+```yaml
+spec:
+  dataset: "calibImages"   # 或绝对/相对路径
+  default_text: "Describe this image in detail."
+```
+
+---
+
+**方式三：图像目录 + 单个 .json/.jsonl（任意文件名）**
+
+目录内包含图像及**一个**任意文件名的 .json 或 .jsonl 文件（文件名不为 index.json/index.jsonl），用于为每张图指定自定义文本。仅支持图像字段，不支持 audio/video。
+
+**说明**：此方式后续不再演进，新场景请使用方式一。
+
+目录示例：
+
+```text
+calibImages/
+├── img1.jpg
+├── img2.png
+├── img3.jpeg
+└── calib_data.jsonl
+```
+
+calib_data.jsonl 示例：
 
 ```json
-{"image": "/path/to/image1.jpg", "text": "Describe this image."}
-{"image": "/path/to/image2.jpg", "text": "What is in this picture?"}
+{"image": "img1.jpg", "text": "What objects are in this image?"}
+{"image": "img2.png", "text": "Describe the scene."}
 ```
 
-字段说明：
-- `image`: 图像文件路径（必需）
-- `text`: 文本prompt，即提示文本（非空字符串）
-
-**示例**:
-
-```yaml
-spec:
-  dataset: "calibImages"       # 使用lab_calib目录下的短名称数据集
-```
-...
-```yaml
-spec:
-  dataset: "/path/to/images"   # 使用绝对路径的图像目录
-```
-...
-```yaml
-spec:
-  dataset: "/path/to/images_with_json"  # 使用包含JSON/JSONL描述文件的图像目录
-```
+配置示例：`dataset: "calibImages"` 或对应路径。
 
 #### 使用示例
 
-- Qwen3-VL-MoE模型W8A8混合量化：[qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
+- Qwen2.5-Omni模型W8A8量化：[qwen2_5_omni_thinker_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)
+- Qwen3-VL-MoE模型W8A8混合量化：[qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
 
 ### modelslim_v0 配置说明 {#modelslim_v0-配置说明}
 
@@ -690,6 +729,7 @@ modelslim_v0量化服务主要由Calibrator、AntiOutlier等旧版接口组成�
 #### Q3: 如何判断是否需要使用逐层量化？
 
 如果遇到以下情况，建议使用逐层量化：
+
 - 模型规模 > 32B
 - NPU 内存不足
 - 量化过程中出现内存溢出错误
@@ -697,6 +737,7 @@ modelslim_v0量化服务主要由Calibrator、AntiOutlier等旧版接口组成�
 #### Q4: 多卡量化一定能加速吗？
 
 不一定。多卡量化的加速效果受多种因素影响：
+
 - 校准集大小：校准集较小时，通信开销可能超过并行收益。
 - 卡数选择：并非卡数越多速度越快，需要根据实际情况合理选择。
 - 算法支持：只有支持分布式执行的算法才能在多卡环境下正常工作。详见[逐层量化及分布式逐层量化](#逐层量化及分布式逐层量化)。

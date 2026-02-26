@@ -23,6 +23,7 @@
 
 ## 最新消息
 ### 2026年2月
+- msModelSlim 支持 Qwen2.5-Omni-7B W8A8 量化
 - msModelSlim 支持 Qwen3.5-397B-A17B W8A8 量化
 
 ### 2026年1月

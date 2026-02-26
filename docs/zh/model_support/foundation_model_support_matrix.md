@@ -763,6 +763,14 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
+      <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/Qwen2.5-Omni/README.md">Qwen2.5-Omni系列</a></strong></td>
+      <td>Qwen2.5-Omni-7B</td>
+      <td>transformers==4.57.3</td>
+      <td>√</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="2"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/Qwen2-VL/README.md">Qwen2-VL系列</a></strong></td>
       <td>Qwen2-VL-7B</td>
       <td>transformers==4.46.0, qwen_vl_utils</td>
