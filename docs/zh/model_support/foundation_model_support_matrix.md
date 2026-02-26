@@ -540,6 +540,24 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
+      <td rowspan="3"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/GLM4-MOE/README.md">GLM4-MOE系列</a></strong></td>
+      <td>GLM-4.7</td>
+      <td>transformers==4.57.3</td>
+      <td>-</td>
+      <td>√(一键量化，仅vLLM Ascend支持)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+    </tr>
+    <tr>
+    </tr>
+    <tr>
       <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/HunYuan/README.md">HunYuan系列</a></strong></td>
       <td>Hunyuan-A52B-Instruct</td>
       <td>transformers>=4.48.2</td>
@@ -671,7 +689,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>√</td>
       <td>-</td>
       <td>-</td>
-    </tr> 
+    </tr>
   </tbody>
 </table>
 
