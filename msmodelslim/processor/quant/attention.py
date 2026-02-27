@@ -78,6 +78,19 @@ def _get_module_by_name(model: nn.Module, submodule_key: str) -> nn.Module:
     return cur_mod
 
 
+def _model_has_path(model: nn.Module, path: str) -> bool:
+    """检查 model 是否存在指定属性路径"""
+    if not path:
+        return False
+
+    cur_obj = model
+    for token in path.split('.'):
+        if not hasattr(cur_obj, token):
+            return False
+        cur_obj = getattr(cur_obj, token)
+    return True
+
+
 def _detect_attention_layers(model: torch.nn.Module) -> Dict[int, str]:
     """
     Detect all attention layer prefixes in the model.
@@ -165,7 +178,7 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
         return False
 
     def pre_run(self) -> None:
-        attention_layers = _detect_attention_layers(self.model)
+        attention_layers = self._attention_layers_map
         for layer_idx, _ in attention_layers.items():
             self._create_quantizer(layer_idx)
 
@@ -176,8 +189,10 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
     def postprocess(self, _: BatchProcessRequest) -> None:
         _warning_unmatched_pattern("include", self.include)
         _warning_unmatched_pattern("exclude", self.exclude)
-        attention_layers = _detect_attention_layers(self.model)
+        attention_layers = self._attention_layers_map
         for layer_idx, attention_prefix in attention_layers.items():
+            if not _model_has_path(self.model, attention_prefix):
+                continue
             mod = _get_module_by_name(self.model, attention_prefix)
             self._deploy_quantizer(mod, layer_idx)
     
