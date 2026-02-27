@@ -34,7 +34,7 @@ from tqdm import tqdm
 from transformers import AutoProcessor
 from transformers.masking_utils import create_causal_mask
 
-from transformers import Qwen3_5MoeForConditionalGeneration
+from transformers import Qwen3_5MoeForConditionalGeneration, Qwen3_5ForConditionalGeneration
 from msmodelslim.core.const import DeviceType
 from msmodelslim.app.naive_quantization.model_info_interface import ModelInfoInterface
 from msmodelslim.core.base.protocol import ProcessRequest
@@ -254,7 +254,13 @@ class Qwen3_5ModelAdapter(
         # Load model with only 1 text decoder layer
         # Vision encoder is fully loaded, text decoder has only 1 layer
         get_logger().info("Loading vision encoder and first text decoder layer...")
-        model = self._create_model_instance(Qwen3_5MoeForConditionalGeneration)
+        if self.config.architectures[0] == "Qwen3_5MoeForConditionalGeneration":
+            model = self._create_model_instance(Qwen3_5MoeForConditionalGeneration)
+        elif self.config.architectures[0] == "Qwen3_5ForConditionalGeneration":
+            model = self._create_model_instance(Qwen3_5ForConditionalGeneration)
+        else:
+            raise InvalidModelError(f"Invalid model architecture: {self.config.architecture}", 
+                                    action="Please verify the model architecture is correct.")
 
         # Restore original layer count
         self.config.text_config.num_hidden_layers = origin_layers
@@ -535,7 +541,7 @@ class Qwen3_5ModelAdapter(
         state_dict = {}
         for file_name, names in tqdm(file_groups.items(), desc=f"Loading {prefix}", leave=False):
             file_path = os.path.join(self.model_path, file_name)
-            # file_path = get_valid_read_path(file_path, extensions='safetensors', size_max=MAX_READ_FILE_SIZE_512G)
+            file_path = get_valid_read_path(file_path, extensions='safetensors', size_max=MAX_READ_FILE_SIZE_512G)
             
             with safe_open(file_path, framework='pt', device='cpu') as f:
                 for param_name in names:
@@ -660,7 +666,7 @@ class Qwen3_5ModelAdapter(
         
         for file_name, keys in tqdm(file_groups.items(), desc="Loading MTP weights", leave=False):
             file_path = os.path.join(self.model_path, file_name)
-            # file_path = get_valid_read_path(file_path, extensions='safetensors', size_max=MAX_READ_FILE_SIZE_512G)
+            file_path = get_valid_read_path(file_path, extensions='safetensors', size_max=MAX_READ_FILE_SIZE_512G)
             
             with safe_open(file_path, framework='pt', device='cpu') as f:
                 for ckpt_key in keys:

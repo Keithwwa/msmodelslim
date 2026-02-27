@@ -12,6 +12,7 @@ msModelSlim 推荐实践集提供了各种大语言模型、多模态理解模�
 - **[InternLM2](./InternLM2/)** - InternLM2 系列模型量化说明
 - **[Llama](./Llama/)** - LLaMA 系列模型量化说明
 - **[Qwen](./Qwen/)** - Qwen 系列模型量化说明
+- **[Qwen3_5](./Qwen3_5/)** - Qwen3.5 系列模型量化说明
 - **[Qwen3-MOE](./Qwen3-MOE/)** - Qwen3-MOE 系列模型量化说明
 - **[Qwen3-Next](./Qwen3-Next/)** - Qwen3-Next 系列模型量化说明
 

@@ -313,6 +313,59 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
+      <td rowspan="4"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen3_5/README.md">Qwen3.5系列</a></strong></td>
+      <td>Qwen3.5-397B-A17B</td>
+      <td>transformers==5.2.0</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Qwen3.5-122B-A10B</td>
+      <td>transformers==5.2.0</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Qwen3.5-35B-A3B</td>
+      <td>transformers==5.2.0</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Qwen3.5-27B</td>
+      <td>transformers==5.2.0</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="2"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen3-Omni/README.md">Qwen3-Omni系列</a></strong></td>
       <td>Qwen3-Omni-30B-A3B-Thinking</td>
       <td>transformers==4.57.3</td>
