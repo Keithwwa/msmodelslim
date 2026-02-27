@@ -5,11 +5,12 @@
 
 ## 安装前准备
 准备python环境：需要 Python 3.8 或更高版本。
-> 注意：部分 Python3.8 环境下安装 msmodelslim 异常，报错信息提示 accelerate 依赖安装失败，可通过升级为 Python3.9 解决。
 
 ## 安装步骤
 
-注：使用 msmodelslim 命令行工具时，请不要在 msmodelslim 源码目录下执行 msmodelslim 命令，这样做可能会因为 Python 导入模块时源码路径和安装路径冲突，导致命令执行报错。
+> [!NOTE] 说明
+> - 使用 `msModelslim` 命令行工具时，请勿在 `msModelslim` 的源码目录下直接运行命令。这可能会因 Python 在导入模块时出现源码路径和安装路径冲突，导致命令执行失败。
+> - 若安装 `msmodelslim` 时遇到报错，请先查阅 [FAQ](../appendix/faq.md) 寻找解决方案。如问题仍未解决，欢迎提交 [Issue](https://gitcode.com/Ascend/msmodelslim/issues)，并附上您的运行环境及完整的错误日志，我们将尽快为您排查。
 
 #### 基于Atlas A2 训练、推理产品，Atlas A3 训练、推理系列产品安装
 

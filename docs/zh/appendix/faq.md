@@ -44,20 +44,33 @@ check-wheel-contents 0.6.0 requires pydantic~=2.0, but you have pydantic 1.0 whi
 
 请尝试升级pydantic或卸载环境中依赖低版本pydantic的其他软件包，直至环境无版本冲突。
 
-## 3. 为什么Python3.8环境下安装msModelSlim提示安装accelerate异常？
+## 3. 为什么安装msModelSlim报错？
 
+### 3.1 自动安装accelerate依赖库时报错
 msModelSlim依赖accelerate库来支持多卡运行，因此将其写入requirements.txt，在安装时通过pip自动下载accelerate。
-然而，部分Python 3.8环境因兼容性问题不支持accelerate，可能导致安装失败。
 
-### pip安装时的错误信息
+第一种已知原因是部分 Python 3.8 环境与accelerate冲突，报错信息如下：
 
 ```
 ERROR: Could not find a version that satisfies the requirement puccinialin (from versions: none)
 ```
 
-### 解决方法
+此时，可尝试升级Python环境至 Python 3.9 及以上版本
 
-请尝试升级Python环境至Python3.9。
+如果您的环境已升级至 Python 3.9 或以上版本，但仍然出现报错，可能是由于os版本过低，导致安装 `hugginface_hub` 的子依赖失败，报错信息如下：
+
+```
+error: subprocess-exited-with-error
+```
+
+此时可尝试升级os版本，或通过以下命令进行规避：
+
+```
+pip install "huggingface_hub==0.20.3"
+pip install accelerate
+```
+
+请注意，`huggingface_hub==0.20.3`非`accelerate`官方推荐版本，可能会引发其他兼容性问题。因此，该方案仅供参考，`msModelSlim`对由此带来的问题不承担相应责任。
 
 ## 4. 为什么量化权重时出现报错**PTA call acl api failed. *** The param dtype not implemented for DT_BFLOAT16, should be in dtype support list [\*\*\*]**
 
