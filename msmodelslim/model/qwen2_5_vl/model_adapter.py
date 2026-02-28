@@ -40,19 +40,27 @@ from msmodelslim.app.naive_quantization.model_info_interface import ModelInfoInt
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.model.common.layer_wise_forward import generated_decoder_layer_visit_func
-from msmodelslim.model.interface_hub import ModelSlimPipelineInterfaceV1
+from msmodelslim.model.interface_hub import (
+    IterSmoothInterface,
+    FlexSmoothQuantInterface,
+    ModelSlimPipelineInterfaceV1,
+)
 from msmodelslim.model.common.vlm_base import VLMBaseModelAdapter
 from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VLMDatasetLoader
 from msmodelslim.utils.exception import InvalidModelError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import get_valid_read_path, json_safe_load, MAX_READ_FILE_SIZE_32G
+from msmodelslim.processor.quarot import QuaRotInterface
 
 
 @logger_setter()
 class Qwen25VLModelAdapter(
     VLMBaseModelAdapter,
     ModelInfoInterface,
-    ModelSlimPipelineInterfaceV1
+    ModelSlimPipelineInterfaceV1,
+    FlexSmoothQuantInterface,
+    IterSmoothInterface,
+    QuaRotInterface
 ):
     
     def __init__(self, model_type: str, model_path: Path, trust_remote_code: bool = False):
@@ -324,8 +332,8 @@ class Qwen25VLModelAdapter(
         # Expand position_ids if needed (3D format for mROPE)
         if position_ids.ndim == 2:
             position_ids = position_ids[None, ...].expand(3, position_ids.shape[0], -1)
-
-        past_key_values = None 
+        from transformers.cache_utils import DynamicCache
+        past_key_values = DynamicCache() 
         output_attentions = self.config.output_attentions
         
         causal_mask = model.model._update_causal_mask(
@@ -349,7 +357,7 @@ class Qwen25VLModelAdapter(
                     'position_ids': position_ids,
                     'cache_position': cache_position,
                     'position_embeddings': position_embeddings,
-                    'past_key_values': None,
+                    'past_key_value': past_key_values,
                     'use_cache': False,
                 }
             )
@@ -487,3 +495,236 @@ class Qwen25VLModelAdapter(
             get_logger().info(f'Decoder layer {idx} loaded successfully')
         
         return decoder
+    
+    def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
+        adapter_config = []
+        for layer_idx in range(self.config.num_hidden_layers):
+            # Norm-Linear的映射配置1：输入层归一化到QKV投影
+            input_layernorm_linear_mapping_config = MappingConfig(
+                source=f"model.layers.{layer_idx}.input_layernorm",  # 第一个LayerNorm
+                targets=[f"model.layers.{layer_idx}.self_attn.k_proj",
+                         f"model.layers.{layer_idx}.self_attn.q_proj",
+                         f"model.layers.{layer_idx}.self_attn.v_proj"]  # 注意力层的QKV投影
+            )
+
+            # Norm-Linear的映射配置2：后注意力层归一化到MLP投影
+            post_layernorm_linear_mapping_config = MappingConfig(
+                source=f"model.layers.{layer_idx}.post_attention_layernorm",  # 第二个LayerNorm
+                targets=[f"model.layers.{layer_idx}.mlp.gate_proj",
+                         f"model.layers.{layer_idx}.mlp.up_proj"]  # MLP层的门控和上投影
+            )
+
+            # Up-Down的映射配置
+            up_down_mapping_config = MappingConfig(
+                source=f"model.layers.{layer_idx}.mlp.up_proj",  # 上投影层
+                targets=[f"model.layers.{layer_idx}.mlp.down_proj"]  # 下投影层
+            )
+
+            # 为当前layer添加3个配置
+            adapter_config.extend([
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=input_layernorm_linear_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=post_layernorm_linear_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="up-down",
+                    mapping=up_down_mapping_config
+                )
+            ])
+        return adapter_config
+
+    def get_ln_fuse_map(self):
+        """
+        Get LayerNorm-Linear fusion mapping for QuaRot.
+
+        For Qwen2.5-VL, LayerNorm (RMSNorm) fusion is applied to text decoder layers:
+        - input_layernorm → QKV projections
+        - post_attention_layernorm → MLP gate_proj, up_proj, and router
+        - Final norm → lm_head
+
+        Visual components (merger, deepstack_merger) do NOT have LayerNorm fusion
+        because they use LayerNorm within the vision encoder (before the output projection).
+        The visual output projections are directly rotated (left rotation with R^T).
+
+        Returns:
+            Tuple of (pre_run_fused_ln, fused_map)
+            - pre_run_fused_ln: Empty dict (no pre-run fusion)
+            - fused_map: Dict mapping RMSNorm names to Linear layer names
+        """
+        return {}, _qwen2_5_vl_get_ln_fuse_map(self.config)
+    
+    def get_bake_names(self):
+        """
+        Get bake mean names for QuaRot.
+
+        Qwen2.5-VL uses RMSNorm, so no bake mean is needed.
+
+        Returns:
+            Tuple of (pre_run_bake_names, bake_names)
+        """
+        return [], []
+    
+    def get_rotate_map(self, block_size):
+        """
+        Get rotation mapping for QuaRot on Qwen2.5-VL.
+
+        Strategy:
+        ---------
+        We rotate the entire residual stream (text + fused visual features) using a global
+        rotation matrix R. This requires careful handling of:
+
+        1. Text embeddings: Right rotation (W_new = W_old @ R)
+           - Output will be in rotated space
+
+        2. Visual outputs: Left rotation (W_new = R^T @ W_old)
+           - Ensures visual features enter the same rotated space as text
+           - Includes: merger.linear_fc2 and deepstack_merger_list[*].linear_fc2
+
+        3. Text decoder layers: Mixed rotations
+           - Attention: QKV inputs rotated, O output rotated
+           - MLP: Inputs rotated, outputs rotated
+           - Maintains mathematical equivalence despite rotation
+
+        Note on Visual Rotation:
+        ------------------------
+        Visual features are fused into the residual stream via masked_scatter.
+        To maintain equivalence after fusion, visual outputs MUST be pre-rotated
+        using left rotation (R^T @ W) before entering the stream.
+
+        Args:
+            block_size: Block size for Hadamard rotation
+
+        Returns:
+            Tuple of (pre_run_pairs, rotate_pairs):
+            - pre_run_pairs: List containing embedding + visual rotations
+            - rotate_pairs: List of RotatePairs for decoder layers
+        """
+        # Pass full config (includes vision_config) for visual projections
+        pre_run, rot_pairs = _qwen2_5_vl_get_rotate_map(self.config, block_size)
+
+        return [pre_run], [pair for pair in rot_pairs.values()]
+
+def _qwen2_5_vl_get_ln_fuse_map(config):
+    """
+    Get LayerNorm-Linear fusion mapping for Qwen2.5-VL text decoder.
+
+    Args:
+        config: Text config (config.text_config)
+
+    Returns:
+        Dict mapping LayerNorm names to Linear layer names
+    """
+    ln_linear_map = {}
+
+    for layer_idx in range(config.num_hidden_layers):
+        # Attention: input_layernorm → QKV projections
+        ln_linear_map[f"model.layers.{layer_idx}.input_layernorm"] = [
+            f"model.layers.{layer_idx}.self_attn.q_proj",
+            f"model.layers.{layer_idx}.self_attn.k_proj",
+            f"model.layers.{layer_idx}.self_attn.v_proj",
+        ]
+
+        ln_linear_map[
+            f"model.layers.{layer_idx}.post_attention_layernorm"
+        ] = [
+            f"model.layers.{layer_idx}.mlp.{proj}"
+            for proj in ["gate_proj", "up_proj"]
+        ]
+
+    # Final norm → lm_head
+    ln_linear_map["model.norm"] = ["lm_head"]
+
+    return ln_linear_map
+
+def _qwen2_5_vl_get_rotate_map(config, block_size):
+    """
+    Get rotation mapping for Qwen2.5-VL model (text decoder + visual projections).
+
+    Mathematical Framework:
+    ----------------------
+    We apply a global rotation R to the residual stream (hidden states).
+    - Text embeddings: W_new = W_old @ R (right rotation)
+    - Visual outputs: W_new = R^T @ W_old (left rotation)
+      Reason: For nn.Linear with weight [out, in] and forward y = x @ W.T,
+              to achieve y' = y @ R, we need W'^T = W.T @ R, i.e., W' = R^T @ W
+    - Text layers: Various combinations of left/right rotations to maintain equivalence
+
+    Components:
+    -----------
+    - Text embedding rotation (model.embed_tokens): right_rot
+    - Visual output projection rotation (model.visual.merger.linear_fc2): left_rot
+    - Deepstack visual projections (deepstack_merger_list[*].linear_fc2): left_rot
+    - Text decoder layer rotations (QKV, O, etc.): mixed
+
+    Args:
+        config: Full model config (Qwen2_5_VLConfig, contains text_config and vision_config)
+        block_size: Block size for rotation
+
+    Returns:
+        Tuple of (pre_run, rot_pairs) where:
+        - pre_run: RotatePair for embedding and visual outputs (applied in pre-run phase)
+        - rot_pairs: Dict of RotatePairs for decoder layers (applied in main phase)
+    """
+    # Create rotation matrices
+    rot = QuaRotInterface.get_rotate_command(
+        size=config.hidden_size,
+        mode=QuaRotInterface.QuaRotMode.HADAMARD,
+        block_size=block_size,
+    )
+    head_dim = config.hidden_size // config.num_attention_heads
+    rot_uv = QuaRotInterface.get_rotate_command(
+        size=head_dim,
+        mode=QuaRotInterface.QuaRotMode.BLOCK_HADAMARD_SHIFTED,
+        block_size=block_size,
+    )
+
+    # Pre-run phase: Rotate embedding layer AND visual output projections
+    left_rot = {}
+    right_rot = {}
+
+    # 1. Rotate text embedding layer (output will be rotated)
+    right_rot[f"model.embed_tokens"] = rot
+
+    # 2. Rotate visual merger output projection (to match rotated text embeddings)
+    left_rot[f"visual.merger.mlp.2"] = rot
+
+    # 3. Rotate deepstack visual merger output projections
+    pre_run = QuaRotInterface.RotatePair(left_rot=left_rot, right_rot=right_rot)
+    rot_pairs = {}
+    left_rot = {}
+    right_rot = {}
+    right_rot[f"lm_head"] = rot
+
+    for layer_idx in range(config.num_hidden_layers):
+        right_rot[f"model.layers.{layer_idx}.self_attn.q_proj"] = rot
+        right_rot[f"model.layers.{layer_idx}.self_attn.k_proj"] = rot
+        right_rot[f"model.layers.{layer_idx}.self_attn.v_proj"] = rot
+        left_rot[f"model.layers.{layer_idx}.self_attn.o_proj"] = rot
+        right_rot[f"model.layers.{layer_idx}.mlp.gate_proj"] = rot
+        right_rot[f"model.layers.{layer_idx}.mlp.up_proj"] = rot
+        left_rot[f"model.layers.{layer_idx}.mlp.down_proj"] = rot
+
+    rot_pairs["rot"] = QuaRotInterface.RotatePair(
+        left_rot=left_rot, right_rot=right_rot
+    )
+
+    # OV special rotation
+    left_rot_uv = {}
+    right_rot_uv = {}
+    for layer_idx in range(config.num_hidden_layers):
+        left_rot_uv[f"model.layers.{layer_idx}.self_attn.v_proj"] = (
+            rot_uv
+        )
+        right_rot_uv[f"model.layers.{layer_idx}.self_attn.o_proj"] = (
+            rot_uv
+        )
+
+    rot_pairs["rot_uv"] = QuaRotInterface.RotatePair(
+        left_rot=left_rot_uv, right_rot=right_rot_uv
+    )
+
+    return pre_run, rot_pairs
