@@ -332,7 +332,7 @@ class TestQwen2_5OmniThinkerModelAdapter:
         adapter.config.thinker_config.text_config.num_hidden_layers = 2
         result = adapter.get_adapter_config_for_subgraph()
         assert isinstance(result, list)
-        assert len(result) == 2 + 3 + 2 * 3
+        assert len(result) == 1 + 3 + 2 * 3
 
     def test_get_weight_map_return_cached_result_when_called_twice(self, adapter):
         index_data = {"weight_map": {"thinker.model.layers.0.self_attn.q_proj.weight": "model-00001.safetensors"}}

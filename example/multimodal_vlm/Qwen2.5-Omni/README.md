@@ -18,7 +18,9 @@
   ```bash
   pip install transformers==4.57.3
   ```
+
 - 需要安装 qwen_omni_utils 依赖用于模型本身数据预处理：
+
   ```bash
   pip install qwen_omni_utils
   ```

@@ -16,7 +16,9 @@ Qwen3-Omni 是阿里云 Qwen 团队推出的多模态 Omni 模型，支持语音
   ```bash
   pip install transformers==4.57.3
   ```
+
 - 需要安装 qwen_omni_utils 依赖用于模型本身数据预处理：
+
   ```bash
   pip install qwen_omni_utils
   ```
@@ -79,4 +81,3 @@ msmodelslim quant \
 
 - [一键量化配置协议说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#量化配置协议详解)
 - [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)
-

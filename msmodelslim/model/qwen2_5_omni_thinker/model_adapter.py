@@ -561,22 +561,12 @@ class Qwen25OmniThinkerModelAdapter(
                 ]
             )
 
-            audio_attn_ov_mapping_config = MappingConfig(
-                source=f"audio_tower.layers.{layer_idx}.self_attn.v_proj",
-                targets=[f"audio_tower.layers.{layer_idx}.self_attn.out_proj"]
-            )
+            # Skip OV mapping
 
             adapter_config.extend([
                 AdapterConfig(
                     subgraph_type="norm-linear",
                     mapping=audio_attn_norm_linear_mapping_config
-                ),
-                AdapterConfig(
-                    subgraph_type="ov",
-                    mapping=audio_attn_ov_mapping_config,
-                    extra_config={
-                        'group_method': 'max'
-                    }
                 ),
             ])
 
@@ -585,7 +575,9 @@ class Qwen25OmniThinkerModelAdapter(
             visual_attn_norm_linear_mapping_config = MappingConfig(
                 source=f"visual.blocks.{layer_idx}.norm1",
                 targets=[
-                    f"visual.blocks.{layer_idx}.attn.qkv"
+                    f"visual.blocks.{layer_idx}.attn.q",
+                    f"visual.blocks.{layer_idx}.attn.k",
+                    f"visual.blocks.{layer_idx}.attn.v"
                 ]
             )
 
