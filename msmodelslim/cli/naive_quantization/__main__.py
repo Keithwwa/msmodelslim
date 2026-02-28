@@ -26,6 +26,7 @@ from msmodelslim.core.quant_service.proxy import QuantServiceProxy, QuantService
 from msmodelslim.cli.utils import parse_device_string
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
 from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VLMDatasetLoader
+from msmodelslim.infra.plugin_practice_dirs import discover_plugin_practice_dirs
 from msmodelslim.infra.yaml_practice_manager import YamlPracticeManager
 from msmodelslim.model import PluginModelFactory
 from msmodelslim.utils.config import msmodelslim_config
@@ -50,9 +51,11 @@ def main(args):
     config_dir = get_practice_dir()
     custom_practice_dir = msmodelslim_config.env_vars.custom_practice_repo
     custom_practice_path = Path(custom_practice_dir) if custom_practice_dir else None
+    plugin_dirs = discover_plugin_practice_dirs()
     practice_manager = YamlPracticeManager(
         official_config_dir=config_dir,
-        custom_config_dir=custom_practice_path
+        custom_config_dir=custom_practice_path,
+        third_party_config_dirs=plugin_dirs if plugin_dirs else None,
     )
     dataset_dir = get_dataset_dir()
     dataset_loader = FileDatasetLoader(dataset_dir)

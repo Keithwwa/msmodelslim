@@ -19,12 +19,16 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
-from typing import Generator
+from typing import Generator, Optional
 
 from msmodelslim.core.practice import PracticeConfig
 
 
 class PracticeManagerInfra(ABC):
+    def get_config_url(self, model_pedigree: str, config_id: str) -> Optional[str]:
+        """Return the URL/location of the config; in different scenarios url may be a file path, an HTTP URL, etc."""
+        return None
+
     @abstractmethod
     def __contains__(self, model_pedigree) -> bool:
         """Check if model pedigree is supported"""
