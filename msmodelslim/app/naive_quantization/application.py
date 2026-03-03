@@ -27,7 +27,7 @@ import torch
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.const import QuantType
-from msmodelslim.core.practice.interface import PracticeConfig
+from msmodelslim.core.practice.interface import PracticeConfig, config_matches_scenario_tags
 from msmodelslim.core.quant_service import IQuantService
 from msmodelslim.model import IModelFactory, IModel
 from msmodelslim.utils.exception import SchemaValidateError, ToDoError, UnsupportedError
@@ -45,6 +45,7 @@ from .practice_manager_infra import PracticeManagerInfra
 
 DEFAULT_PEDIGREE = 'default'
 DEFAULT_QUANT_TYPE = QuantType.W8A8
+STANDBY_CONFIG = 'standby'
 
 
 class TipsType(str, Enum):
@@ -161,10 +162,12 @@ class NaiveQuantizationApplication:
         self.model_factory = model_factory
 
     @staticmethod
-    def check_config(config: PracticeConfig, model_type: str, quant_type: QuantType):
-        if config.metadata.verified_model_types and model_type not in config.metadata.verified_model_types:
-            return False
-
+    def check_config(
+        config: PracticeConfig,
+        model_type: str,
+        quant_type: QuantType,
+        scenario_tags: Optional[List[str]] = None
+    ):
         label = config.metadata.label
         # Parse quant_type parameters
         match_result = re.match(r'^w(\d+)a(\d+)(c?8?)(s?)$', quant_type.value)
@@ -184,12 +187,22 @@ class NaiveQuantizationApplication:
             return False
         if use_kv_cache ^ label.get('kv_cache', False):
             return False
-        return True
+
+        verified_model_types = getattr(config.metadata, 'verified_model_types', None)
+        if verified_model_types:
+            if model_type in verified_model_types:
+                return True
+            return False
+
+        if not scenario_tags or config_matches_scenario_tags(config, model_type, scenario_tags):
+            return True
+        return STANDBY_CONFIG
 
     def get_best_practice(self,
                           model_adapter: IModel,
                           quant_type: Optional[QuantType] = None,
                           config_path: Optional[Path] = None,
+                          scenario: Optional[List[str]] = None
                           ) -> PracticeConfig:
         """
         获取最佳实践匹配规则如下：
@@ -220,60 +233,95 @@ class NaiveQuantizationApplication:
                             action=f"Maybe you need change model_pedigree of model_adapter "
                                    f"or add {model_pedigree} in lab_practice.")
 
-        config, tips = self.get_config(model_pedigree, model_type, quant_type)
+        config, tips = self.get_config(model_pedigree, model_type, quant_type, scenario)
+
         if tips != "":
             user_input = input(tips + "(Enter y to continue, otherwise it will exit): ").strip().lower()[:3]
             if user_input != 'y':
                 raise UnsupportedError(
                     f"No best practice found for model_type={model_type} and quant_type={quant_type}",
-                    action="You can specify the quantization configuration through config_path or change the "
-                           "quant_type.")
+                    action="You can specify the quantization configuration through config_path or change quant_type.",
+                )
         return config
 
-    def get_config(self, model_pedigree: str, model_type: str, quant_type: Optional[QuantType] = None):
+    def get_config(
+        self,
+        model_pedigree: str,
+        model_type: str,
+        quant_type: Optional[QuantType] = None,
+        scenario: Optional[List[str]] = None
+    ):
         has_quant_type = True if quant_type is not None else False
         use_quant_type = quant_type if quant_type is not None else DEFAULT_QUANT_TYPE
+        standby_configs: List[PracticeConfig] = []
+
+        def _check(config: PracticeConfig, model_type: str, qt: QuantType):
+            return self.check_config(config, model_type, qt, scenario)
+
+        def _build_return(config: PracticeConfig, tips_type: TipsType, qt: QuantType):
+            tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
+            return config, tips
+
         # 场景1：【指定量化方式】在模型适配器的最佳实践目录搜索指定量化类型的最佳实践
         for config in self.practice_manager.iter_config(model_pedigree):
-            if not self.check_config(config, model_type, use_quant_type):
+            result = _check(config, model_type, use_quant_type)
+            if result is False:
+                continue
+            if result == STANDBY_CONFIG:
+                standby_configs.append(config)
                 continue
             # 默认模型适配器（未知模型）
             if has_quant_type:
                 tips_type = TipsType.Q1C0B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q1C0B1
             else:
                 tips_type = TipsType.Q0C0B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q0C0B1
-            tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
-            return config, tips
+            return _build_return(config, tips_type, use_quant_type)
+        
+        if standby_configs:
+            tips = (
+                f"No config verified for scenario tags {scenario}, including device_type and inference_engine. "
+                f"Using standby config: {standby_configs[0].metadata.config_id}. "
+            )
+            return standby_configs[0], tips
 
-        # 泛化匹配
         # 场景2：【指定量化方式】在最佳实践的default目录搜索指定量化类型的最佳实践
         if model_pedigree != DEFAULT_PEDIGREE:
             for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
-                if not self.check_config(config, model_type, use_quant_type):
+                result = _check(config, model_type, use_quant_type)
+                if result is False:
                     continue
                 tips_type = TipsType.Q1C0B0 if has_quant_type else TipsType.Q0C0B0
-                tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
-                return config, tips
+                return _build_return(config, tips_type, use_quant_type)
 
-        # 更改量化方式查找
         if use_quant_type == DEFAULT_QUANT_TYPE or not has_quant_type:
             raise UnsupportedError(f"Get best practice error", action="Please use the correct msmodelslim version.")
+
         # 场景3：【默认量化方式】在模型适配器的最佳实践目录搜索默认量化类型的最佳实践
         for config in self.practice_manager.iter_config(model_pedigree):
-            if not self.check_config(config, model_type, DEFAULT_QUANT_TYPE):
+            result = _check(config, model_type, DEFAULT_QUANT_TYPE)
+            if result is False:
                 continue
-            # 默认模型适配器（未知模型）
+            if result == STANDBY_CONFIG:
+                standby_configs.append(config)
+                continue
             tips_type = TipsType.Q1C1B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q1C1B1
-            tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
-            return config, tips
+            return _build_return(config, tips_type, DEFAULT_QUANT_TYPE)
+
+        if standby_configs:
+            tips = (
+                f"No config verified for scenario tags {scenario}, including device_type and inference_engine. "
+                f"Using standby config: {standby_configs[0].metadata.config_id}. "
+            )
+            return standby_configs[0], tips
 
         # 场景4：【默认量化方式】在最佳实践的default目录搜索默认量化类型的最佳实践
         if model_pedigree != DEFAULT_PEDIGREE:
             for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
-                if not self.check_config(config, model_type, DEFAULT_QUANT_TYPE):
+                result = _check(config, model_type, DEFAULT_QUANT_TYPE)
+                if result is False:
                     continue
-                tips = _build_quant_tips(TipsType.Q1C1B0, model_type, quant_type, config.metadata.config_id)
-                return config, tips
+                return _build_return(config, TipsType.Q1C1B0, DEFAULT_QUANT_TYPE)
+
         raise UnsupportedError(f"Get best practice error", action="Please use the correct msmodelslim version.")
 
     @exception_catcher
@@ -285,7 +333,8 @@ class NaiveQuantizationApplication:
               device_index: Optional[List[int]] = None,
               quant_type: Optional[QuantType] = None,
               config_path: Optional[str] = None,
-              trust_remote_code: bool = False):
+              trust_remote_code: bool = False,
+              scenario: Optional[List[str]] = None):
         """
         Run the naive quantization application.
         Args:
@@ -300,6 +349,7 @@ class NaiveQuantizationApplication:
             quant_type: Optional[QuantType], the quantization type, config_path and quant_type only one can be provided
             config_path: Optional[str], the path to config file, config_path and quant_type only one can be provided
             trust_remote_code: bool, whether to trust the remote code
+            scenario: Optional[List[str]], e.g. ['mindie','npu'], tags to match configs with verified_scenario
         """
         # 字符串类型与长度校验
         str_params = [
@@ -334,6 +384,11 @@ class NaiveQuantizationApplication:
             raise SchemaValidateError(f"config_path must be a Path, but got {type(config_path)}")
         if not isinstance(trust_remote_code, bool):
             raise SchemaValidateError(f"trust_remote_code must be a bool")
+        if scenario is not None:
+            if not isinstance(scenario, list):
+                raise SchemaValidateError(f"scenario must be a list or None, but got {type(scenario)}")
+            if len(scenario) == 0:
+                scenario = None
 
         # Log parameters
         get_logger().info(f'quantization with following parameters:')
@@ -355,10 +410,12 @@ class NaiveQuantizationApplication:
         if config_path is not None:
             get_logger().info(f"config_path: {config_path}")
         get_logger().info(f"trust_remote_code: {trust_remote_code}")
+        if scenario:
+            get_logger().info(f"scenario: {scenario}")
 
         self._quant(
             model_type, model_path, save_path, device_type,
-            device_index, quant_type, config_path, trust_remote_code
+            device_index, quant_type, config_path, trust_remote_code, scenario
         )
 
     def _quant(
@@ -370,7 +427,8 @@ class NaiveQuantizationApplication:
             device_index: Optional[List[int]] = None,
             quant_type: Optional[QuantType] = None,
             config_path: Optional[Path] = None,
-            trust_remote_code: bool = False
+            trust_remote_code: bool = False,
+            scenario: Optional[List[str]] = None,
     ):
         get_logger().info(f"===========ANALYSE MODEL===========")
         model_adapter = self.model_factory.create(
@@ -382,7 +440,8 @@ class NaiveQuantizationApplication:
         practice_config = self.get_best_practice(
             model_adapter=model_adapter,
             quant_type=quant_type,
-            config_path=config_path
+            config_path=config_path,
+            scenario=scenario
         )
         if config_path is not None:
             config_url = str(config_path)
