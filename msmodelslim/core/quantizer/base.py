@@ -96,6 +96,12 @@ class AutoActQuantizer(nn.Module):
         """
         self.sync = True
 
+    def validate_ext_config(self):
+        """
+        扩展参数校验
+        """
+        pass
+
 
 @QABCRegistry.register_abc(dispatch_key=Tuple[QScheme, str])
 class AutoWeightQuantizer(nn.Module):
@@ -180,3 +186,9 @@ class AutoWeightQuantizer(nn.Module):
         子类可以重写此方法以实现更复杂的同步逻辑
         """
         self.sync = True
+
+    def validate_ext_config(self):
+        """
+        扩展参数校验
+        """
+        pass

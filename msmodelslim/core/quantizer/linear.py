@@ -107,7 +107,7 @@ class LinearQuantizer(nn.Module):
         input_support = self.input_quantizer.support_distributed()
         weight_support = self.weight_quantizer.support_distributed()
         return input_support and weight_support
-    
+
     def is_data_free(self) -> bool:
         """
         判断是否是data free场景
@@ -117,3 +117,7 @@ class LinearQuantizer(nn.Module):
             bool: 是否是data free场景
         """
         return self.input_quantizer.is_data_free() and self.weight_quantizer.is_data_free()
+
+    def validate_config(self):
+        self.input_quantizer.validate_ext_config()
+        self.weight_quantizer.validate_ext_config()

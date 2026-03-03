@@ -33,6 +33,7 @@ from msmodelslim.utils.security import validate_safe_host, validate_safe_endpoin
 from msmodelslim.utils.validation.value import (
     is_port as _is_port,
     greater_than_zero as _greater_than_zero,
+    int_greater_than_zero as _int_greater_than_zero,
     at_least_one_element as _at_least_one_element,
     validate_normalized_value as _validate_normalized_value,
     is_boolean as _is_boolean,
@@ -155,6 +156,23 @@ def greater_than_zero(v: Any, info: ValidationInfo) -> Any:
     return _greater_than_zero(v, param_name=field_name)
 
 
+def int_greater_than_zero(v: Any, info: ValidationInfo) -> Any:
+    """
+    给 Pydantic AfterValidator 使用的大于零校验包装。
+    自动从 ValidationInfo 获取字段名，然后调用通用的验证函数。
+
+    Args:
+        v: 要验证的数值
+        info: Pydantic ValidationInfo 对象，用于获取字段名
+
+    Returns:
+        验证后的数值
+    """
+    # 在 Pydantic v2 中，ValidationInfo 有 field_name 属性
+    field_name = getattr(info, 'field_name', None) or "value"
+    return _int_greater_than_zero(v, param_name=field_name)
+
+
 def validate_normalized_value(v: Any, info: ValidationInfo) -> float:
     """
     给 Pydantic AfterValidator 使用的归一化值校验包装。
@@ -256,10 +274,12 @@ def validate_str_length(max_len: int = 300):
             short_text: Annotated[str, AfterValidator(validate_str_length(max_len=100))] = ""
         ```
     """
+
     def validator(v: str, info: ValidationInfo) -> str:
         field_name = getattr(info, 'field_name', None) or "string"
         _validate_str_length(v, str_name=field_name, max_len=max_len)
         return v
+
     return validator
 
 

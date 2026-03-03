@@ -35,9 +35,21 @@ def greater_than_zero(v: Any, param_name: str = "value") -> Any:
     """
     校验数值是否大于 0，不强制区分类型（int/float 均可）。
     """
-    if v is not None and v <= 0:
+    if not isinstance(v, (float, int)) or v <= 0:
         raise SchemaValidateError(
-            f"{param_name} must be greater than 0",
+            f"{param_name} must be int or float, and value need greater than 0",
+            action=f"Please check the numeric {param_name}",
+        )
+    return v
+
+
+def int_greater_than_zero(v: Any, param_name: str = "value") -> Any:
+    """
+    校验数值是否是int，且数值是否大于 0。
+    """
+    if not isinstance(v, int) or v <= 0:
+        raise SchemaValidateError(
+            f"{param_name} must be int, and value need greater than 0",
             action=f"Please check the numeric {param_name}",
         )
     return v

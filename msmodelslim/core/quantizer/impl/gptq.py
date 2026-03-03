@@ -30,6 +30,7 @@ from msmodelslim.ir.api import quantize, fake_quantize, calculate_qparam
 from msmodelslim.ir.qal import QABCRegistry, QDType, QStorage, QParam, QScope, QScheme
 from msmodelslim.utils.exception import SpecError
 from msmodelslim.utils.logging import logger_setter
+from msmodelslim.utils.validation.value import greater_than_zero, int_greater_than_zero
 from ..base import AutoWeightQuantizer, QConfig
 
 PERCDAMP_KEY = "percdamp"  # percdamp值配置key
@@ -91,6 +92,20 @@ def calculate_hessian_inv(hessian: torch.Tensor, percdamp: float, weight_tensor:
     return hessian_inv
 
 
+def _validate_ext_config(config: QConfig):
+    """
+    GPTQ参数配置校验
+    """
+    if config.ext is None:
+        pass
+    if "percdamp" in config.ext:
+        greater_than_zero(config.ext["percdamp"], "percdamp")
+    if "block_size" in config.ext:
+        int_greater_than_zero(config.ext["block_size"], "block_size")
+    if "group_size" in config.ext:
+        int_greater_than_zero(config.ext["group_size"], "group_size")
+
+
 @QABCRegistry.multi_register(
     dispatch_key=[
         (qir.int8_per_channel_sym, "gptq"),
@@ -150,6 +165,12 @@ class WeightPerChannelGPTQ(AutoWeightQuantizer):
         GPTQ权重算法不支持DP分布式量化
         """
         return False
+
+    def validate_ext_config(self):
+        """
+        GPTQ参数配置校验
+        """
+        _validate_ext_config(self.config)
 
     def init_weight(
             self, weight: QStorage, bias: Optional[torch.Tensor] = None
@@ -297,6 +318,12 @@ class WeightPerGroupGPTQ(AutoWeightQuantizer):
         GPTQ权重算法不支持DP分布式量化
         """
         return False
+
+    def validate_ext_config(self):
+        """
+        GPTQ参数配置校验
+        """
+        _validate_ext_config(self.config)
 
     def init_weight(
             self, weight: QStorage, bias: Optional[torch.Tensor] = None

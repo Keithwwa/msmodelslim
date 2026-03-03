@@ -21,18 +21,17 @@ See the Mulan PSL v2 for more details.
 
 from typing import List, Optional, Literal
 
-from pydantic import Field, ConfigDict
-from torch import nn
+from pydantic import Field, ConfigDict, model_validator
 from torch import distributed as dist
+from torch import nn
 
-from msmodelslim.ir.qal import QScope, QDType
-from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.core.base.protocol import BatchProcessRequest
-from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.core.quantizer.linear import LinearQuantizer, LinearQConfig
+from msmodelslim.ir.qal.qregistry import QABCRegistry
+from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.utils.config_map import ConfigSet
-from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.distributed import DistHelper
+from msmodelslim.utils.logging import get_logger, logger_setter
 
 
 class LinearProcessorConfig(AutoProcessorConfig):
@@ -42,6 +41,12 @@ class LinearProcessorConfig(AutoProcessorConfig):
     exclude: List[str] = Field(default_factory=lambda: [], description="排除的模块名称")
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode='after')
+    def validate_qconfig(self) -> 'LinearProcessorConfig':
+        """校验qconfig字段中的量化配置"""
+        LinearQuantizer(self.qconfig).validate_config()
+        return self
 
 
 def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
@@ -65,7 +70,7 @@ class LinearQuantProcessor(AutoSessionProcessor):
         self.config = config
         self.include = ConfigSet(config.include)
         self.exclude = ConfigSet(config.exclude)
-        
+
         self.dist_helper = None
 
     def is_data_free(self) -> bool:
@@ -137,10 +142,10 @@ class LinearQuantProcessor(AutoSessionProcessor):
             module: 线性层模块
         """
         quantizer = LinearQuantizer(self.config.qconfig)
-        
+
         # 判断是否需要启用同步操作
         if self.dist_helper is not None and self.dist_helper.is_shared(full_name):
             quantizer.enable_sync()
-        
+
         quantizer.setup(module)
-        self.model.set_submodule(full_name, quantizer)  
+        self.model.set_submodule(full_name, quantizer)

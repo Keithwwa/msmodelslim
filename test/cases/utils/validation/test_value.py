@@ -22,14 +22,16 @@ See the Mulan PSL v2 for more details.
 msmodelslim.utils.validation.value 模块的单元测试
 """
 from typing import Any, List
+
 import pytest
+
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.validation.value import (
     greater_than_zero,
     validate_normalized_value,
     is_boolean,
     is_string_list,
-    non_empty_string,
+    non_empty_string, int_greater_than_zero,
 )
 
 
@@ -59,11 +61,41 @@ def test_greater_than_zero(input_val: float, expect_return: float, should_raise:
         # 捕获异常并验证错误信息、action
         with pytest.raises(SchemaValidateError) as exc_info:
             greater_than_zero(input_val)
-        assert "value must be greater than 0" in str(exc_info.value)
+        assert "value must be int or float, and value need greater than 0" in str(exc_info.value)
         assert exc_info.value.action == "Please check the numeric value"
     else:
         # 验证正常返回值
         result = greater_than_zero(input_val)
+        assert result == expect_return
+
+
+@pytest.mark.parametrize(
+    "input_val, expect_return, should_raise",
+    [
+        (5, 5, False),
+        (1.5, None, True),
+        (0, None, True),
+        (-10, None, True),
+    ],
+    ids=[
+        "int_5>0",
+        "float_1.5>0",
+        "int_0=0",
+        "int_-10<0",
+    ],
+)
+# ------------------------------ 测试 int_greater_than_zero ------------------------------
+def test_int_greater_than_zero(input_val: float, expect_return: float, should_raise: bool):
+    """测试 int_greater_than_zero：验证输入是否大于 0"""
+    if should_raise:
+        # 捕获异常并验证错误信息、action
+        with pytest.raises(SchemaValidateError) as exc_info:
+            int_greater_than_zero(input_val)
+        assert "value must be int, and value need greater than 0" in str(exc_info.value)
+        assert exc_info.value.action == "Please check the numeric value"
+    else:
+        # 验证正常返回值
+        result = int_greater_than_zero(input_val)
         assert result == expect_return
 
 
@@ -98,10 +130,10 @@ def test_greater_than_zero(input_val: float, expect_return: float, should_raise:
     ],
 )
 def test_validate_normalized_value(
-    input_val: Any,
-    expect_return: Any,
-    should_raise: bool,
-    error_msg_keyword: str,
+        input_val: Any,
+        expect_return: Any,
+        should_raise: bool,
+        error_msg_keyword: str,
 ):
     """测试 validate_normalized_value：验证输入是否为 None 或 (0,1) 区间的 float"""
     if should_raise:
@@ -161,28 +193,28 @@ def test_is_boolean(input_val: Any, expect_return: bool, should_raise: bool):
         (123, None, True, "must be a list type"),
         (("a", "b"), None, True, "must be a list type"),
         (
-            [1, "a", "b"],
-            None,
-            True,
-            "all elements in the list must be string types",
+                [1, "a", "b"],
+                None,
+                True,
+                "all elements in the list must be string types",
         ),  # 含 int
         (
-            ["a", True, "b"],
-            None,
-            True,
-            "all elements in the list must be string types",
+                ["a", True, "b"],
+                None,
+                True,
+                "all elements in the list must be string types",
         ),  # 含 bool
         (
-            ["a", 3.14, "b"],
-            None,
-            True,
-            "all elements in the list must be string types",
+                ["a", 3.14, "b"],
+                None,
+                True,
+                "all elements in the list must be string types",
         ),  # 含 float
         (
-            ["a", None, "b"],
-            None,
-            True,
-            "all elements in the list must be string types",
+                ["a", None, "b"],
+                None,
+                True,
+                "all elements in the list must be string types",
         ),  # 含 None
     ],
     ids=[
@@ -199,10 +231,10 @@ def test_is_boolean(input_val: Any, expect_return: bool, should_raise: bool):
     ],
 )
 def test_is_string_list(
-    input_val: Any,
-    expect_return: List[str],
-    should_raise: bool,
-    error_msg_keyword: str,
+        input_val: Any,
+        expect_return: List[str],
+        should_raise: bool,
+        error_msg_keyword: str,
 ):
     """测试 is_string_list：验证输入是否为列表且元素全为字符串"""
     if should_raise:
@@ -214,7 +246,7 @@ def test_is_string_list(
             assert exc_info.value.action == "Please provide a list value"
         else:
             assert (
-                exc_info.value.action == "Please ensure all list elements are strings"
+                    exc_info.value.action == "Please ensure all list elements are strings"
             )
     else:
         result = is_string_list(input_val)
@@ -248,12 +280,12 @@ def test_is_string_list(
     ],
 )
 def test_non_empty_string_validation(
-    input_val: Any,
-    field_name: str,
-    expect_return: Any,
-    should_raise: bool,
-    msg_keyword: str,
-    action_keyword: str,
+        input_val: Any,
+        field_name: str,
+        expect_return: Any,
+        should_raise: bool,
+        msg_keyword: str,
+        action_keyword: str,
 ):
     """测试 non_empty_string：验证字符串非 None 且去除空白后非空。"""
     if should_raise:
