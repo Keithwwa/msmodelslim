@@ -40,10 +40,13 @@ __all__ = [
     "WFP8AFP8DynamicPerChannelFakeQuantLinear",
     "FakeQuantDynamicCache",
     "QuarotOnlineRotationInfo",
+    "QuarotOfflineRotationInfo",
     "QuarotOnlineHeadRotationWrapper",
     "QuarotOnlineKroneckerRotationWrapper",
     "QuarotHeadsRotationHookIR",
     "QuarotKroneckerRotationHookIR",
+    "QuaRotExtraInfoHookIR",
+    "QuaRotExtraInfoWrapperIR",
     "OnlineRotationInfo",
     "OnlineRotationWrapper",
     "OnlineRotationInputHookIR",
@@ -91,20 +94,21 @@ from .const import int8_per_tensor_sym, int8_per_channel_sym, int8_per_token_sym
     int4_per_token_asym, int8_pd_mix_asym, mxfp4_per_block_sym, mxfp8_per_block_sym, \
     fp8_e4m3_per_token_sym, fp8_e4m3_per_tensor_sym, fp8_e4m3_per_channel_sym, float_per_tensor_sym, \
     int8_per_head_sym
-from .quarot import QuarotOnlineRotationInfo, QuarotOnlineHeadRotationWrapper, QuarotOnlineKroneckerRotationWrapper, \
-    QuarotHeadsRotationHookIR, QuarotKroneckerRotationHookIR, OnlineRotationInfo, OnlineRotationWrapper, \
-    OnlineRotationInputHookIR, OnlineRotationOutputHookIR
 from .flatquant import FlatQuantOnlineWrapper, FlatQuantOnlineHookIR
 from .non_fusion_smooth_quant_ir import NonFusionSmoothQuantWrapper
+from .quarot import QuarotOnlineRotationInfo, QuarotOfflineRotationInfo, QuarotOnlineHeadRotationWrapper, \
+    QuarotOnlineKroneckerRotationWrapper, \
+    QuarotHeadsRotationHookIR, QuarotKroneckerRotationHookIR, QuaRotExtraInfoHookIR, QuaRotExtraInfoWrapperIR, \
+    OnlineRotationInfo, OnlineRotationWrapper, OnlineRotationInputHookIR, OnlineRotationOutputHookIR
 from .w16a16s import W16A16sLinear
 from .w4a4_dynamic import W4A4DynamicPerChannelFakeQuantLinear, W4A4DynamicPerGroupFakeQuantLinear
 from .w4a4_mx_dynamic import W4A4MXDynamicPerBlockFakeQuantLinear
 from .w4a8_dynamic import W4A8DynamicFakeQuantLinear
 from .w4a8_mx_dynamic import W4A8MXDynamicPerBlockFakeQuantLinear
+from .w8a16_static import W8A16StaticPerChannelFakeQuantLinear, W8A16StaticPerGroupFakeQuantLinear
 from .w8a8_dynamic import W8A8DynamicPerChannelFakeQuantLinear, W8A8DynamicPerGroupFakeQuantLinear
 from .w8a8_fp_dynamic import WFP8AFP8DynamicPerChannelFakeQuantLinear
 from .w8a8_mx_dynamic import W8A8MXDynamicPerBlockFakeQuantLinear
 from .w8a8_pdmix import W8A8PDMixFakeQuantLinear, PDMixState
 from .w8a8_static import W8A8StaticFakeQuantLinear
-from .w8a16_static import W8A16StaticPerChannelFakeQuantLinear, W8A16StaticPerGroupFakeQuantLinear
 from .wrapper import WrapperIR, HookIR

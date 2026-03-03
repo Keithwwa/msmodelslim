@@ -32,13 +32,14 @@ from torch import nn
 
 from ascend_utils.common.security.path import json_safe_dump
 from msmodelslim import logger
-from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.core.base.protocol import BatchProcessRequest
+from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoSessionProcessor
 from msmodelslim.utils.distributed import DistHelper
 from msmodelslim.utils.logging import logger_setter, get_logger
 from .ascendv1 import AscendV1Saver, AscendV1Config, ASCENDV1_DESC_JSON_NAME, copy_files, remove_quantization_config
 from .interface import AscendV1SaveInterface
+from .saver import _convert_hookir_to_wrapper
 from .utils.json import JsonWriter
 
 
@@ -199,8 +200,9 @@ class DistributedAscendV1Saver(AscendV1Saver):
 
     def post_run(self) -> None:
 
+        _convert_hookir_to_wrapper(self.model)
         for name, sub_module in self.model.named_modules(memo=self.processed_modules):
-            self.on_float_module(name, sub_module)
+            self._process_module_maybe_wrapper_ir(name, sub_module)
 
         for key, val in self.json_append.items():
             self.json_writer.write(key, val)
@@ -212,6 +214,10 @@ class DistributedAscendV1Saver(AscendV1Saver):
         self.json_writer.write("model_quant_type", self.model_quant_type)
         self.json_writer.write("metadata", self.metadata)
         self.json_writer.write("group_size", self.group_size)
+        self.json_writer.write("optional", {
+            scope: scope_info.model_dump(mode='json')
+            for scope, scope_info in self.json_optional_infos.items()
+        })
 
         self.json_writer.close()
         self.safetensors_writer.close()

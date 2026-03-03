@@ -21,12 +21,12 @@ See the Mulan PSL v2 for more details.
 
 import os
 from typing import Dict, Any, Optional, List, Literal
+from unittest.mock import patch
 
 import torch
 import torch.distributed as dist
-from pydantic import Field
+from pydantic import Field, BaseModel
 from torch import nn
-from unittest.mock import patch
 
 from ascend_utils.common.security.path import json_safe_load, json_safe_dump
 from msmodelslim import logger, ir as qir
@@ -35,14 +35,14 @@ from msmodelslim.model import IModel
 from msmodelslim.processor.base import AutoSessionProcessor
 from msmodelslim.utils.distributed import DistHelper
 from msmodelslim.utils.exception import ToDoError, SchemaValidateError
-from msmodelslim.utils.security import safe_copy_file
 from msmodelslim.utils.logging import logger_setter
+from msmodelslim.utils.security import safe_copy_file, get_write_directory
 from .interface import AscendV1SaveInterface, AscendV1GlobalModelDtypeInterface
-from .saver import AutoSaverProcessor, AutoSaverBaseConfig
+from .saver import AutoSaverProcessor, AutoSaverBaseConfig, _convert_hookir_to_wrapper
+from .utils.deqscale import deqscale2int64_by_dtype
 from .utils.json import JsonWriter
 from .utils.pack import w4a8_pack_int4, process_scale
 from .utils.safetensors import SafetensorsWriter, BufferedSafetensorsWriter
-from .utils.deqscale import deqscale2int64_by_dtype
 
 
 def copy_files(input_path, output_path):
@@ -129,6 +129,9 @@ class AscendV1Config(AutoSaverBaseConfig):
     ext: Dict[str, Any] = Field(default_factory=dict, exclude_if=lambda v: not v)
 
 
+class QuaRotOptionalScopeInfo(BaseModel):
+    rotation_map: Dict[str, str] = Field(default_factory=dict)
+
 ASCENDV1_DESC_JSON_NAME = "quant_model_description.json"
 ASCENDV1_SAFETENSORS_NAME = "quant_model_weights.safetensors"
 
@@ -151,7 +154,9 @@ class AscendV1Saver(AutoSaverProcessor):
         super().__init__(model, config, adapter, **kwargs)
         self.json_append = dict()
         self.metadata = dict()
+        self.json_optional_infos: Dict[str, BaseModel] = dict()
         self.save_directory = self.get_rank_save_directory() if dist.is_initialized() else config.save_directory
+        self.optional_save_directory = get_write_directory(os.path.join(config.save_directory, "optional"))
         self.json_writer = JsonWriter(self.save_directory, ASCENDV1_DESC_JSON_NAME)
         self.safetensors_writer = self.get_safetensors_writer(config)
         self.dist_helper: Optional[DistHelper] = None
@@ -169,8 +174,9 @@ class AscendV1Saver(AutoSaverProcessor):
 
     def post_run(self) -> None:
 
+        _convert_hookir_to_wrapper(self.model)
         for name, sub_module in self.model.named_modules(memo=self.processed_modules):
-            self.on_float_module(name, sub_module)
+            self._process_module_maybe_wrapper_ir(name, sub_module)
 
         for key, val in self.json_append.items():
             self.json_writer.write(key, val)
@@ -182,6 +188,10 @@ class AscendV1Saver(AutoSaverProcessor):
         self.json_writer.write("model_quant_type", self.model_quant_type)
         self.json_writer.write("metadata", self.metadata)
         self.json_writer.write("group_size", self.group_size)
+        self.json_writer.write("optional", {
+            scope: scope_info.model_dump(mode='json')
+            for scope, scope_info in self.json_optional_infos.items()
+        })
 
         self.json_writer.close()
         self.safetensors_writer.close()
@@ -523,6 +533,22 @@ class AscendV1Saver(AutoSaverProcessor):
         self.quarot_info = module.rotation_info
         self.safetensors_writer.write(f"{prefix}.kronecker_rotation_m", self.quarot_info.kronecker_rotation_m.clone())
         self.safetensors_writer.write(f"{prefix}.kronecker_rotation_n", self.quarot_info.kronecker_rotation_n.clone())
+
+    def on_quarot_extra_info_wrapper(self, prefix: str, module: qir.QuaRotExtraInfoWrapperIR):
+        """
+        导出 QuaRot 全局旋转矩阵到独立 safetensors 文件，并在 JSON 中写入 optional.quarot.global_rotation 路径。
+        module.rotation_info 类型为 QuarotOfflineRotationInfo，其唯一成员 global_rotation 为 torch.Tensor。
+        """
+        offline_info: qir.QuarotOfflineRotationInfo = module.rotation_info
+        scope = "quarot"
+        scope_tensor_file_name = f"{scope}.safetensors"
+        scope_tensor_file_path = os.path.join(self.optional_save_directory, scope_tensor_file_name)
+        relative_file_path = os.path.relpath(scope_tensor_file_path, self.save_directory)
+        writer = SafetensorsWriter(logger=logger, file_path=scope_tensor_file_path)
+        writer.write("global_rotation", offline_info.global_rotation)
+        writer.close()
+        scope_info = QuaRotOptionalScopeInfo(rotation_map={"global_rotation": relative_file_path})
+        self.json_optional_infos.setdefault(scope, scope_info)
 
     def on_flat_clip_wrapper(self, prefix: str, module: qir.FlatQuantOnlineWrapper):
         """

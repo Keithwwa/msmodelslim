@@ -26,14 +26,15 @@ import torch
 import torch.nn as nn
 from pydantic import field_validator
 
-from msmodelslim.ir.qal.qregistry import QABCRegistry
+import msmodelslim.ir as qir
 from msmodelslim.core.base.protocol import BatchProcessRequest
+from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoSessionProcessor
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.exception import UnsupportedError
 from msmodelslim.utils.logging import get_logger
-from .quarot_interface import QuaRotInterface, RotSide, get_rotate_command
 from .laos_online import LAOSOnlineRotationProcessor
+from .quarot_interface import QuaRotInterface, RotSide, get_rotate_command
 from ..common.quarot_utils import fuse_ln_linear, rotate_linear, is_power_of_two, bake_mean_into_linear
 
 
@@ -43,6 +44,8 @@ class QuaRotProcessorConfig(AutoProcessorConfig):
     block_size: int = -1
     down_proj_online_layers: List[int] = []
     max_tp_size: int = 4
+    """为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，用于导出 optional.quarot.global_rotation。"""
+    export_extra_info: bool = True
 
     @field_validator('max_tp_size')
     @classmethod
@@ -95,8 +98,30 @@ class QuaRotProcessor(AutoSessionProcessor):
         self._bake_mean(pre_run_bake_names)
         self._rotate(pre_run_commands)
         self.rotate_commands = get_rotate_command(self.rotate_pairs)
+
+        self._inject_global_rotation_export_hook(pre_run_commands)
+
         if self.config.online:
             self.online_processor.pre_run()
+
+    def _inject_global_rotation_export_hook(self, pre_run_commands: List) -> None:
+        """向首个旋转目标模块注入 QuaRotExtraInfoHookIR，用于导出 optional.quarot.global_rotation。
+        note: 后续若会对全局旋转矩阵有所调整，如 RotationTune 算法，需要调整此处注入的内容。
+        """
+        if self.config.export_extra_info and pre_run_commands:
+            first_cmd = pre_run_commands[0]
+            global_rotation = first_cmd.rot.detach().clone()
+            rotation_info = qir.QuarotOfflineRotationInfo(global_rotation=global_rotation)
+            hook_ir = qir.QuaRotExtraInfoHookIR(rotation_info)
+            sub_module = self.model.get_submodule(first_cmd.target)
+            hook_handle = sub_module.register_forward_pre_hook(hook_ir)
+            hook_ir.set_hook_handle(hook_handle)
+            get_logger().info("Injected QuaRotExtraInfoHookIR for optional.quarot.global_rotation export")
+        elif self.config.export_extra_info and not pre_run_commands:
+            get_logger().warning(
+                "export_extra_info is True but pre_run_commands is empty; "
+                "no global rotation matrix available for export (optional.quarot.global_rotation)."
+            )
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         prefix = request.name

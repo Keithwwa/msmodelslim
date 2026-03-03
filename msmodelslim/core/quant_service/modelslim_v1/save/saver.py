@@ -116,6 +116,7 @@ class AutoSaverProcessor(AutoSessionProcessor):
             qir.W16A16sLinear: self.on_w16a16s,
             qir.QuarotOnlineHeadRotationWrapper: self.on_rotation_wrapper,
             qir.QuarotOnlineKroneckerRotationWrapper: self.on_kronecker_rotation_wrapper,
+            qir.QuaRotExtraInfoWrapperIR: self.on_quarot_extra_info_wrapper,
             qir.OnlineRotationWrapper: self.on_online_rotation_wrapper,
             qir.WFP8AFP8DynamicPerChannelFakeQuantLinear: self.on_wfp8afp8_dynamic_per_channel,
             qir.FlatQuantOnlineWrapper: self.on_flat_clip_wrapper,
@@ -158,13 +159,7 @@ class AutoSaverProcessor(AutoSessionProcessor):
         _convert_hookir_to_wrapper(module)
 
         for name, sub_module in module.named_modules(memo=self.processed_modules, prefix=prefix):
-            # 优先判断是否为WrapperIR
-            if isinstance(sub_module, qir.WrapperIR):
-                self.on_wrapper_ir(name, sub_module)
-                continue
-
-            # 使用通用的处理逻辑
-            self._process_module(name, sub_module)
+            self._process_module_maybe_wrapper_ir(name, sub_module)
 
     @abstractmethod
     def merge_ranks(self) -> None:
@@ -269,6 +264,14 @@ class AutoSaverProcessor(AutoSessionProcessor):
         # 只处理被包装的模块，旋转矩阵由全局逻辑处理
         self._process_module(prefix, module.wrapped_module)
 
+    def on_quarot_extra_info_wrapper(self, prefix: str, module: qir.QuaRotExtraInfoWrapperIR):
+        """
+        处理 QuaRot 额外信息（全局旋转矩阵等）的导出。
+        子类应实现：将 rotation_info 写入独立 safetensors，并在 JSON 中写入 optional.quarot.global_rotation 路径。
+        """
+        raise NotImplementedError(
+            f"You should implement the on_quarot_extra_info_wrapper method for {self.__class__.__name__}")
+
     def on_flat_clip_wrapper(self, prefix: str, module: qir.FlatQuantOnlineWrapper):
         """
         处理FlatQuantOnlineWrapper类型的模块。
@@ -343,9 +346,25 @@ class AutoSaverProcessor(AutoSessionProcessor):
             prefix: 模块名称前缀
             module: 要处理的模块
         """
+
+        get_logger().debug("Processing module %r for %r", type(module).__name__, prefix)
+
         if type(module) in self.process_map:
             self.process_map[type(module)](prefix, module)
         else:
             self.on_float_module(prefix, module)
 
         self.processed_modules.add(module)
+        
+    def _process_module_maybe_wrapper_ir(self, prefix: str, module: nn.Module):
+        """
+        处理模块的通用方法，如果模块是WrapperIR，则调用on_wrapper_ir方法，否则调用_process_module方法。
+        
+        Args:
+            prefix: 模块名称前缀
+            module: 要处理的模块
+        """
+        if isinstance(module, qir.WrapperIR):
+            self.on_wrapper_ir(prefix, module)
+        else:
+            self._process_module(prefix, module)

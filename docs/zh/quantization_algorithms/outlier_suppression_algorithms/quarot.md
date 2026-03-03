@@ -60,6 +60,10 @@ pre_run阶段在Runner开始逐层调度前执行，主要完成以下操作：
 
 - 将`rotate_pairs`转换为`RotateCommand`列表并保存到`self.rotate_commands`，供preprocess阶段使用。
 
+**导出全局旋转信息（可选）：**
+
+- 若配置项`export_extra_info`为 True 且存在旋转命令，则向首个旋转目标模块注册`QuaRotExtraInfoHookIR`，在保存阶段由 Saver 将全局旋转矩阵写入 `optional.quarot.global_rotation`（独立 safetensors 及 JSON 描述），便于推理侧加载；若为 False 则不注入该 Hook，不导出上述信息。
+
 **在线旋转初始化（可选）：**
 
 - 如果配置中`online: True`，调用`online_processor.pre_run()`：
@@ -149,6 +153,7 @@ QuaRot算法目前支持以下模型系列：
   block_size: -1                         # 整数, 取值范围为-1或大于0的2的幂，表示启用块对角矩阵时每个块的大小，若为-1，表示不进行块对角矩阵处理。
   max_tp_size: 4                         # 整数，默认为4，该配置项仅在启用在线旋转时生效。最大张量并行大小，必须大于0且为2的幂或等于1，拉起模型时设置的tp值必须<=max_tp_size。
   down_proj_online_layers: [ ]            # 整数列表，默认为空。用于指定哪些层的down_proj使用在线旋转。
+  export_extra_info: True                # 布尔值，默认为 True。为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，用于在导出时生成 optional.quarot.global_rotation（全局旋转矩阵的独立 safetensors 及 JSON 描述），便于推理侧加载；设为 False 则不导出该信息。
 ```
 
 ### YAML配置示例
@@ -161,6 +166,7 @@ spec:
       block_size: -1                     # 旋转矩阵启用块对角矩阵时每个块的大小, 取值范围为-1或2的幂次方，如果大于0必须为2的幂，若为-1，表示不进行块对角矩阵处理
       max_tp_size: 4                     # 最大张量并行大小，默认为4，仅在启用在线旋转时生效，必须大于0且为2的幂，拉起模型时设置的tp值必须<=max_tp_size
       down_proj_online_layers: [ ]        # 用于指定哪些层的down_proj使用在线旋转，默认为空
+      export_extra_info: True            # 是否导出 optional.quarot.global_rotation（全局旋转矩阵），默认为 True
 ```
 
 ### YAML配置字段详解
@@ -172,6 +178,7 @@ spec:
 | block_size              | 旋转矩阵的对角块大小     | `int`        | 旋转矩阵的对角块大小，取值范围为-1或大于0的2的幂，若为-1表示不进行块对角矩阵处理 | `-1`       |
 | max_tp_size             | 最大张量并行大小       | `int`        | 该配置项仅在启用在线旋转时生效，最大张量并行大小，必须大于0且为2的幂或等于1     | `4`        |
 | down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
+| export_extra_info       | 是否导出全局旋转信息     | `bool`       | 为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，导出时生成 optional.quarot.global_rotation（全局旋转矩阵的独立 safetensors 及 JSON 描述），便于推理侧加载；为 False 则不导出 | `True`     |
 
 
 

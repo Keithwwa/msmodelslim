@@ -36,6 +36,15 @@ def _mock_json_safe_dump(obj, path, indent=None, extensions="json", check_user_s
 
 
 def _mock_get_valid_write_path(path: str, *args, **kwarg) -> str:
+    parent = os.path.dirname(path)
+    if parent and not os.path.exists(parent):
+        os.makedirs(parent, exist_ok=True)
+    # 若路径无扩展名或以分隔符结尾，视为目录并创建。Windows 上若 path 已存在且为文件，
+    # makedirs(path, exist_ok=True) 会触发 FileExistsError(WinError 183)，故仅在实际需要时创建。
+    base = os.path.basename(path)
+    if not base or not os.path.splitext(base)[1] or path.endswith(os.sep):
+        if not os.path.exists(path) or os.path.isdir(path):
+            os.makedirs(path, exist_ok=True)
     return path
 
 

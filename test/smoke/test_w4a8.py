@@ -53,7 +53,7 @@ def test_w4a8_dynamic_per_channel_quantization(test_device: str, test_dtype: tor
         run_fake_quantization_test(
             model_adapter=model_adapter,
             tmp_dir=tmp_dir,
-            expected_quant_types="Unknown",
+            expected_quant_types="FLOAT",
             module_checkers=module_checkers,
         )
 

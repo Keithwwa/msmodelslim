@@ -88,6 +88,17 @@ class QuarotOnlineRotationInfo:
         }
 
 
+class QuarotOfflineRotationInfo:
+    """
+    QuaRot 离线/导出用旋转矩阵信息。
+    仅包含 global_rotation 一个成员（torch.Tensor），
+    供 QuaRotExtraInfoHookIR / QuaRotExtraInfoWrapperIR 与 Saver 导出到 optional.quarot.global_rotation。
+    """
+
+    def __init__(self, global_rotation: torch.Tensor):
+        self.global_rotation = global_rotation
+
+
 @logger_setter()
 class QuarotOnlineHeadRotationWrapper(WrapperIR):
     """
@@ -364,6 +375,54 @@ class QuarotKroneckerRotationHookIR(HookIR):
         # 将hook信息转换为WrapperIR
         self.remove_hook()
         return QuarotOnlineKroneckerRotationWrapper(module, self.layer_name, self.rotation_info)
+
+
+@logger_setter()
+class QuaRotExtraInfoHookIR(HookIR):
+    """
+    QuaRot 导出用额外信息的 HookIR。
+    用于在量化过程中不改变模型树路径的前提下，承载全局旋转矩阵等需导出到
+    optional.quarot.global_rotation 的信息；导出时由 Saver 转为 QuaRotExtraInfoWrapperIR 处理。
+    接受 QuarotOfflineRotationInfo。
+    """
+
+    def __init__(self, rotation_info: QuarotOfflineRotationInfo):
+        super().__init__()
+        self.rotation_info = rotation_info
+
+    def __call__(
+            self,
+            module: nn.Module,
+            args: Tuple[Any, ...],
+    ) -> Tuple[Any, ...]:
+        """Hook 不改变前向结果，仅承载信息。"""
+        return args
+
+    def wrapper_module(self, module: nn.Module) -> "QuaRotExtraInfoWrapperIR":
+        self.remove_hook()
+        return QuaRotExtraInfoWrapperIR(module, self.rotation_info)
+
+
+@logger_setter()
+class QuaRotExtraInfoWrapperIR(WrapperIR):
+    """
+    QuaRot 导出用额外信息的 WrapperIR。
+    承载 QuarotOfflineRotationInfo（全局旋转矩阵等），供 AscendV1Saver 写入
+    optional.quarot.global_rotation 的 JSON 与独立 safetensors 文件。
+    额外导出模式（is_atomic() 为 False）：先按 prefix 单独导出 wrapped_module，再单独处理本 WrapperIR 自身。
+    """
+
+    def __init__(self, wrapped_module: nn.Module, rotation_info: QuarotOfflineRotationInfo):
+        super().__init__(wrapped_module)
+        self.rotation_info = rotation_info
+
+    @staticmethod
+    def is_atomic() -> bool:
+        return False
+    
+    def forward(self, *args, **kwargs) -> Any:
+        return self.wrapped_module(*args, **kwargs)
+
 
 class RotationType(str, Enum):
     INPUT = "input"

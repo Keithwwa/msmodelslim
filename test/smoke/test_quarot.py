@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+import json
 import os
 import shutil
 import tempfile
@@ -26,6 +27,36 @@ import pytest
 import torch
 
 from .base import FakeLlamaModelAdapter, invoke_test, is_npu_available
+
+
+def _check_optional_quarot_export(tmp_dir: str) -> None:
+    """检查 quant_model_description.json 中 optional 字段及 optional 下 quarot 的 safetensors 存在性。"""
+    quant_desc_path = os.path.join(tmp_dir, "quant_model_description.json")
+    assert os.path.exists(quant_desc_path), "quant_model_description.json should exist"
+
+    with open(quant_desc_path, "r", encoding="utf-8") as f:
+        desc = json.load(f)
+
+    assert "optional" in desc, "quant_model_description.json should contain 'optional' field"
+    optional = desc["optional"]
+    assert isinstance(optional, dict), "'optional' should be a dict"
+
+    assert "quarot" in optional, "'optional' should contain 'quarot' scope"
+    quarot_scope = optional["quarot"]
+    assert isinstance(quarot_scope, dict), "'optional.quarot' should be a dict"
+    assert "rotation_map" in quarot_scope, "'optional.quarot' should contain 'rotation_map'"
+    rotation_map = quarot_scope["rotation_map"]
+    assert "global_rotation" in rotation_map, "'optional.quarot.rotation_map' should contain 'global_rotation'"
+
+    relative_safetensors_path = rotation_map["global_rotation"]
+    safetensors_abs_path = os.path.join(tmp_dir, relative_safetensors_path)
+    assert os.path.exists(safetensors_abs_path), (
+        f"optional quarot safetensors should exist at {safetensors_abs_path} "
+        f"(relative: {relative_safetensors_path})"
+    )
+    assert safetensors_abs_path.endswith(".safetensors"), (
+        f"optional.quarot.global_rotation should point to a .safetensors file, got {relative_safetensors_path}"
+    )
 
 
 @pytest.mark.parametrize("test_device, test_dtype", [
@@ -48,6 +79,9 @@ def test_quarot_only_process(test_device: str, test_dtype: torch.dtype):
         input_text = "Hello world"
         input_ids = tokenizer(input_text, return_tensors="pt", truncation=True)
         model_adapter.loaded_model(**input_ids)
+
+        # 检查 optional 字段及 optional 下 quarot 的 safetensors 存在性
+        _check_optional_quarot_export(tmp_dir)
 
     finally:
         # 清理临时目录
@@ -75,6 +109,9 @@ def test_quarot_autoround_process(test_device: str, test_dtype: torch.dtype):
         input_text = "Hello world"
         input_ids = tokenizer(input_text, return_tensors="pt", truncation=True)
         model_adapter.loaded_model(**input_ids)
+
+        # 检查 optional 字段及 optional 下 quarot 的 safetensors 存在性
+        _check_optional_quarot_export(tmp_dir)
 
     finally:
         # 清理临时目录
