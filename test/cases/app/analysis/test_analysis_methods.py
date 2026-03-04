@@ -30,30 +30,25 @@ class TestAnalysisMethods(unittest.TestCase):
     """测试分析方法"""
 
     def test_analysis_target_matcher_get_linear_conv_layers(self):
-        """测试AnalysisTargetMatcher的get_linear_conv_layers方法"""
-        from msmodelslim.core.analysis_service.analysis_methods import AnalysisTargetMatcher
+        """测试 Std 分析方法 get_target_layers 返回 Linear/Conv2d 层名"""
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
-        # 创建模拟模型
-        mock_model = MagicMock()
+        # 使用真实子模块，以便 _matches(module) 能匹配 Linear/Conv2d
+        class TinyModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear1 = nn.Linear(2, 2)
+                self.conv1 = nn.Conv2d(1, 1, 1)
+                self.other1 = nn.Identity()
 
-        # 创建模拟层
-        mock_linear = MagicMock(spec=nn.Linear)
-        mock_conv = MagicMock(spec=nn.Conv2d)
-        mock_other = MagicMock()
+        model = TinyModel()
+        result = StdAnalysisMethod().get_target_layers(model)
 
-        mock_model.named_modules.return_value = [
-            ('linear1', mock_linear),
-            ('conv1', mock_conv),
-            ('other1', mock_other)
-        ]
-
-        result = AnalysisTargetMatcher.get_linear_conv_layers(mock_model)
-
-        self.assertEqual(result, ['linear1', 'conv1'])
+        self.assertEqual(sorted(result), sorted(['linear1', 'conv1']))
 
     def test_analysis_target_matcher_filter_layers_by_patterns(self):
         """测试AnalysisTargetMatcher的filter_layers_by_patterns方法"""
-        from msmodelslim.core.analysis_service.analysis_methods import AnalysisTargetMatcher
+        from msmodelslim.processor.analysis.methods_base import AnalysisTargetMatcher
 
         layer_names = ['layer1.linear', 'layer2.conv', 'layer3.other']
 
@@ -71,7 +66,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method(self):
         """测试QuantileAnalysisMethod"""
-        from msmodelslim.core.analysis_service.analysis_methods import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
 
@@ -92,7 +87,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_basic_functionality(self):
         """测试QuantileAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.core.analysis_service.analysis_methods import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -117,7 +112,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_tuple_input(self):
         """测试QuantileAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.core.analysis_service.analysis_methods import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -140,7 +135,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_data_accumulation(self):
         """测试QuantileAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.core.analysis_service.analysis_methods import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -172,7 +167,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_multiple_layers(self):
         """测试QuantileAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.core.analysis_service.analysis_methods import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -207,7 +202,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method(self):
         """测试StdAnalysisMethod"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
 
@@ -230,7 +225,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_basic_functionality(self):
         """测试StdAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -261,7 +256,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_tuple_input(self):
         """测试StdAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -284,7 +279,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_data_accumulation(self):
         """测试StdAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -322,7 +317,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_multiple_layers(self):
         """测试StdAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -358,7 +353,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_shift_calculation(self):
         """测试StdAnalysisMethod.get_hook的shift计算"""
-        from msmodelslim.core.analysis_service.analysis_methods import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -383,7 +378,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method(self):
         """测试KurtosisAnalysisMethod"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
 
@@ -403,7 +398,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_basic_functionality(self):
         """测试KurtosisAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -428,7 +423,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_tuple_input(self):
         """测试KurtosisAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -451,7 +446,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_data_accumulation(self):
         """测试KurtosisAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -483,7 +478,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_multiple_layers(self):
         """测试KurtosisAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -518,7 +513,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_sorting_behavior(self):
         """测试KurtosisAnalysisMethod.get_hook的排序行为"""
-        from msmodelslim.core.analysis_service.analysis_methods import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -543,7 +538,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_analysis_method_factory(self):
         """测试AnalysisMethodFactory"""
-        from msmodelslim.core.analysis_service.analysis_methods import AnalysisMethodFactory
+        from msmodelslim.processor.analysis.methods_base import AnalysisMethodFactory
 
         # 测试create_method方法
         method = AnalysisMethodFactory.create_method('std')
@@ -554,7 +549,7 @@ class TestAnalysisMethods(unittest.TestCase):
             AnalysisMethodFactory.create_method('invalid_method')
 
         # 测试register_method方法
-        from msmodelslim.core.analysis_service.analysis_methods import LayerAnalysisMethod
+        from msmodelslim.processor.analysis.methods_base import LayerAnalysisMethod
 
         class TestMethod(LayerAnalysisMethod):
             @property
@@ -578,7 +573,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_function(self):
         """测试kurtosis函数"""
-        from msmodelslim.core.analysis_service.analysis_methods import kurtosis
+        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import kurtosis
 
         # 创建测试张量
         x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])

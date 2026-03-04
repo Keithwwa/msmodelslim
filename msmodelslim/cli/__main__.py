@@ -86,7 +86,7 @@ def main():
                                  type=AnalysisMetrics,
                                  default=AnalysisMetrics.KURTOSIS,
                                  choices=AnalysisMetrics,
-                                 help='Analysis metrics to use: std, quantile, kurtosis (default: kurtosis)')
+                                 help='Analysis metrics to use: std, quantile, kurtosis, attention_mse (default: kurtosis)')
     analysis_parser.add_argument('--calib_dataset', type=str, default='boolq.jsonl',
                                  help='Calibration dataset file path or filename in lab_calib directory. '
                                       'Supports .json and .jsonl formats (default: boolq.jsonl)')

@@ -22,7 +22,8 @@ from enum import Enum
 from pathlib import Path
 from typing import List
 
-from msmodelslim.core.analysis_service import BaseAnalysisService, PipelineInterface
+from msmodelslim.core.analysis_service import IAnalysisService, AnalysisConfig
+from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.const import DeviceType
 from msmodelslim.model import IModelFactory
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
@@ -32,6 +33,7 @@ from msmodelslim.utils.validation.conversion import (
     convert_to_readable_dir
 )
 from msmodelslim.utils.validation.value import validate_str_length
+from .result_displayer_infra import AnalysisResultDisplayerInfra
 
 
 class AnalysisMetrics(str, Enum):
@@ -39,6 +41,7 @@ class AnalysisMetrics(str, Enum):
     STD = 'std'
     QUANTILE = 'quantile'
     KURTOSIS = 'kurtosis'
+    ATTENTION_MSE = 'attention_mse'
 
 
 @logger_setter('msmodelslim.app.analysis.application')
@@ -47,11 +50,13 @@ class LayerAnalysisApplication:
 
     def __init__(
             self,
-            analysis_service: BaseAnalysisService,
+            analysis_service: IAnalysisService,
             model_factory: IModelFactory,
+            result_manager: AnalysisResultDisplayerInfra,
     ):
         self.analysis_service = analysis_service
         self.model_factory = model_factory
+        self.result_manager = result_manager
 
     @exception_catcher
     def analyze(self,
@@ -71,7 +76,7 @@ class LayerAnalysisApplication:
             model_path: Path to the model
             patterns: List of layer name patterns to analyze (e.g., ['*linear*', 'attention.*'])
             device: Device to run analysis on
-            metrics: Analysis metrics ('quantile' 、 'std'、 'kurtosis')
+            metrics: Analysis metrics ('quantile', 'std', 'kurtosis', 'attention_mse')
             calib_dataset: Dataset path for calibration
             topk: Number of top layers to output for disable_names
             trust_remote_code: Whether to trust remote code
@@ -140,33 +145,30 @@ class LayerAnalysisApplication:
         # Run analysis
         get_logger().info(f"===========RUN ANALYSIS===========")
 
-        # Create analysis config from parameters
-        analysis_config = {
-            'metrics': metrics.value,
-            'calib_dataset': calib_dataset,
-            'method_params': {}
-        }
+        analysis_config = AnalysisConfig(
+            metrics=metrics.value,
+            calib_dataset=calib_dataset,
+            patterns=patterns,
+        )
 
+        get_logger().info(f"===========ANALYSE MODEL===========")
         model_adapter = self.model_factory.create(
             model_type, model_path, trust_remote_code
         )
         if not isinstance(model_adapter, PipelineInterface):
             raise UnsupportedError(f'Model adapter {model_adapter.__class__.__name__} does NOT support analyze',
                                    action='Please implement PipelineInterface for model analyzing')
+        get_logger().info(f"Using model adapter {model_adapter.__class__.__name__}.")
 
         result = self.analysis_service.analyze(
             device=device,
             model_adapter=model_adapter,
-            patterns=patterns,
-            analysis_config=analysis_config
+            analysis_config=analysis_config,
         )
 
-        if result is None:
-            get_logger().info(f"===========ANALYSIS COMPLETE===========")
-            return result
-
-        # export results using service-specific formatter
-        self.analysis_service.export_results(result, topk)
+        # display results using service-specific formatter (only when result is not None)
+        if result is not None:
+            self.result_manager.display_result(result, topk)
 
         get_logger().info(f"===========ANALYSIS COMPLETE===========")
         return result

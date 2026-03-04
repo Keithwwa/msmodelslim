@@ -28,7 +28,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import lru_cache
 from importlib import import_module
-from typing import Any, List, Optional, Tuple, Generator, Dict, Union
+from typing import Any, List, Optional, Tuple, Generator, Dict, Union, Callable
 from unittest.mock import patch
 
 import torch
@@ -52,7 +52,8 @@ from .mtp_quant_module import remove_zero_and_shift, get_mtp_layer, wrap_mtp_dec
 from .quarot import get_ln_fuse_map, get_rotate_map
 from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV1, IterSmoothInterface, \
-    FlexSmoothQuantInterface, FA3QuantAdapterInterface, FA3QuantPlaceHolder, QuaRotInterface, AscendV1SaveInterface
+    FlexSmoothQuantInterface, FA3QuantAdapterInterface, FA3QuantPlaceHolder, QuaRotInterface, AscendV1SaveInterface, \
+    AttentionAnalysisInterface
 
 
 @contextmanager
@@ -68,6 +69,7 @@ def default_dtype(dtype):
 
 @logger_setter("msmodelslim.model.deepseek_v3")
 class DeepSeekV3ModelAdapter(DefaultModelAdapter,
+                             AttentionAnalysisInterface,
                              ModelInfoInterface,  # support naive quantization
                              ModelSlimPipelineInterfaceV1,  # support modelslim v1
                              IterSmoothInterface,  # support iter smooth
@@ -559,3 +561,13 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             json_safe_dump(config_data, config_file, indent=2, check_user_stat=False)
 
         return
+
+    def get_attention_module_cls(self) -> str:
+        return "DeepseekV3Attention"
+
+    def get_attention_output_extractor(self) -> Callable[[Union[tuple, torch.Tensor]], torch.Tensor]:
+        """
+        DeepseekV3Attention.forward 返回 (attn_output, attn_weights, past_key_value)
+        注意力结构的敏感分析需要使用attn_output，因此返回lambda x: x[0]
+        """
+        return lambda x: x[0]

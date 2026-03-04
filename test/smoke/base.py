@@ -221,7 +221,7 @@ def invoke_analysis_test(metrics: str = "kurtosis", patterns: list = None, topk:
             # Mock数据集加载器
             with patch('msmodelslim.cli.analysis.__main__.FileDatasetLoader'):
                 # Mock分析服务
-                with patch('msmodelslim.cli.analysis.__main__.LayerSelectorAnalysisService'):
+                with patch('msmodelslim.cli.analysis.__main__.PipelineAnalysisService'):
                     # 使用patch来捕获分析结果
                     from msmodelslim.cli.analysis.__main__ import main as analysis_main
                     original_analysis_main = analysis_main

@@ -91,6 +91,7 @@ setup(
         'msmodelslim.lab_calib': ['**'],
         'msmodelslim.lab_practice': ['**'],
         'msmodelslim.core.tune_strategy.common.config_builder.expert_experience': ['*.yaml', '*.yml'],
+        'msmodelslim.core.analysis_service': ['pipeline_analysis/pipeline_template/*.yaml'],
     },
     data_files=[('', ['requirements.txt'])],
     license='Mulan PSL v2',

@@ -4,7 +4,7 @@
 """
 -------------------------------------------------------------------------
 This file is part of the MindStudio project.
-Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+Copyright (c) 2026 Huawei Technologies Co.,Ltd.
 
 MindStudio is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -19,11 +19,15 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 __all__ = [
-    'BaseAnalysisService',
-    'LayerSelectorAnalysisService',
+    'IAnalysisService',
+    'PipelineAnalysisService',
     'PipelineInterface',
+    'AnalysisPipelineLoaderInfra',
+    'AnalysisConfig',
+    'AnalysisResult',
 ]
 
-from .base import BaseAnalysisService
-from .layer_selector import LayerSelectorAnalysisService
-from .pipeline_interface import PipelineInterface
+from .interface import IAnalysisService, AnalysisConfig, AnalysisResult
+from .pipeline_analysis.pipeline_loader_infra import AnalysisPipelineLoaderInfra
+from .pipeline_analysis.service import PipelineAnalysisService
+from ..runner.pipeline_interface import PipelineInterface

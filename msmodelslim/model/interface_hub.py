@@ -36,6 +36,9 @@ __all__ = [
     'ModelInfoInterface',  # For Naive Quantization, get model info from model.
     'AnalyzePipelineInterface',  # For Analysis, describing the pipeline of model inference.
 
+    # analysis_method interface
+    'AttentionAnalysisInterface',  # For Attention Analysis, describing the attention structure of model.
+
     # algorithm interface
     'KVSmoothFusedInterface',  # For KV Smooth, describing the architecture of model.
     'SmoothQuantInterface',  # For Smooth Quant, describing the architecture of model.
@@ -65,7 +68,6 @@ __all__ = [
 
 from msmodelslim.app.auto_tuning.model_info_interface import ModelInfoInterface as atmi
 from msmodelslim.app.naive_quantization.model_info_interface import ModelInfoInterface as nami
-from msmodelslim.core.analysis_service.pipeline_interface import PipelineInterface as aspi
 from msmodelslim.core.quant_service.modelslim_v0.pipeline_interface import \
     PipelineInterface as ModelSlimPipelineInterfaceV0
 from msmodelslim.core.quant_service.modelslim_v1.save.interface import AscendV1SaveInterface, AscendV1GlobalModelDtypeInterface
@@ -82,11 +84,16 @@ from msmodelslim.processor.anti_outlier.smooth_quant.interface import SmoothQuan
 from msmodelslim.processor.kv_smooth import KVSmoothFusedInterface
 from msmodelslim.processor.quant.fa3.interface import FA3QuantPlaceHolder, FA3QuantAdapterInterface
 from msmodelslim.processor.quarot import QuaRotInterface, LAOSOnlineRotationInterface, OnlineQuaRotInterface
+from msmodelslim.processor.analysis import AttentionMSEAnalysisInterface as amseai
 
 
-class AnalyzePipelineInterface(aspi, shpi, shwepi):
+class AnalyzePipelineInterface(shpi, shwepi):
     ...
 
 
 class ModelInfoInterface(nami, atmi):
+    ...
+
+
+class AttentionAnalysisInterface(amseai):
     ...

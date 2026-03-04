@@ -22,8 +22,11 @@ import os
 from pathlib import Path
 
 from msmodelslim.app.analysis import LayerAnalysisApplication
-from msmodelslim.core.analysis_service import LayerSelectorAnalysisService
+from msmodelslim.core.analysis_service import PipelineAnalysisService
+from msmodelslim.core.context import ContextFactory
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
+from msmodelslim.infra.analysis_pipeline_loader import AnalysisPipelineLoader
+from msmodelslim.infra.logging_analysis_result_displayer import LoggingAnalysisResultDisplayer
 from msmodelslim.model import PluginModelFactory
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.security.path import get_valid_read_path
@@ -35,7 +38,6 @@ def get_dataset_dir():
     lab_calib_dir = get_valid_read_path(lab_calib_dir, is_dir=True)
     return Path(lab_calib_dir)
 
-
 def main(args):
     """Main function for layer analysis CLI"""
     try:
@@ -44,14 +46,26 @@ def main(args):
         # Create dataset loader
         dataset_loader = FileDatasetLoader(dataset_dir)
 
+        # Create pipeline loader
+        pipeline_loader = AnalysisPipelineLoader()
+
         # Create analysis service
-        analysis_service = LayerSelectorAnalysisService(dataset_loader)
+        analysis_service = PipelineAnalysisService(
+            dataset_loader,
+            context_factory=ContextFactory(),
+            pipeline_loader=pipeline_loader
+        )
         # Create model factory
         model_factory = PluginModelFactory()
+
+        # Create result manager
+        result_manager = LoggingAnalysisResultDisplayer()
+
         # Create analysis app
         analysis_app = LayerAnalysisApplication(
             analysis_service=analysis_service,
             model_factory=model_factory,
+            result_manager=result_manager,
         )
 
         # Run analysis
