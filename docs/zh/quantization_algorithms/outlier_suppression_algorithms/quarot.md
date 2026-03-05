@@ -142,7 +142,6 @@ QuaRot算法目前支持以下模型系列：
   `online: True`。
 - 对于未实现在线旋转接口的模型，配置`online: True`会导致错误。
 
-
 ### 使用说明
 
 作为 Processor 使用
@@ -179,8 +178,6 @@ spec:
 | max_tp_size             | 最大张量并行大小       | `int`        | 该配置项仅在启用在线旋转时生效，最大张量并行大小，必须大于0且为2的幂或等于1     | `4`        |
 | down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
 | export_extra_info       | 是否导出全局旋转信息     | `bool`       | 为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，导出时生成 optional.quarot.global_rotation（全局旋转矩阵的独立 safetensors 及 JSON 描述），便于推理侧加载；为 False 则不导出 | `True`     |
-
-
 
 ## 模型适配 {#模型适配}
 
