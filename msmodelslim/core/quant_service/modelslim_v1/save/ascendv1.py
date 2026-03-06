@@ -144,10 +144,15 @@ class AscendV1Saver(AutoSaverProcessor):
 
     关于该格式的更多信息，请参考 AscendV1Config 中的说明。
     """
-    # W4A8_DYNAMIC is hidden.
+    # W4A8_DYNAMIC is hidden（不加入列表，混合时不作为 model_quant_type）。
+    # 比特位数越低优先级越高（列表中越靠后 index 越大，混合时越优先被记录）。
+    # 同比特内：W8A8 优先于 W8A8_DYNAMIC、W8A8_MIX，与 V0 一致。
     QUANT_TYPE_PRIORITY = [
-        'FLOAT', 'W16A16S', 'W8A8', 'W8A8_DYNAMIC', 'W8A8_MIX', 'W8A16',
-        'W4A4_DYNAMIC', 'WFP8AFP8_DYNAMIC', 'W8A8_MXFP8', 'W4A8_MXFP', 'W4A4_MXFP4'
+        'FLOAT', 'W16A16S', 'W8A16',                           # 高比特 → 低优先级
+        'W8A8_DYNAMIC', 'W8A8_MIX', 'W8A8',                    # 8w8a，W8A8 优先于 W8A8_DYNAMIC/W8A8_MIX
+        'WFP8AFP8_DYNAMIC', 'W8A8_MXFP8',                      # 8-bit 浮点量化
+        'W4A8_MXFP',                                           # 4w 浮点量化
+        'W4A4_DYNAMIC', 'W4A4_MXFP4',                          # 4w4a → 高优先级
     ]
 
     def __init__(self, model: nn.Module, config: AscendV1Config, adapter: object, **kwargs: Dict[str, Any]):
