@@ -536,6 +536,156 @@ class TestAnalysisMethods(unittest.TestCase):
         # 验证排序：应该是从小到大排序
         self.assertEqual(stored_values, sorted([3.0, 1.0, 5.0, 2.0, 4.0]))
 
+    def test_attention_mse_set_name_and_hook_when_adapter_valid(self):
+        """测试AttentionMSEAnalysisMethod"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+
+        class FakeAdapter(AttentionMSEAnalysisInterface):
+            def get_attention_module_cls(self) -> str:
+                return 'FakeAttention'
+
+            def get_attention_output_extractor(self):
+                return lambda output: output[0] if isinstance(output, tuple) else output
+
+        method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
+
+        self.assertEqual(method.name, 'attention_mse')
+        self.assertEqual(method.adapter.get_attention_module_cls(), 'FakeAttention')
+        hook = method.get_hook()
+        self.assertTrue(callable(hook))
+
+    def test_attention_mse_raise_unsupported_error_when_adapter_invalid(self):
+        """测试AttentionMSEAnalysisMethod要求adapter实现接口"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.utils.exception import UnsupportedError
+
+        with self.assertRaises(UnsupportedError):
+            AttentionMSEAnalysisMethod(adapter=object())
+
+    def test_attention_mse_return_score_when_inputs_valid(self):
+        """测试AttentionMSEAnalysisMethod.compute_score"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+
+        class FakeAdapter(AttentionMSEAnalysisInterface):
+            def get_attention_module_cls(self) -> str:
+                return 'FakeAttention'
+
+            def get_attention_output_extractor(self):
+                pass
+
+        method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
+
+        layer_data_before = {
+            'attn_output': [
+                torch.tensor([[1.0, 2.0], [3.0, 4.0]]),
+                torch.tensor([[0.0, 1.0], [2.0, 3.0]])
+            ]
+        }
+        layer_data_after = {
+            'attn_output': [
+                torch.tensor([[1.0, 1.0], [2.0, 5.0]]),
+                torch.tensor([[1.0, 1.0], [1.0, 1.0]])
+            ]
+        }
+
+        expected = torch.stack([
+            torch.nn.functional.mse_loss(layer_data_before['attn_output'][0], layer_data_after['attn_output'][0]),
+            torch.nn.functional.mse_loss(layer_data_before['attn_output'][1], layer_data_after['attn_output'][1]),
+        ]).mean().item()
+
+        score = method.compute_score(layer_data_before, layer_data_after)
+
+        self.assertIsInstance(score, float)
+        self.assertAlmostEqual(score, expected)
+
+    def test_attention_mse_hook_accumulate_outputs_when_same_layer_called_twice(self):
+        """测试AttentionMSEAnalysisMethod.get_hook数据累积行为"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+
+        class FakeAdapter(AttentionMSEAnalysisInterface):
+            def get_attention_module_cls(self) -> str:
+                return 'FakeAttention'
+
+            def get_attention_output_extractor(self):
+                return lambda output: output[0] if isinstance(output, tuple) else output
+
+        method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
+        hook = method.get_hook()
+
+        stats_dict = {}
+        layer_name = 'test_layer'
+        mock_module = MagicMock()
+        input_tensor = None
+
+        output_tensor1 = (torch.tensor([[[1.0, 2.0], [3.0, 4.0]]]), 'ignored')
+        hook(mock_module, input_tensor, output_tensor1, layer_name, stats_dict)
+
+        layer_data = stats_dict.get(layer_name, {})
+        self.assertEqual(len(layer_data.get('attn_output', [])), 1)
+
+        output_tensor2 = (torch.tensor([[[5.0, 6.0], [7.0, 8.0]]]), 'ignored')
+        hook(mock_module, input_tensor, output_tensor2, layer_name, stats_dict)
+
+        layer_data = stats_dict.get(layer_name, {})
+        self.assertEqual(len(layer_data.get('attn_output', [])), 2)
+        self.assertEqual(layer_data['attn_output'][0].device.type, 'cpu')
+        self.assertEqual(layer_data['attn_output'][1].device.type, 'cpu')
+
+    def test_attention_mse_hook_store_outputs_when_multiple_layers_given(self):
+        """测试AttentionMSEAnalysisMethod.get_hook多层处理"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+
+        class FakeAdapter(AttentionMSEAnalysisInterface):
+            def get_attention_module_cls(self) -> str:
+                return 'FakeAttention'
+
+            def get_attention_output_extractor(self):
+                return lambda output: output
+
+        method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
+        hook = method.get_hook()
+
+        stats_dict = {}
+        mock_module = MagicMock()
+        input_tensor = None
+
+        hook(mock_module, input_tensor, torch.tensor([[[1.0, 2.0], [3.0, 4.0]]]), 'layer1', stats_dict)
+        hook(mock_module, input_tensor, torch.tensor([[[5.0, 6.0, 7.0]]]), 'layer2', stats_dict)
+
+        self.assertIn('layer1', stats_dict)
+        self.assertIn('layer2', stats_dict)
+        self.assertEqual(len(stats_dict['layer1'].get('attn_output', [])), 1)
+        self.assertEqual(len(stats_dict['layer2'].get('attn_output', [])), 1)
+        self.assertEqual(stats_dict['layer1']['attn_output'][0].shape, torch.Size([2, 2]))
+        self.assertEqual(stats_dict['layer2']['attn_output'][0].shape, torch.Size([1, 3]))
+
+    def test_attention_mse_return_match_result_when_module_class_name_checked(self):
+        """测试AttentionMSEAnalysisMethod._matches按类名匹配attention模块"""
+        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+
+        class FakeAdapter(AttentionMSEAnalysisInterface):
+            def get_attention_module_cls(self) -> str:
+                return 'FakeAttention'
+
+            def get_attention_output_extractor(self):
+                return lambda output: output
+
+        class FakeAttention(nn.Module):
+            pass
+
+        class OtherModule(nn.Module):
+            pass
+
+        method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
+
+        self.assertTrue(method._matches(FakeAttention()))
+        self.assertFalse(method._matches(OtherModule()))
+
     def test_analysis_method_factory(self):
         """测试AnalysisMethodFactory"""
         from msmodelslim.processor.analysis.methods_base import AnalysisMethodFactory
