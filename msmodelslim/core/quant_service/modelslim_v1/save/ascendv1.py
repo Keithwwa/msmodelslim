@@ -52,7 +52,7 @@ def copy_files(input_path, output_path):
     @param output_path: 目标目录
     """
     for file in os.listdir(input_path):
-        if not any((file.endswith(subfix) for subfix in ['.json', '.py', '.txt'])):
+        if not any((file.endswith(subfix) for subfix in ['.json', '.py', '.txt', '.jinja'])):
             continue
 
         if any((file.endswith(subfix) for subfix in ['index.json'])):
