@@ -341,3 +341,33 @@ class TestCollectInputsToDevice:
         assert "key1" in result
         assert "key2" in result
         assert result["key3"] == "default"
+
+
+class TestVLMBaseModelAdapterGetGlobalModelTorchDtype:
+    """Tests for VLMBaseModelAdapter.get_global_model_torch_dtype (AscendV1GlobalModelDtypeInterface)."""
+
+    @patch('msmodelslim.model.common.vlm_base.SafeGenerator.get_config_from_pretrained')
+    def test_config_torch_dtype_none_returns_float32(self, mock_get_config):
+        mock_config = DummyConfig()
+        mock_get_config.return_value = mock_config
+        adapter = VLMBaseModelAdapter("test", Path("/tmp"), False)
+        assert adapter.get_global_model_torch_dtype() == torch.float32
+
+    @patch('msmodelslim.model.common.vlm_base.SafeGenerator.get_config_from_pretrained')
+    def test_config_torch_dtype_bfloat16_returns_bfloat16(self, mock_get_config):
+        mock_config = DummyConfig()
+        mock_config.torch_dtype = torch.bfloat16
+        mock_get_config.return_value = mock_config
+        adapter = VLMBaseModelAdapter("test", Path("/tmp"), False)
+        assert adapter.get_global_model_torch_dtype() == torch.bfloat16
+
+    @patch('msmodelslim.model.common.vlm_base.SafeGenerator.get_config_from_pretrained')
+    def test_text_config_torch_dtype_fallback(self, mock_get_config):
+        mock_config = DummyConfig()
+        mock_config.torch_dtype = None
+        mock_config.text_config = Mock()
+        mock_config.text_config.torch_dtype = "bfloat16"
+        mock_config.vision_config = None
+        mock_get_config.return_value = mock_config
+        adapter = VLMBaseModelAdapter("test", Path("/tmp"), False)
+        assert adapter.get_global_model_torch_dtype() == torch.bfloat16
