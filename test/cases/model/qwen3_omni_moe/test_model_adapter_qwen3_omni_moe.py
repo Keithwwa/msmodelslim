@@ -550,7 +550,6 @@ class TestQwen3OmniMoeThinkerModelAdapter(unittest.TestCase):
             self.assertIsInstance(cfg.mapping, MappingConfig)
         sources = [c.mapping.source for c in result]
         self.assertIn("audio_tower.layers.0.self_attn_layer_norm", sources)
-        self.assertIn("visual.blocks.0.norm1", sources)
         self.assertIn("model.layers.0.input_layernorm", sources)
 
     def test_get_adapter_config_for_subgraph_with_moe(self):

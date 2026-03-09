@@ -553,36 +553,6 @@ class Qwen3OmniMoeThinkerModelAdapter(
                 )
             ])
 
-        for layer_idx in range(vision_config.depth):
-            # Norm-Linear: input_layernorm -> fused QKV
-            visual_attn_norm_linear_mapping_config = MappingConfig(
-                source=f"visual.blocks.{layer_idx}.norm1",
-                targets=[
-                    f"visual.blocks.{layer_idx}.attn.qkv"
-                ]
-            )
-
-            # Note: OV mapping is not applicable with fused QKV
-            # The qkv -> proj mapping would need special handling
-            # For now, we skip the OV subgraph for visual attention
-
-            visual_mlp_norm_linear_mapping_config = MappingConfig(
-                source=f"visual.blocks.{layer_idx}.norm2",
-                targets=[
-                    f"visual.blocks.{layer_idx}.mlp.linear_fc1"
-                ]
-            )
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=visual_attn_norm_linear_mapping_config
-                ),
-                # Skip OV mapping for fused QKV
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=visual_mlp_norm_linear_mapping_config
-                )
-            ])
         # Text decoder layers
         for layer_idx in range(text_config.num_hidden_layers):
             # Norm-Linear: input_layernorm -> QKV
