@@ -5,7 +5,7 @@
 ## 使用前准备
 
 - 请选用8.2.RC1及之后的配套CANN版本。
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
 - **不同的多模态理解模型依赖的transformers版本、第三方库有所差异，请务必参考各个多模态理解模型的量化说明进行配置。**
 
 ## 已验证量化模型
@@ -22,3 +22,4 @@
 | Qwen3-VL-MoE | W8A8混合量化（MoE专家动态量化） | [Qwen3-VL-30B-A3B](https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct/tree/main)<br>[Qwen3-VL-235B-A22B](https://huggingface.co/Qwen/Qwen3-VL-235B-A22B-Instruct/tree/main) | MindIE 待支持<br>vLLM Ascend 支持中 | [Qwen3-VL-MoE 量化使用说明](./Qwen3-VL-MoE/README.md) |
 | Qwen3-Omni | W8A8量化 | [Qwen3-Omni-30B-A3B-Thinking](https://huggingface.co/Qwen/Qwen3-Omni-30B-A3B-Thinking)<br>[Qwen3-Omni-30B-A3B-Instruct](https://huggingface.co/Qwen/Qwen3-Omni-30B-A3B-Instruct) | vLLM Ascend | [Qwen3-Omni 量化使用说明](./Qwen3-Omni/README.md) |
 | GLM-4.1V | W8A8SC量化 | [GLM-4.1V-9B-Thinking](https://huggingface.co/zai-org/GLM-4.1V-9B-Thinking/tree/main) | MindIE 预计3.0.RC1版本支持<br>vLLM Ascend 当前不支持 | [GLM-4.1V 量化使用说明](./GLM-4.1V/README.md) |
+| GLM-4.6V | W8A8混合量化（MoE专家动态量化） | [GLM-4.6V](https://huggingface.co/zai-org/GLM-4.6V) | MindIE 待支持<br>vLLM Ascend 支持中 | [GLM-4.6V 量化使用说明](./GLM-4.6V/README.md) |

@@ -915,6 +915,14 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>√</td>
     </tr>
     <tr>
+      <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/GLM-4.6V/README.md">GLM-4.6V</a></strong></td>
+      <td>GLM-4.6V</td>
+      <td>transformers==5.0.0rc0</td>
+      <td>√</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="5"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_sd/README.md">多模态生成模型</a></strong></td>
       <td>SD3-Medium</td>
       <td>diffusers</td>
