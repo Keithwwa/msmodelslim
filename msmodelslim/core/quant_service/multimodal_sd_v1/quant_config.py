@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self, Literal
 import torch.nn as nn
 
+from msmodelslim.core.const import RunnerType
 from msmodelslim.core.quant_service.interface import BaseQuantConfig
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig, ModelslimV1ServiceConfig
 from msmodelslim.utils.exception import SchemaValidateError
@@ -55,6 +56,7 @@ class MultimodalSDConfig(BaseModel):
 
 
 class MultimodalSDServiceConfig(ModelslimV1ServiceConfig):
+    runner: RunnerType = RunnerType.LAYER_WISE
     # 支持直接传入字典作为配置，或使用 MultimodalSDConfig 实例
     multimodal_sd_config: Union[Dict[str, Any], MultimodalSDConfig] = Field(
         default_factory=lambda: MultimodalSDConfig().model_dump()

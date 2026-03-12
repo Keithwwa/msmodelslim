@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details.
 from pydantic import Field, field_validator
 from typing_extensions import Self
 
+from msmodelslim.core.const import RunnerType
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig, ModelslimV1ServiceConfig
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.exception_decorator import exception_handler
@@ -30,6 +31,7 @@ from ..interface import BaseQuantConfig
 
 
 class MultimodalVLMServiceConfig(ModelslimV1ServiceConfig):
+    runner: RunnerType = RunnerType.LAYER_WISE
     default_text: str = Field(
         default="Describe this image in detail.",
         description="Default prompt used for image-only calibration data when text is not provided."
