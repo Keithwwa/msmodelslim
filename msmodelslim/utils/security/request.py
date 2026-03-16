@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details.
 
 import re
 import socket
+from ipaddress import ip_address, IPv6Address
 from urllib.parse import urljoin, urlparse
 
 import requests
@@ -28,17 +29,58 @@ import requests
 from msmodelslim.utils.exception import SecurityError
 
 
+def _is_allowed_ipv4(ip_str: str) -> bool:
+    """检查 IPv4 是否为允许的地址（回环或 RFC 1918 内网）。"""
+    try:
+        addr = ip_address(ip_str)
+        if addr.version != 4:
+            return False
+        # 127.0.0.0/8 回环; 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 内网
+        return addr.is_loopback or addr.is_private
+    except Exception:
+        return False
+
+
+def _is_allowed_ipv6(ip_str: str) -> bool:
+    """检查 IPv6 是否为允许的地址（回环、链路本地或唯一本地 ULA）。"""
+    try:
+        addr = ip_address(ip_str)
+        if addr.version != 6:
+            return False
+        return addr.is_loopback or addr.is_link_local or addr.is_private
+    except Exception:
+        return False
+
+
+def _normalize_host(host: str) -> str:
+    """
+    标准化 host 用于返回与 URL 构建。
+    IPv6 返回无方括号形式，便于 build_safe_url 中统一加方括号。
+    """
+    host = host.strip()
+    if host.startswith('[') and host.endswith(']'):
+        host = host[1:-1]
+    try:
+        addr = ip_address(host)
+        if isinstance(addr, IPv6Address):
+            return addr.compressed
+    except ValueError:
+        pass
+    return host
+
+
 def validate_safe_host(host: str, field_name: str = "host") -> str:
     """
     验证主机地址，防止 SSRF 攻击。
-    只允许 localhost、127.0.0.1 或内网 IP 地址（RFC 1918）。
+    允许 localhost、127.0.0.1、::1 或内网/本地 IP（IPv4 RFC 1918，IPv6 回环/链路本地/ULA）。
+    支持 IPv4 与 IPv6 格式。
     
     Args:
-        host: 要验证的主机地址
+        host: 要验证的主机地址（可为 IPv4、IPv6 或主机名）
         field_name: 字段名称，用于错误消息，默认为 "host"
         
     Returns:
-        验证后的主机地址（标准化）
+        验证后的主机地址（标准化，IPv6 为无方括号形式）
         
     Raises:
         SecurityError: 如果 host 为空或不在允许的范围内
@@ -49,31 +91,42 @@ def validate_safe_host(host: str, field_name: str = "host") -> str:
             action=f"Please provide a non-empty value for {field_name}."
         )
     
-    # 允许 localhost 及其变体
-    if host.lower() in ('localhost', '127.0.0.1', '::1', '[::1]'):
-        return host.lower()
+    host = host.strip()
+    host_lower = host.lower()
     
-    # 验证是否为有效的 IP 地址格式
+    # 允许 localhost、127.0.0.1、::1（含 [::1]）
+    if host_lower in ('localhost', '127.0.0.1'):
+        return host_lower
+    if host_lower in ('::1', '[::1]'):
+        return '::1'
+    
+    # 尝试解析为 IPv4
+    if _is_allowed_ipv4(host):
+        return host
+    
+    # 尝试解析为 IPv6（支持带方括号的写法）
+    ip6_str = host[1:-1] if (host.startswith('[') and host.endswith(']')) else host
+    if _is_allowed_ipv6(ip6_str):
+        return _normalize_host(host)
+    
+    # 尝试解析为主机名并解析得到的地址（IPv4 或 IPv6）
     try:
-        ip = socket.gethostbyname(host)
-        # 检查是否为内网地址（RFC 1918）
-        # 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-        parts = ip.split('.')
-        if len(parts) == 4:
-            first_octet = int(parts[0])
-            second_octet = int(parts[1])
-            if (first_octet == 10 or
-                (first_octet == 172 and 16 <= second_octet <= 31) or
-                (first_octet == 192 and second_octet == 168)):
-                return host
-    except (ValueError, OSError):
+        for res in socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM):
+            family, _, _, _, sockaddr = res
+            if family == socket.AF_INET:
+                ip_str = sockaddr[0]
+                if _is_allowed_ipv4(ip_str):
+                    return host
+            elif family == socket.AF_INET6:
+                ip_str = sockaddr[0]
+                if _is_allowed_ipv6(ip_str):
+                    return host
+    except (socket.gaierror, OSError):
         pass
     
-    # 如果验证失败，抛出安全错误
     raise SecurityError(
-        f"{field_name} '{host}' is not allowed. Only localhost or private network addresses are permitted.",
-        action=f"Please use 'localhost', '127.0.0.1', or "
-               f"a private IP address (10.x.x.x, 172.16-31.x.x, 192.168.x.x) for {field_name}."
+        f"{field_name} '{host}' is not allowed. Only localhost, loopback, or private/link-local addresses (IPv4 or IPv6) are permitted.",
+        action=f"Please use 'localhost', '127.0.0.1', '::1', or a private/link-local IPv4 or IPv6 address for {field_name}."
     )
 
 
@@ -148,8 +201,13 @@ def build_safe_url(host: str, port: int, endpoint: str, scheme: str = 'http') ->
             action="Only http and https schemes are allowed."
         )
     
-    # 使用 urllib.parse 安全地构建 URL
-    base_url = f"{scheme}://{validated_host}:{port}"
+    # IPv6 地址在 URL 中需用方括号包裹（RFC 3986）
+    try:
+        addr = ip_address(validated_host)
+        host_for_url = f"[{validated_host}]" if isinstance(addr, IPv6Address) else validated_host
+    except ValueError:
+        host_for_url = validated_host
+    base_url = f"{scheme}://{host_for_url}:{port}"
     # urljoin 会自动处理路径拼接，防止路径注入
     url = urljoin(base_url, validated_endpoint)
     

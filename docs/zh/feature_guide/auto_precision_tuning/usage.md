@@ -13,8 +13,8 @@ toc_depth: 3
 
 使用自动调优功能前，需要完成以下工具的安装：
 
-1. **vLLM-Ascend**：用于量化后模型拉起服务化。自动调优功能在评估量化后模型精度时，需要使用 vLLM-Ascend 将量化后的模型以服务化方式启动。建议直接使用官方提供的镜像进行安装，详细安装说明请参考 [vLLM-Ascend 安装文档](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/installation/installation_ascend.html)。
-2. **AISbench**：用于量化后模型测试。自动调优功能使用 [AISbench](https://gitee.com/aisbench/benchmark) 对量化后的模型进行精度评估和测试。**支持版本：**`AISBench-3.0-benchmark-20250930-master`。完成安装后，还需要参考 AISbench 指南准备对应的数据集。
+1. **vLLM-Ascend**：用于量化后模型拉起服务化。自动调优功能在评估量化后模型精度时，需要使用 vLLM-Ascend 将量化后的模型以服务化方式启动。建议直接使用官方提供的镜像进行安装，详细安装说明请参考 [vLLM-Ascend 安装文档](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/installation.html)。
+2. **AISbench**：用于量化后模型测试。自动调优功能使用 [AISbench](https://github.com/AISBench/benchmark) 对量化后的模型进行精度评估和测试。完成安装后，还需要参考 AISbench 指南准备对应的数据集。
 
 请确保上述工具已正确安装并配置，否则自动调优功能将无法正常进行模型评估。
 
@@ -51,6 +51,7 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
 **中断恢复**：如果调优过程因为意外中断（如系统故障、手动停止等），系统会自动检测 `save_path/history` 目录中是否存在历史精度缓存。如果检测到精度缓存，系统会在重新启动时从头开始迭代，但会复用精度缓存中已评估过的量化配置的评估结果，避免重复评估相同的配置，只需使用相同的 `save_path` 重新运行调优命令即可。
 
 **重要说明**：
+
 - 自动恢复功能要求 `save_path` 与之前中断时的路径一致，且 `save_path/history` 目录中存在有效的历史精度缓存。如果历史精度缓存不存在或无效，系统将从头开始调优。
 - **精度缓存复用条件**：系统只有在同时满足以下两个条件时才会复用历史精度缓存中的评估结果：
   1. **评估配置完全一致**：启动调优时调优配置文件中的evaluation字段配置（包括评估数据集、评估任务、评估参数等）与历史记录中的评估配置完全相同。
@@ -121,6 +122,7 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
    - **最终权重**：最后一次迭代生成的量化权重保存在用户指定的路径。
 
 **注意：**
+
 - 每次迭代的量化权重都会保存到 `save_path/quant_model`，会覆盖上一次迭代的权重，最终保留的是最后一次迭代的权重。
 - 所有迭代的历史记录（包括每次的Yaml配置和精度指标）都会保存在 `save_path/history` 目录中，用户可以通过查看历史记录了解整个调优过程。
 

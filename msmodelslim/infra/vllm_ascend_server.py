@@ -166,6 +166,7 @@ class VllmAscendServer:
         options = {
             "-m": self.config.entrypoint,
             "--model": str(self.model_path),
+            "--host": self.config.host,
             "--port": str(self.config.port)
         }
 
