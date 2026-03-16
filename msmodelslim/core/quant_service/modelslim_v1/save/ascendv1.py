@@ -161,7 +161,7 @@ class AscendV1Saver(AutoSaverProcessor):
         self.metadata = dict()
         self.json_optional_infos: Dict[str, BaseModel] = dict()
         self.save_directory = self.get_rank_save_directory() if dist.is_initialized() else config.save_directory
-        self.optional_save_directory = get_write_directory(os.path.join(config.save_directory, "optional"))
+        self.optional_save_directory = os.path.join(config.save_directory, "optional")
         self.json_writer = JsonWriter(self.save_directory, ASCENDV1_DESC_JSON_NAME)
         self.safetensors_writer = self.get_safetensors_writer(config)
         self.dist_helper: Optional[DistHelper] = None
@@ -544,6 +544,7 @@ class AscendV1Saver(AutoSaverProcessor):
         导出 QuaRot 全局旋转矩阵到独立 safetensors 文件，并在 JSON 中写入 optional.quarot.global_rotation 路径。
         module.rotation_info 类型为 QuarotOfflineRotationInfo，其唯一成员 global_rotation 为 torch.Tensor。
         """
+        self.optional_save_directory = get_write_directory(self.optional_save_directory)
         offline_info: qir.QuarotOfflineRotationInfo = module.rotation_info
         scope = "quarot"
         scope_tensor_file_name = f"{scope}.safetensors"
