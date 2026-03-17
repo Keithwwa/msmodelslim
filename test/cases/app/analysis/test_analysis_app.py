@@ -372,7 +372,8 @@ class TestAnalysisServiceModule(TestComprehensiveAnalysisCoverage):
         mock_ctx.__enter__ = MagicMock(return_value=mock_ctx)
         mock_ctx.__exit__ = MagicMock(return_value=False)
         mock_ns = MagicMock()
-        mock_ns.state = {
+        # Service reads from ctx['layer_analysis'].debug (not state); provide real values for AnalysisResult
+        mock_ns.debug = {
             "layer_scores": [{"name": "layer1", "score": 1.0}],
             "method": "std",
             "patterns": ["*"],

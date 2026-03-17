@@ -30,11 +30,11 @@ from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoProcessorConfigList, AutoSessionProcessor
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError
-from .methods_base import AnalysisMethodFactory
+from msmodelslim.processor.analysis.binary_operator.metrics.factory import BinaryAnalysisMethodFactory
 
 
 class BinaryAnalysisProcessorConfig(AutoProcessorConfig):
-    """Configuration for binary layer sensitivity analysis (MSE, float vs quant)."""
+    """Configuration for binary layer sensitivity analysis (attention_mse)."""
 
     type: Literal["binary_analysis"] = "binary_analysis"
     metrics: str = Field(
@@ -47,7 +47,7 @@ class BinaryAnalysisProcessorConfig(AutoProcessorConfig):
     )
     configs: AutoProcessorConfigList = Field(
         default_factory=list,
-        description="Quant 子处理器配置列表，与 GroupProcessor 一致，用于量化分支（第二遍前向）",
+        description="List of quant sub-processor configs",
     )
 
 
@@ -69,7 +69,7 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
         self.config = config
         self.adapter = adapter
         self.quant_processors = [AutoSessionProcessor.from_config(model, cfg, adapter) for cfg in config.configs]
-        self._analysis_method = AnalysisMethodFactory.create_method(
+        self._analysis_method = BinaryAnalysisMethodFactory.create_method(
             config.metrics, adapter=self.adapter
         )
         self._target_layers: List[str] = []
@@ -79,7 +79,7 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
         self._hook_handles: Dict[str, Any] = {}
 
     def pre_run(self) -> None:
-        # ctx创建命名空间
+        # 校验上下文机制
         ctx = get_current_context()
         if ctx is None:
             raise UnexpectedError("No context is working.")
@@ -143,9 +143,9 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
             processor.post_run()
 
         ctx = get_current_context()
-        ctx["layer_analysis"].state["layer_scores"] = self._layer_scores
-        ctx["layer_analysis"].state["method"] = self._analysis_method.name
-        ctx["layer_analysis"].state["patterns"] = self.config.patterns
+        ctx["layer_analysis"].debug["layer_scores"] = self._layer_scores
+        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
+        ctx["layer_analysis"].debug["patterns"] = self.config.patterns
 
         get_logger().info(
             "BinaryAnalysisProcessor post_run: %d layer scores computed (%s)",

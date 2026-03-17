@@ -20,9 +20,11 @@ See the Mulan PSL v2 for more details.
 """
 import fnmatch
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List
+from typing import Callable, Dict, Generic, List, TypeVar
 
 import torch.nn as nn
+
+from msmodelslim.utils.exception import UnsupportedError
 
 
 class AnalysisTargetMatcher(ABC):
@@ -69,68 +71,35 @@ class LayerAnalysisMethod(ABC):
         ...
 
 
-class UnaryAnalysisMethod(LayerAnalysisMethod):
-    """一元分析方法基类"""
-
-    @abstractmethod
-    def compute_score(self, layer_data: Dict[str, Any]) -> float:
-        """Compute analysis score for a layer given collected data"""
-        ...
+TMethod = TypeVar("TMethod", bound=LayerAnalysisMethod)
 
 
-class BinaryAnalysisMethod(LayerAnalysisMethod):
-    """二元分析方法基类"""
+class BaseMethodFactory(Generic[TMethod]):
+    """
+    Generic method factory backed by a registry.
 
-    @abstractmethod
-    def compute_score(self, layer_data_before: Dict[str, Any], layer_data_after: Dict[str, Any]) -> float:
-        """Compute analysis score for a layer given collected data before and after"""
-        ...
+    The registry maps `metrics` string -> method class.
+    """
 
+    def __init__(self) -> None:
+        self._methods: Dict[str, type[TMethod]] = {}
 
-def _get_method_classes():
-    """Lazy import to avoid circular dependency."""
-    from .unary_analysis_methods.quantile import QuantileAnalysisMethod
-    from .unary_analysis_methods.std import StdAnalysisMethod
-    from .unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
-    from .binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-    return {
-        'quantile': QuantileAnalysisMethod,
-        'std': StdAnalysisMethod,
-        'kurtosis': KurtosisAnalysisMethod,
-        'attention_mse': AttentionMSEAnalysisMethod,
-    }
+    def _get_methods(self) -> Dict[str, type[TMethod]]:
+        return self._methods
 
-
-class AnalysisMethodFactory:
-    """Factory for creating analysis methods"""
-    
-    _methods = None
-
-    @classmethod
-    def _get_methods(cls):
-        if cls._methods is None:
-            cls._methods = _get_method_classes()
-        return cls._methods
-    
-    @classmethod
-    def create_method(cls, method_name: str, **kwargs) -> LayerAnalysisMethod:
-        """Create an analysis method by name"""
-        methods = cls._get_methods()
+    def create_method(self, method_name: str, **kwargs) -> TMethod:
+        methods = self._get_methods()
         if method_name not in methods:
             supported = list(methods.keys())
-            raise ValueError(f"Unsupported analysis method: {method_name}. Supported methods: {supported}")
-        method_class = methods[method_name]
-        return method_class(**kwargs)
+            raise UnsupportedError(f"Selected analysis method '{method_name}' is not supported.",
+                                      action=f"Please use a supported analysis method. Supported methods: {supported}")
+        return methods[method_name](**kwargs)
 
-    @classmethod
-    def register_method(cls, method_name: str, method_class: type):
-        """Register a new analysis method"""
+    def register_method(self, method_name: str, method_class: type[TMethod]) -> None:
         if not issubclass(method_class, LayerAnalysisMethod):
             raise TypeError("Method class must inherit from LayerAnalysisMethod")
-        cls._get_methods()[method_name] = method_class
+        self._get_methods()[method_name] = method_class
 
-    @classmethod
-    def get_supported_methods(cls) -> List[str]:
-        """Get list of supported method names"""
-        return list(cls._get_methods().keys())
-        
+    def get_supported_methods(self) -> List[str]:
+        return list(self._get_methods().keys())
+     

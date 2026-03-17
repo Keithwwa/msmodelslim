@@ -20,19 +20,9 @@ See the Mulan PSL v2 for more details.
 """
 
 __all__ = [
-    "UnaryAnalysisProcessorConfig",
-    "UnaryAnalysisProcessor",
-    "BinaryAnalysisProcessorConfig",
-    "BinaryAnalysisProcessor",
+    "AttentionMSEAnalysisMethod",
     "AttentionMSEAnalysisInterface",
 ]
 
-from .binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
-from .unary_operator.processor import (
-    UnaryAnalysisProcessorConfig,
-    UnaryAnalysisProcessor,
-)
-from .binary_operator.processor import (
-    BinaryAnalysisProcessorConfig,
-    BinaryAnalysisProcessor,
-)
+from .impl import AttentionMSEAnalysisMethod
+from .interface import AttentionMSEAnalysisInterface

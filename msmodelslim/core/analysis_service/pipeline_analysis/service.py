@@ -81,9 +81,9 @@ class PipelineAnalysisService(IAnalysisService):
             runner.run(calib_data=calib_data, device=device)
 
         # Get layer scores from context
-        layer_scores = ctx['layer_analysis'].state['layer_scores']
-        method = ctx['layer_analysis'].state['method']
-        patterns = ctx['layer_analysis'].state['patterns']
+        layer_scores = ctx['layer_analysis'].debug['layer_scores']
+        method = ctx['layer_analysis'].debug['method']
+        patterns = ctx['layer_analysis'].debug['patterns']
 
         # Create result
         result = AnalysisResult(layer_scores=layer_scores, method=method, patterns=patterns)

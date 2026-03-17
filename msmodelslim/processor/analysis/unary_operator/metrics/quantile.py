@@ -18,31 +18,47 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
 
 import torch
 import torch.nn as nn
 
-from ..methods_base import AnalysisTargetMatcher, UnaryAnalysisMethod
+from msmodelslim.processor.analysis.methods_base import AnalysisTargetMatcher
+from .base import UnaryAnalysisMethod
 
 
-class KurtosisAnalysisMethod(UnaryAnalysisMethod, AnalysisTargetMatcher):
-    """Kurtosis 分析方法。"""
+class QuantileAnalysisMethod(UnaryAnalysisMethod, AnalysisTargetMatcher):
+    """Quantile 分析方法。"""
 
     def __init__(self, sample_step: int = 100):
         self.sample_step = sample_step
 
     @property
     def name(self) -> str:
-        return "kurtosis"
+        return "quantile"
+
+    @staticmethod
+    def get_quantile_score(act: torch.Tensor, device: torch.device):
+        """Helper method to compute quantile score from activation tensor"""
+        act_max = torch.max(torch.abs(act))
+        act = act.to(device)
+        sorted_act = torch.sort(act)[0]
+        sorted_act = sorted_act.to("cpu")
+        number = len(sorted_act)
+        number_1_4 = number // 4
+        number_3_4 = number_1_4 * 3
+        range_param = 2 * act_max / 254 / (sorted_act[number_3_4] - sorted_act[number_1_4] + 1e-10)
+        return range_param.item()
 
     def compute_score(self, layer_data: Dict[str, Any]) -> float:
-        """Compute kurtosis score for the layer"""
+        """Compute quantile score for the layer"""
         tensor_data = torch.cat(layer_data['tensor']).view(-1).float()
-        score = kurtosis(tensor_data)
-        return score.item()
+        device = layer_data['device']
+        score = QuantileAnalysisMethod.get_quantile_score(tensor_data, device)
+        return score
 
     def get_hook(self) -> Callable:
+        """Get hook function for collecting activation data."""
         def activation_hook(module, input_tensor, output_tensor, layer_name, stats_dict):
             if isinstance(input_tensor, tuple):
                 input_tensor = input_tensor[0]
@@ -70,18 +86,3 @@ class KurtosisAnalysisMethod(UnaryAnalysisMethod, AnalysisTargetMatcher):
             module,
             (nn.Linear, nn.modules.linear.NonDynamicallyQuantizableLinear, nn.Conv2d),
         )
-
-def kurtosis(x: torch.Tensor, dim=None, keepdim=False) -> float:
-    """
-    Compute the kurtosis of a tensor along a given dimension.
-    """
-    if dim is not None:
-        mean = x.mean(dim=dim, keepdim=True)
-        std = x.std(dim=dim, unbiased=False, keepdim=True)
-    else:
-        mean = x.mean()
-        std = x.std(unbiased=False)
-    z = (x - mean) / (std + 1e-10)
-    kurt = (z.pow(4).mean(dim=dim, keepdim=keepdim) - 3)
-
-    return kurt

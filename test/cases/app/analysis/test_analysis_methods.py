@@ -25,13 +25,15 @@ from unittest.mock import MagicMock
 import torch
 import torch.nn as nn
 
+from msmodelslim.utils.exception import UnsupportedError
+
 
 class TestAnalysisMethods(unittest.TestCase):
     """测试分析方法"""
 
     def test_analysis_target_matcher_get_linear_conv_layers(self):
         """测试 Std 分析方法 get_target_layers 返回 Linear/Conv2d 层名"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         # 使用真实子模块，以便 _matches(module) 能匹配 Linear/Conv2d
         class TinyModel(nn.Module):
@@ -66,7 +68,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method(self):
         """测试QuantileAnalysisMethod"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
 
@@ -87,7 +89,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_basic_functionality(self):
         """测试QuantileAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -112,7 +114,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_tuple_input(self):
         """测试QuantileAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -135,7 +137,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_data_accumulation(self):
         """测试QuantileAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -167,7 +169,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_quantile_analysis_method_hook_multiple_layers(self):
         """测试QuantileAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.quantile import QuantileAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.quantile import QuantileAnalysisMethod
 
         method = QuantileAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -202,7 +204,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method(self):
         """测试StdAnalysisMethod"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
 
@@ -225,7 +227,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_basic_functionality(self):
         """测试StdAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -256,7 +258,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_tuple_input(self):
         """测试StdAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -279,7 +281,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_data_accumulation(self):
         """测试StdAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -317,7 +319,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_multiple_layers(self):
         """测试StdAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -353,7 +355,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_std_analysis_method_hook_shift_calculation(self):
         """测试StdAnalysisMethod.get_hook的shift计算"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.std import StdAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.std import StdAnalysisMethod
 
         method = StdAnalysisMethod()
         hook = method.get_hook()
@@ -378,7 +380,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method(self):
         """测试KurtosisAnalysisMethod"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
 
@@ -398,7 +400,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_basic_functionality(self):
         """测试KurtosisAnalysisMethod.get_hook的基本功能"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -423,7 +425,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_tuple_input(self):
         """测试KurtosisAnalysisMethod.get_hook处理tuple输入"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -446,7 +448,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_data_accumulation(self):
         """测试KurtosisAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -478,7 +480,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_multiple_layers(self):
         """测试KurtosisAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -513,7 +515,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_kurtosis_analysis_method_hook_sorting_behavior(self):
         """测试KurtosisAnalysisMethod.get_hook的排序行为"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import KurtosisAnalysisMethod
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import KurtosisAnalysisMethod
 
         method = KurtosisAnalysisMethod(sample_step=10)
         hook = method.get_hook()
@@ -538,8 +540,8 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_set_name_and_hook_when_adapter_valid(self):
         """测试AttentionMSEAnalysisMethod"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.impl import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -557,7 +559,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_raise_unsupported_error_when_adapter_invalid(self):
         """测试AttentionMSEAnalysisMethod要求adapter实现接口"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
         from msmodelslim.utils.exception import UnsupportedError
 
         with self.assertRaises(UnsupportedError):
@@ -565,8 +567,8 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_return_score_when_inputs_valid(self):
         """测试AttentionMSEAnalysisMethod.compute_score"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -602,8 +604,8 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_hook_accumulate_outputs_when_same_layer_called_twice(self):
         """测试AttentionMSEAnalysisMethod.get_hook数据累积行为"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -636,8 +638,8 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_hook_store_outputs_when_multiple_layers_given(self):
         """测试AttentionMSEAnalysisMethod.get_hook多层处理"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -665,8 +667,8 @@ class TestAnalysisMethods(unittest.TestCase):
 
     def test_attention_mse_return_match_result_when_module_class_name_checked(self):
         """测试AttentionMSEAnalysisMethod._matches按类名匹配attention模块"""
-        from msmodelslim.processor.analysis.binary_analysis_methods.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_analysis_methods.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.impl import AttentionMSEAnalysisMethod
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -687,16 +689,16 @@ class TestAnalysisMethods(unittest.TestCase):
         self.assertFalse(method._matches(OtherModule()))
 
     def test_analysis_method_factory(self):
-        """测试AnalysisMethodFactory"""
-        from msmodelslim.processor.analysis.methods_base import AnalysisMethodFactory
+        """测试AnalysisMethodFactory（unary/binary factories）"""
+        from msmodelslim.processor.analysis.unary_operator.metrics.factory import UnaryAnalysisMethodFactory
 
         # 测试create_method方法
-        method = AnalysisMethodFactory.create_method('std')
+        method = UnaryAnalysisMethodFactory.create_method('std')
         self.assertEqual(method.name, 'std')
 
         # 测试无效方法名
-        with self.assertRaises(ValueError):
-            AnalysisMethodFactory.create_method('invalid_method')
+        with self.assertRaises(UnsupportedError):
+            UnaryAnalysisMethodFactory.create_method('invalid_method')
 
         # 测试register_method方法
         from msmodelslim.processor.analysis.methods_base import LayerAnalysisMethod
@@ -712,18 +714,18 @@ class TestAnalysisMethods(unittest.TestCase):
             def compute_score(self, layer_data):
                 return 0.0
 
-        AnalysisMethodFactory.register_method('test', TestMethod)
-        method = AnalysisMethodFactory.create_method('test')
+        UnaryAnalysisMethodFactory.register_method('test', TestMethod)
+        method = UnaryAnalysisMethodFactory.create_method('test')
         self.assertIsInstance(method, TestMethod)
 
         # 测试get_supported_methods方法
-        supported = AnalysisMethodFactory.get_supported_methods()
+        supported = UnaryAnalysisMethodFactory.get_supported_methods()
         self.assertIn('std', supported)
         self.assertIn('test', supported)
 
     def test_kurtosis_function(self):
         """测试kurtosis函数"""
-        from msmodelslim.processor.analysis.unary_analysis_methods.kurtosis import kurtosis
+        from msmodelslim.processor.analysis.unary_operator.metrics.kurtosis import kurtosis
 
         # 创建测试张量
         x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])

@@ -19,20 +19,16 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-__all__ = [
-    "UnaryAnalysisProcessorConfig",
-    "UnaryAnalysisProcessor",
-    "BinaryAnalysisProcessorConfig",
-    "BinaryAnalysisProcessor",
-    "AttentionMSEAnalysisInterface",
-]
+from abc import abstractmethod
+from typing import Any, Dict
 
-from .binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
-from .unary_operator.processor import (
-    UnaryAnalysisProcessorConfig,
-    UnaryAnalysisProcessor,
-)
-from .binary_operator.processor import (
-    BinaryAnalysisProcessorConfig,
-    BinaryAnalysisProcessor,
-)
+from msmodelslim.processor.analysis.methods_base import LayerAnalysisMethod
+
+
+class UnaryAnalysisMethod(LayerAnalysisMethod):
+    """Base class for unary analysis methods."""
+
+    @abstractmethod
+    def compute_score(self, layer_data: Dict[str, Any]) -> float:
+        """Compute analysis score for a layer given collected data."""
+        ...

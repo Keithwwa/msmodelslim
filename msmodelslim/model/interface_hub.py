@@ -84,7 +84,7 @@ from msmodelslim.processor.anti_outlier.smooth_quant.interface import SmoothQuan
 from msmodelslim.processor.kv_smooth import KVSmoothFusedInterface
 from msmodelslim.processor.quant.fa3.interface import FA3QuantPlaceHolder, FA3QuantAdapterInterface
 from msmodelslim.processor.quarot import QuaRotInterface, LAOSOnlineRotationInterface, OnlineQuaRotInterface
-from msmodelslim.processor.analysis import AttentionMSEAnalysisInterface as amseai
+from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface as amseai
 
 
 class AnalyzePipelineInterface(shpi, shwepi):

@@ -23,7 +23,8 @@ from typing import Any, Callable, Dict
 import torch
 import torch.nn as nn
 
-from ..methods_base import AnalysisTargetMatcher, UnaryAnalysisMethod
+from msmodelslim.processor.analysis.methods_base import AnalysisTargetMatcher
+from .base import UnaryAnalysisMethod
 
 
 class StdAnalysisMethod(UnaryAnalysisMethod, AnalysisTargetMatcher):

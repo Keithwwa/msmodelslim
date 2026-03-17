@@ -48,7 +48,7 @@ def _get_analysis_pipeline_dir() -> Path:
     return Path(analysis_pipeline_dir)
 
 
-class AnalysisPipelineLoader(AnalysisPipelineLoaderInfra):
+class YamlAnalysisPipelineLoader(AnalysisPipelineLoaderInfra):
     """按 metrics 加载模板，返回建造者；建造者链式设置参数后 create() 得到配置列表。"""
 
     def get_pipeline_builder(self, metrics: str) -> PipelineBuilderInfra:

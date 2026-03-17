@@ -19,20 +19,10 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-__all__ = [
-    "UnaryAnalysisProcessorConfig",
-    "UnaryAnalysisProcessor",
-    "BinaryAnalysisProcessorConfig",
-    "BinaryAnalysisProcessor",
-    "AttentionMSEAnalysisInterface",
-]
+from msmodelslim.processor.analysis.methods_base import BaseMethodFactory
 
-from .binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
-from .unary_operator.processor import (
-    UnaryAnalysisProcessorConfig,
-    UnaryAnalysisProcessor,
-)
-from .binary_operator.processor import (
-    BinaryAnalysisProcessorConfig,
-    BinaryAnalysisProcessor,
-)
+from .base import BinaryAnalysisMethod
+from .attention_mse import AttentionMSEAnalysisMethod
+
+BinaryAnalysisMethodFactory = BaseMethodFactory[BinaryAnalysisMethod]()
+BinaryAnalysisMethodFactory.register_method("attention_mse", AttentionMSEAnalysisMethod)

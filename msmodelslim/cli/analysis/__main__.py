@@ -25,7 +25,7 @@ from msmodelslim.app.analysis import LayerAnalysisApplication
 from msmodelslim.core.analysis_service import PipelineAnalysisService
 from msmodelslim.core.context import ContextFactory
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
-from msmodelslim.infra.analysis_pipeline_loader import AnalysisPipelineLoader
+from msmodelslim.infra.analysis_pipeline_loader import YamlAnalysisPipelineLoader
 from msmodelslim.infra.logging_analysis_result_displayer import LoggingAnalysisResultDisplayer
 from msmodelslim.model import PluginModelFactory
 from msmodelslim.utils.logging import get_logger
@@ -47,12 +47,12 @@ def main(args):
         dataset_loader = FileDatasetLoader(dataset_dir)
 
         # Create pipeline loader
-        pipeline_loader = AnalysisPipelineLoader()
+        pipeline_loader = YamlAnalysisPipelineLoader()
 
         # Create analysis service
         analysis_service = PipelineAnalysisService(
             dataset_loader,
-            context_factory=ContextFactory(),
+            context_factory=ContextFactory(enable_debug=True),
             pipeline_loader=pipeline_loader
         )
         # Create model factory

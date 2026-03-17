@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import torch.nn as nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
-from msmodelslim.processor.analysis.unary_analysis_processor import (
+from msmodelslim.processor.analysis.unary_operator.processor import (
     UnaryAnalysisProcessor,
     UnaryAnalysisProcessorConfig,
 )
@@ -54,7 +54,7 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         fake_method.get_hook.return_value = lambda module, input_tensor, output_tensor, layer_name, stats_dict: None
         return fake_method
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_init_return_empty_state_when_config_valid(self, mock_create_method):
         fake_method = self._build_fake_method()
         mock_create_method.return_value = fake_method
@@ -69,7 +69,7 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         self.assertEqual(processor._layer_scores, [])
         self.assertEqual(processor._hook_handles, {})
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_preprocess_return_hook_handles_when_target_linear_layers_matched(self, mock_create_method):
         fake_method = self._build_fake_method()
         fake_method.get_target_layers.return_value = [
@@ -92,7 +92,7 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         self.assertNotIn("block.linear2", processor._hook_handles)
         self.assertEqual(len(processor._hook_handles), 1)
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_postprocess_return_scores_and_clear_stats_when_target_stats_exist(self, mock_create_method):
         fake_method = self._build_fake_method()
         fake_method.compute_score.return_value = 0.75
@@ -122,7 +122,7 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         self.assertIn("block.linear2", processor._layer_stats)
         self.assertEqual(processor._hook_handles, {})
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_postprocess_return_remaining_hooks_when_request_scope_filtered(self, mock_create_method):
         fake_method = self._build_fake_method()
         mock_create_method.return_value = fake_method
@@ -143,8 +143,8 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         self.assertNotIn("block.linear1", processor._hook_handles)
         self.assertIn("other.linear", processor._hook_handles)
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.get_current_context")
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.get_current_context")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_post_run_set_context_state_when_scores_ready(self, mock_create_method, mock_get_current_context):
         fake_method = self._build_fake_method()
         fake_method.name = "std"
@@ -153,16 +153,16 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
         processor = UnaryAnalysisProcessor(self.model, self.config)
         processor._layer_scores = [{"name": "block.linear1", "score": 1.23}]
 
-        fake_ctx = {"layer_analysis": SimpleNamespace(state={})}
+        fake_ctx = {"layer_analysis": SimpleNamespace(debug={})}
         mock_get_current_context.return_value = fake_ctx
 
         processor.post_run()
 
-        self.assertEqual(fake_ctx["layer_analysis"].state["layer_scores"], processor._layer_scores)
-        self.assertEqual(fake_ctx["layer_analysis"].state["method"], "std")
-        self.assertEqual(fake_ctx["layer_analysis"].state["patterns"], self.config.patterns)
+        self.assertEqual(fake_ctx["layer_analysis"].debug["layer_scores"], processor._layer_scores)
+        self.assertEqual(fake_ctx["layer_analysis"].debug["method"], "std")
+        self.assertEqual(fake_ctx["layer_analysis"].debug["patterns"], self.config.patterns)
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_get_layer_scores_return_scores_when_called(self, mock_create_method):
         fake_method = self._build_fake_method()
         mock_create_method.return_value = fake_method
@@ -172,7 +172,7 @@ class TestUnaryAnalysisProcessor(unittest.TestCase):
 
         self.assertEqual(processor.get_layer_scores(), [{"name": "block.linear1", "score": 2.0}])
 
-    @patch("msmodelslim.processor.analysis.unary_analysis_processor.AnalysisMethodFactory.create_method")
+    @patch("msmodelslim.processor.analysis.unary_operator.processor.UnaryAnalysisMethodFactory.create_method")
     def test_preprocess_return_no_hooks_when_no_matching_layers(self, mock_create_method):
         fake_method = self._build_fake_method()
         fake_method.get_target_layers.return_value = ["block.linear1", "block.linear2"]

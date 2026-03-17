@@ -28,8 +28,9 @@ from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.core.context import get_current_context
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoSessionProcessor
+from msmodelslim.processor.analysis.unary_operator.metrics.factory import UnaryAnalysisMethodFactory
 from msmodelslim.utils.logging import get_logger
-from .methods_base import AnalysisMethodFactory
+from msmodelslim.utils.exception import UnexpectedError
 
 
 class UnaryAnalysisProcessorConfig(AutoProcessorConfig):
@@ -62,11 +63,17 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
     ):
         super().__init__(model)
         self.config = config
-        self._analysis_method = AnalysisMethodFactory.create_method(config.metrics)
+        self._analysis_method = UnaryAnalysisMethodFactory.create_method(config.metrics)
         self._target_layers: List[str] = []
         self._layer_stats: Dict[str, Any] = {}
         self._layer_scores: List[Dict[str, Any]] = []
         self._hook_handles: Dict[str, Any] = {}
+
+    def pre_run(self) -> None:
+        # 校验上下文机制
+        ctx = get_current_context()
+        if ctx is None:
+            raise UnexpectedError("No context is working.")
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         all_layers = self._analysis_method.get_target_layers(request.module, request.name)
@@ -114,9 +121,9 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
 
     def post_run(self) -> None:
         ctx = get_current_context()
-        ctx["layer_analysis"].state["layer_scores"] = self._layer_scores
-        ctx["layer_analysis"].state["method"] = self._analysis_method.name
-        ctx["layer_analysis"].state["patterns"] = self.config.patterns
+        ctx["layer_analysis"].debug["layer_scores"] = self._layer_scores
+        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
+        ctx["layer_analysis"].debug["patterns"] = self.config.patterns
 
         get_logger().info(
             "UnaryAnalysisProcessor post_run: %d layer scores computed (%s)",

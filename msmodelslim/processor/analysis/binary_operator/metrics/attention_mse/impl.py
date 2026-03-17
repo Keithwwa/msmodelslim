@@ -23,10 +23,11 @@ from typing import Dict, Any, Callable
 import torch
 import torch.nn as nn
 
+from msmodelslim.processor.analysis.methods_base import AnalysisTargetMatcher
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError, UnsupportedError
 from .interface import AttentionMSEAnalysisInterface
-from ..methods_base import AnalysisTargetMatcher, BinaryAnalysisMethod
+from ..base import BinaryAnalysisMethod
 
 logger = get_logger()
 
