@@ -411,6 +411,8 @@ class GLM5ModelAdapter(TransformersModel,
         return [pre_run], [pair for pair in rot_pairs.values()]
 
     def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
+        from msmodelslim.utils.security import json_safe_dump
+
         global_rotation, norm_weight = None, None
         
         # catch the global rotation
@@ -422,7 +424,10 @@ class GLM5ModelAdapter(TransformersModel,
             raise UnsupportedError("Global rotation is not found.")
         
         # catch the original model.norm.weight
-        weight_path = os.path.join(self.model_path, "model-00282-of-00282.safetensors")
+        origin_index_path = os.path.join(self.model_path, "model.safetensors.index.json")
+        origin_index_data = json_safe_load(origin_index_path)
+
+        weight_path = os.path.join(self.model_path, origin_index_data["weight_map"]["model.norm.weight"])
         with safe_open(weight_path, framework='pt', device='cpu') as f:
             norm_weight = f.get_tensor("model.norm.weight")
         if norm_weight is None:
@@ -454,7 +459,6 @@ class GLM5ModelAdapter(TransformersModel,
         save_file({"rot.weight": rot_weight}, os.path.join(save_directory, "rot.safetensors"))
 
         # update quant_model_description.json
-        from msmodelslim.utils.security import json_safe_dump
         description_path = os.path.join(save_directory, "quant_model_description.json")
         description_data = json_safe_load(description_path)
         description_data["is_rot_used"] = True
