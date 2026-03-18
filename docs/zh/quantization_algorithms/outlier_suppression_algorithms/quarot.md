@@ -29,15 +29,15 @@
 
 ### 实现
 
-算法在 `msmodelslim/processor/quarot/offline_quarot/quarot.py` 中实现，处理流程如下：
+算法在 [msmodelslim/processor/quarot/offline_quarot/quarot.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quarot/offline_quarot/quarot.py) 中实现。
 
-**处理流程时序图**
+#### 处理流程时序图
 
 以下时序图展示了QuaRot算法的完整处理流程，包括Runner、QuaRotProcessor、ModelAdapter和LAOSOnlineRotationProcessor之间的交互：
 
 ![QuaRot处理流程时序图](../figures/quarot_processing_sequence_diagram.png)
 
-#### 1) pre_run阶段
+#### pre_run阶段
 
 pre_run阶段在Runner开始逐层调度前执行，主要完成以下操作：
 
@@ -62,7 +62,7 @@ pre_run阶段在Runner开始逐层调度前执行，主要完成以下操作：
 
 **导出全局旋转信息（可选）：**
 
-- 若配置项`export_extra_info`为 True 且存在旋转命令，则向首个旋转目标模块注册`QuaRotExtraInfoHookIR`，在保存阶段由 Saver 将全局旋转矩阵写入 `optional.quarot.global_rotation`（独立 safetensors 及 JSON 描述），便于推理侧加载；若为 False 则不注入该 Hook，不导出上述信息。
+- 若配置项`export_extra_info`为 True，则向首个旋转目标模块注册`QuaRotExtraInfoHookIR`。注入相应 HookIR 后，若使用 ascend_v1_saver 时，会在量化权重路径下生成 optional 目录保存额外的 safetensors，其中包含了 QuaRot 算法所应用的全局旋转矩阵，同时会在量化权重路径下的 quant_model_description.json 中追加额外的描述字段；若为 False 则不注入该 Hook，不导出上述信息。
 
 **在线旋转初始化（可选）：**
 
@@ -72,7 +72,7 @@ pre_run阶段在Runner开始逐层调度前执行，主要完成以下操作：
     - 创建在线旋转矩阵（rot1, rot2, rot_online_o_proj）和identity矩阵。
     - 创建`QuarotOnlineRotationInfo`对象保存旋转信息。
 
-#### 2) preprocess阶段
+#### preprocess阶段
 
 preprocess阶段在Runner调度每个DecoderLayer时执行，逐层处理每个decoder层。
 
@@ -99,7 +99,7 @@ preprocess阶段在Runner调度每个DecoderLayer时执行，逐层处理每个d
       对down_proj进行在线旋转（使用Kronecker积旋转矩阵）。
     - 为down_proj注册`QuarotKroneckerRotationHookIR`，为o_proj注册`QuarotHeadsRotationHookIR`，这些HookIR在前向传播时执行旋转操作。
 
-#### 3) post_run阶段
+#### post_run阶段
 
 post_run阶段在Runner结束调度后执行，主要完成以下操作：
 
@@ -152,7 +152,7 @@ QuaRot算法目前支持以下模型系列：
   block_size: -1                         # 整数, 取值范围为-1或大于0的2的幂，表示启用块对角矩阵时每个块的大小，若为-1，表示不进行块对角矩阵处理。
   max_tp_size: 4                         # 整数，默认为4，该配置项仅在启用在线旋转时生效。最大张量并行大小，必须大于0且为2的幂或等于1，拉起模型时设置的tp值必须<=max_tp_size。
   down_proj_online_layers: [ ]            # 整数列表，默认为空。用于指定哪些层的down_proj使用在线旋转。
-  export_extra_info: True                # 布尔值，默认为 True。为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，用于在导出时生成 optional.quarot.global_rotation（全局旋转矩阵的独立 safetensors 及 JSON 描述），便于推理侧加载；设为 False 则不导出该信息。
+  export_extra_info: True                # 布尔值，默认为 True。为 True 时注入相应 HookIR；若使用 ascend_v1_saver，会在量化权重路径下生成 optional 目录保存额外 safetensors（含全局旋转矩阵），并在 quant_model_description.json 中追加描述字段；设为 False 则不导出。
 ```
 
 ### YAML配置示例
@@ -165,7 +165,7 @@ spec:
       block_size: -1                     # 旋转矩阵启用块对角矩阵时每个块的大小, 取值范围为-1或2的幂次方，如果大于0必须为2的幂，若为-1，表示不进行块对角矩阵处理
       max_tp_size: 4                     # 最大张量并行大小，默认为4，仅在启用在线旋转时生效，必须大于0且为2的幂，拉起模型时设置的tp值必须<=max_tp_size
       down_proj_online_layers: [ ]        # 用于指定哪些层的down_proj使用在线旋转，默认为空
-      export_extra_info: True            # 是否导出 optional.quarot.global_rotation（全局旋转矩阵），默认为 True
+      export_extra_info: True            # 是否导出全局旋转矩阵：使用 ascend_v1_saver 时在量化权重路径下生成 optional 目录及 quant_model_description.json 追加字段，默认为 True
 ```
 
 ### YAML配置字段详解
@@ -177,7 +177,7 @@ spec:
 | block_size              | 旋转矩阵的对角块大小     | `int`        | 旋转矩阵的对角块大小，取值范围为-1或大于0的2的幂，若为-1表示不进行块对角矩阵处理 | `-1`       |
 | max_tp_size             | 最大张量并行大小       | `int`        | 该配置项仅在启用在线旋转时生效，最大张量并行大小，必须大于0且为2的幂或等于1     | `4`        |
 | down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
-| export_extra_info       | 是否导出全局旋转信息     | `bool`       | 为 True 时在 pre_run 中向首个旋转目标模块注入 QuaRotExtraInfoHookIR，导出时生成 optional.quarot.global_rotation（全局旋转矩阵的独立 safetensors 及 JSON 描述），便于推理侧加载；为 False 则不导出 | `True`     |
+| export_extra_info       | 是否导出全局旋转信息     | `bool`       | 为 True 时注入相应 HookIR；若使用 ascend_v1_saver，会在量化权重路径下生成 optional 目录保存额外 safetensors（含 QuaRot 全局旋转矩阵），并在 quant_model_description.json 中追加描述字段；为 False 则不导出 | `True`     |
 
 ## 模型适配 {#模型适配}
 
@@ -359,7 +359,7 @@ class LAOSOnlineRotationInterface:
         - 实现`get_ln_fuse_map()`：返回LayerNorm与Linear层的融合映射。
         - 实现`get_bake_names()`：返回需要mean融合的Linear层名称列表（通常返回空列表）。
         - 实现`get_rotate_map(block_size)`：返回旋转映射对，包括pre_run和preprocess阶段的旋转配置。
-        - 可参考`msmodelslim/model/qwen3/model_adapter.py`或`msmodelslim/model/deepseek_v3/model_adapter.py`的实现。
+        - 可参考 [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) 或 [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/deepseek_v3/model_adapter.py) 的实现。
 
     2. **实现LAOSOnlineRotationInterface（可选，仅当需要在线旋转时）**：
         - 如果配置中`online: True`，需要同时实现`LAOSOnlineRotationInterface`接口。
@@ -370,13 +370,12 @@ class LAOSOnlineRotationInterface:
 
 ## FAQ
 
-### 1. 旋转矩阵创建失败
+### 旋转矩阵创建失败
 
 - **现象**：输入模型的维度暂未被支持，导致旋转矩阵创建失败。
-- **解决方案**：请先确定指定维度的 Hadamard 矩阵存在，参考 `msmodelslim/processor/quarot/hadamard_txt` 添加特定维度的矩阵，并且在
-  `msmodelslim/processor/quarot/hadamard.py` 进行补充。
+- **解决方案**：请先确定指定维度的 Hadamard 矩阵存在，参考 [msmodelslim/processor/quarot/common/hadamard_txt](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/processor/quarot/common/hadamard_txt) 添加特定维度的矩阵，并在 [msmodelslim/processor/quarot/common/hadamard.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quarot/common/hadamard.py) 进行补充。
 
-### 2. 张量并行配置错误
+### 张量并行配置错误
 
 - **现象**：在使用推理引擎以TP并行的方式进行部署时出现精度异常。
 - **原因**：`tp_size`不是2的幂，或者`tp_size`大于QuaRot配置的`max_tp_size`。
@@ -385,7 +384,7 @@ class LAOSOnlineRotationInterface:
     - 确保`tp_size` ≤ `max_tp_size`。
     - 检查推理引擎是否支持在线旋转算子。
 
-### 3. 在线旋转性能问题
+### 在线旋转性能问题
 
 - **现象**：启用在线旋转后推理性能下降明显。
 - **原因**：在线旋转需要插入额外的算子，会增加计算开销。
@@ -394,11 +393,11 @@ class LAOSOnlineRotationInterface:
     - 考虑仅使用离线旋转（`online: False`）来平衡精度和性能。
     - 确保推理框架对在线旋转算子有良好支持。
 
-### 4. 模型适配失败
+### 模型适配失败
 
 - **现象**：模型适配器无法正确识别模型结构，导致旋转操作插入失败。
 - **原因**：模型结构不兼容或适配器实现不完整。
 - **解决方案**：
     - 确保模型基于Transformer decoder架构。
     - 检查适配器是否正确实现了所有`QuaRotInterface`接口方法（如果启用在线旋转，还需实现`LAOSOnlineRotationInterface`）。
-    - 参考 `msmodelslim/model/qwen3/model_adapter.py` 或 `msmodelslim/model/deepseek_v3/model_adapter.py` 的实现示例。
+    - 参考 [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) 或 [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/deepseek_v3/model_adapter.py) 的实现示例。
