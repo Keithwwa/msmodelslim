@@ -48,6 +48,7 @@ from msmodelslim.model.interface_hub import (
     AscendV1SaveInterface,
 )
 from msmodelslim.model.common.vlm_base import VLMBaseModelAdapter
+from msmodelslim.utils.exception import InvalidDatasetError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import get_valid_read_path, json_safe_load, json_safe_dump, MAX_READ_FILE_SIZE_32G
 
@@ -191,7 +192,10 @@ class Qwen3OmniMoeThinkerModelAdapter(
             processed_data.append(processed_item)
 
         if len(processed_data) == 0:
-            raise ValueError("No valid multimodal samples found in dataset")
+            raise InvalidDatasetError(
+                "No valid multimodal samples found in dataset for Qwen3-Omni. "
+                "Qwen3-Omni currently requires four modalities (text, image, audio, video) for calibration."
+            )
 
         get_logger().info(
             f"Processed {len(processed_data)} Qwen3-Omni-Moe multimodal samples"

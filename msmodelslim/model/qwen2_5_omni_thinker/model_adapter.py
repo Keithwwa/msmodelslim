@@ -45,6 +45,7 @@ from msmodelslim.model.interface_hub import (
     AscendV1SaveInterface
 )
 from msmodelslim.model.common.vlm_base import VLMBaseModelAdapter
+from msmodelslim.utils.exception import InvalidDatasetError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import get_valid_read_path, json_safe_load, json_safe_dump, MAX_READ_FILE_SIZE_32G
 
@@ -199,7 +200,7 @@ class Qwen25OmniThinkerModelAdapter(
             processed_data.append(processed_item)
 
         if len(processed_data) == 0:
-            raise ValueError(
+            raise InvalidDatasetError(
                 "No valid multimodal samples found in dataset for Qwen2.5 Omni. "
                 "Qwen2.5 Omni currently requires four modalities (text, image, audio, video) for calibration."
             )

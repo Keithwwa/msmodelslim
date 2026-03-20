@@ -17,6 +17,7 @@ import torch.nn as nn
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.infra.dataset_loader import VlmCalibSample
 from msmodelslim.model.qwen2_5_omni_thinker.model_adapter import Qwen25OmniThinkerModelAdapter
+from msmodelslim.utils.exception import InvalidDatasetError
 
 
 class _DummyDecoderLayer(nn.Module):
@@ -221,7 +222,7 @@ class TestQwen2_5OmniThinkerModelAdapter:
 
     def test_handle_dataset_raise_value_error_when_missing_required_modalities(self, adapter, mock_processor):
         samples = [VlmCalibSample(text="sample", image="image.jpg", audio="audio.wav")]
-        with pytest.raises(ValueError, match="No valid multimodal samples found"):
+        with pytest.raises(InvalidDatasetError, match="No valid multimodal samples found"):
             adapter.handle_dataset(samples, torch.device("cpu"))
 
     def test_init_model_return_model_when_from_pretrained_success(self, adapter, mock_model_class):
