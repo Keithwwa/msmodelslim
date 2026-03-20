@@ -110,9 +110,13 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
     
     支持四种旋转模式：
     - input: 在模块输入处旋转（使用 forward_pre_hook）
+
     - output: 在模块输出处旋转（使用 forward_hook）
+
     - replace: 替换模块，只执行旋转（使用 WrapperIR）
+
     - offline: 离线旋转，直接作用在模型参数上（使用 rotate_linear）
+
     """
 
     def __init__(
@@ -216,23 +220,10 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
         for relative_name, (full_module_name, rot_config) in filtered_configs.items():
             if not self._should_apply_rotation(full_module_name):
                 continue
-            
-            try:
-                # 获取模块
-                module = request.module.get_submodule(relative_name)
-                rotation_info = self.rotation_infos[full_module_name]
-                
-                # 根据旋转类型应用旋转
-                self._apply_rotation(module, full_module_name, rotation_info, request)
-            except AttributeError:
-                get_logger().warning(
-                    f"Module {relative_name} not found in {request.name}, skipping rotation"
-                )
-            except Exception as e:
-                get_logger().error(
-                    f"Failed to apply rotation to {full_module_name}: {e}",
-                    exc_info=True
-                )
+            # 获取旋转信息
+            rotation_info = self.rotation_infos[full_module_name]
+            # 根据旋转类型应用旋转（模块获取逻辑移到各个策略函数中）
+            self._apply_rotation(relative_name, full_module_name, rotation_info, request)
 
     def post_run(self) -> None:
         """后处理阶段：转换 HookIR 为 WrapperIR"""
@@ -266,7 +257,7 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
 
     def _apply_input_rotation(
             self,
-            module: nn.Module,
+            relative_name: str,
             full_module_name: str,
             rotation_info: qir.OnlineRotationInfo,
             request: BatchProcessRequest
@@ -274,6 +265,8 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
         """
         处理 INPUT 类型旋转：在模块输入处旋转（使用 forward_pre_hook）。
         """
+        # 获取模块
+        module = request.module.get_submodule(relative_name)
         hook_ir = qir.OnlineRotationInputHookIR(full_module_name, rotation_info)
         hook_handle = module.register_forward_pre_hook(hook_ir)
         hook_ir.set_hook_handle(hook_handle)
@@ -281,7 +274,7 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
 
     def _apply_output_rotation(
             self,
-            module: nn.Module,
+            relative_name: str,
             full_module_name: str,
             rotation_info: qir.OnlineRotationInfo,
             request: BatchProcessRequest
@@ -289,6 +282,8 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
         """
         处理 OUTPUT 类型旋转：在模块输出处旋转（使用 forward_hook）。
         """
+        # 获取模块
+        module = request.module.get_submodule(relative_name)
         hook_ir = qir.OnlineRotationOutputHookIR(full_module_name, rotation_info)
         hook_handle = module.register_forward_hook(hook_ir)
         hook_ir.set_hook_handle(hook_handle)
@@ -296,24 +291,60 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
 
     def _apply_replace_rotation(
             self,
-            module: nn.Module,
+            relative_name: str,
             full_module_name: str,
             rotation_info: qir.OnlineRotationInfo,
             request: BatchProcessRequest
     ) -> None:
         """
         处理 REPLACE 类型旋转：替换模块，只执行旋转（使用 WrapperIR）。
+        1. 首先尝试获取目标模块并包装替换
+        2. 如果目标模块不存在，在父模块中挂载 Identity 模块后再包装替换
         """
-        wrapper = qir.OnlineRotationWrapper(module, full_module_name, rotation_info)
-        # 获取相对名称以替换模块
-        relative_name = full_module_name[len(request.name) + 1:] if request.name and full_module_name.startswith(request.name + ".") else full_module_name
-        # 使用 request.module 的 set_submodule 方法
-        request.module.set_submodule(relative_name, wrapper)
-        get_logger().debug(f"Applied replace rotation to {full_module_name}")
+        # 计算相对于 request.module 的模块路径
+        if request.name and full_module_name.startswith(request.name + "."):
+            relative_path = full_module_name[len(request.name) + 1:]
+        else:
+            relative_path = full_module_name
+        
+        try:
+            # 尝试直接获取目标模块
+            target_module = request.module.get_submodule(relative_name)
+            wrapper = qir.OnlineRotationWrapper(target_module, full_module_name, rotation_info)
+            request.module.set_submodule(relative_path, wrapper)
+            get_logger().debug(f"Applied replace rotation to {full_module_name}")
+            
+        except AttributeError:
+            # 模块不存在，尝试在父模块中挂载 Identity
+            parent_path, _, child_name = relative_name.rpartition(".")
+            
+            if not parent_path:  # 如果没有父模块路径
+                get_logger().error(f"Cannot find parent module for {relative_name}")
+                return
+                
+            # 查找父模块
+            parent_module = None
+            for name, module in request.module.named_modules():
+                if name.endswith(parent_path):
+                    parent_module = module
+                    break
+            
+            if not parent_module:
+                get_logger().error(f"Parent module {parent_path} not found")
+                return
+            
+            # 挂载 Identity 模块
+            parent_module.register_module(child_name, nn.Identity())
+            identity_module = parent_module.get_submodule(child_name)
+            
+            # 包装 Identity 模块
+            wrapper = qir.OnlineRotationWrapper(identity_module, child_name, rotation_info)
+            request.module.set_submodule(relative_path, wrapper)
+            get_logger().debug(f"Applied replace rotation to {full_module_name} (with Identity module)")
 
     def _apply_offline_rotation(
             self,
-            module: nn.Module,
+            relative_name: str,
             full_module_name: str,
             rotation_info: qir.OnlineRotationInfo,
             request: BatchProcessRequest
@@ -321,6 +352,9 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
         """
         处理 OFFLINE 类型旋转：直接作用在模型参数上（使用 rotate_linear）。
         """
+        # 获取模块
+        module = request.module.get_submodule(relative_name)
+        
         if not hasattr(module, 'weight') or module.weight is None or module.weight.dim() != 2:
             raise UnsupportedError(
                 f"Offline rotation only supports modules with weight attribute and weight dimension is 2, "
@@ -345,6 +379,7 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
                 action=f"Please check the rotation matrix size matches the weight dimensions"
             ) from e
 
+
     def _handle_unknown_rotation_type(
             self,
             rotation_type: RotationType,
@@ -357,7 +392,7 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
 
     def _apply_rotation(
             self,
-            module: nn.Module,
+            relative_name: str,
             full_module_name: str,
             rotation_info: qir.OnlineRotationInfo,
             request: BatchProcessRequest
@@ -373,7 +408,6 @@ class OnlineQuaRotProcessor(AutoSessionProcessor):
         strategy = self._rotation_strategies.get(rotation_type)
         
         if strategy:
-            strategy(module, full_module_name, rotation_info, request)
+            strategy(relative_name, full_module_name, rotation_info, request)
         else:
             self._handle_unknown_rotation_type(rotation_type, full_module_name)
-

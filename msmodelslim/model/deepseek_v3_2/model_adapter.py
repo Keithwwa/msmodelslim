@@ -21,15 +21,17 @@ See the Mulan PSL v2 for more details.
 import os.path
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Any, Generator, Optional, Tuple, Dict, Union
+from typing import List, Any, Generator, Optional, Tuple, Dict, Union, Callable
 from unittest.mock import patch
 
 import torch
 from safetensors import safe_open
 from torch import distributed as dist
 from torch import nn
+from einops import rearrange
 from tqdm import tqdm
 
+from msmodelslim import ir as qir
 from msmodelslim.app.naive_quantization.model_info_interface import ModelInfoInterface
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
@@ -38,21 +40,27 @@ from msmodelslim.model.deepseek_v3.quarot import get_ln_fuse_map, get_rotate_map
 from msmodelslim.processor.quarot import QuaRotInterface
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
-from msmodelslim.utils.security import get_valid_read_path, json_safe_load, MAX_READ_FILE_SIZE_32G
+from msmodelslim.utils.security import get_valid_read_path, json_safe_load, json_safe_dump, MAX_READ_FILE_SIZE_32G
 from .convert_fp8_to_bf16 import auto_convert_module_fp8_to_bf16
-from .model import Transformer, ModelArgs
+from .model import Transformer, ModelArgs, weight_dequant
 from .mtp_quant_module import get_mtp_layer, wrap_mtp_decoder, remove_zero_and_shift
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, TransformersForwardBreak
 from ..default.model_adapter import DefaultModelAdapter
-from ..interface_hub import ModelSlimPipelineInterfaceV1, FlexSmoothQuantInterface
+from ..interface_hub import ModelSlimPipelineInterfaceV1, FlexSmoothQuantInterface, \
+                            FA3QuantAdapterInterface, FA3QuantPlaceHolder, OnlineQuaRotInterface, \
+                            AttentionAnalysisInterface, AscendV1SaveInterface
 
 
 @logger_setter("msmodelslim.model.deepseek_v3_2")
 class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                               ModelInfoInterface,
+                              AttentionAnalysisInterface,
                               ModelSlimPipelineInterfaceV1,
                               FlexSmoothQuantInterface,
-                              QuaRotInterface
+                              FA3QuantAdapterInterface,  # support FA3 activation quant placeholders
+                              QuaRotInterface,
+                              OnlineQuaRotInterface,
+                              AscendV1SaveInterface
                               ):
     def get_model_pedigree(self) -> str:
         return 'deepseek_v3_2'
@@ -385,5 +393,183 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 rotate_matrix['rot_b_proj']
         return [pre_run], [pair for pair in rot_pairs.values()]
 
+    # ===== OnlineQuaRotInterface =====
+    def get_online_rotation_configs(self, model: Optional[nn.Module] = None):
+        """
+        返回在线旋转配置，配置 Indexer 的 q 和 k 旋转矩阵。
+        
+        在此方法中直接给 Indexer 模块挂载 q_rot 和 k_rot Identity 模块。
+        
+        Args:
+            model: 可选的模型实例，如果提供，会在此方法中挂载 Identity 模块
+        
+        Returns:
+            Dict[str, RotationConfig]: 模块名到旋转配置的映射
+        """
+        configs = {}
+        # 配置旋转，q_rot 和 k_rot 使用相同的随机数种子，确保生成相同的旋转矩阵
+        shared_seed = 1234  # q_rot 和 k_rot 共享的随机数种子
+        
+        
+        # 获取 head_dim - 从 Indexer 配置获取
+        head_dim = self.config.index_head_dim
+
+        # 为所有 Indexer 模块配置旋转
+        for layer_idx in range(self.config.num_hidden_layers):
+            name = f"model.layers.{layer_idx}.self_attn.indexer"
+            
+            # 配置 q_rot
+            q_rot_path = f"{name}.q_rot"
+            configs[q_rot_path] = OnlineQuaRotInterface.RotationConfig(
+                rotation_type="replace",
+                rotation_size=head_dim,
+                rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
+                block_size=-1,
+                seed=shared_seed,
+                dtype=torch.bfloat16
+            )
+            
+            # 配置 k_rot（使用相同的种子，确保与 q_rot 使用相同的旋转矩阵）
+            k_rot_path = f"{name}.k_rot"
+            configs[k_rot_path] = OnlineQuaRotInterface.RotationConfig(
+                rotation_type="replace",
+                rotation_size=head_dim,
+                rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
+                block_size=-1,
+                seed=shared_seed,
+                dtype=torch.bfloat16
+            )
+        
+        return configs
+
     def _load_config(self, trust_remote_code=False) -> object:
         return ModelArgs()
+
+    # ===== FA3QuantAdapterInterface =====
+    def inject_fa3_placeholders(self, root_name: str, root_module: nn.Module, should_inject) -> None:
+        """为 DeepSeekV3.2 的Indexer模块安装 FA3 占位，并包裹 forward 调用这些占位。
+        
+        - SFA TODO: 在每个 Attention 模块下注入子模块：fa3_q, fa3_k, fa3_v
+
+        - 在每个 Indexer 模块下注入子模块：fa3_indexer_q, fa3_indexer_k
+
+        - 包裹其 forward，在关键计算点插入占位调用
+
+        """
+        from importlib import import_module
+        from .model import apply_rotary_emb, rotate_activation, fp8_index
+
+        def _wrap_indexer_forward(indexer_mod: nn.Module):
+            """包裹Indexer模块的forward方法"""
+            deepseek_module = import_module(indexer_mod.forward.__module__)
+            apply_rotary_emb = deepseek_module.apply_rotary_emb
+
+            def new_indexer_forward(
+                    self,
+                    x: torch.Tensor, 
+                    qr: torch.Tensor, 
+                    start_pos: int, 
+                    freqs_cis: torch.Tensor,
+                    mask: Optional[torch.Tensor]
+            ):
+                bsz, seqlen, _ = x.size()
+                end_pos = start_pos + seqlen
+                
+                # Q路径：wq_b(qr) → RoPE → Hadamard旋转 → FA3量化
+                q = self.wq_b(qr)
+                q = rearrange(q, 'b s (h d) -> b s h d', d=self.head_dim)
+                q_pe, q_nope = torch.split(q, [self.rope_head_dim, self.head_dim - self.rope_head_dim], dim=-1)
+                q_pe = apply_rotary_emb(q_pe, freqs_cis)
+                q = torch.cat([q_pe, q_nope], dim=-1)
+
+                # K路径：wk(x) → LayerNorm → RoPE → Hadamard旋转 → FA3量化
+                k = self.wk(x)
+                k = self.k_norm(k)
+                k_pe, k_nope = torch.split(k, [self.rope_head_dim, self.head_dim - self.rope_head_dim], dim=-1)
+                k_pe = apply_rotary_emb(k_pe.unsqueeze(2), freqs_cis).squeeze(2)
+                k = torch.cat([k_pe, k_nope], dim=-1)
+                
+                # ===== 应用在线旋转 =====
+                # 优先使用 q_rot 模块（在线旋转）
+                if hasattr(self, 'q_rot'):
+                    q = self.q_rot(q)
+                else:
+                    # 如果没有在线旋转，使用原来的 rotate_activation
+                    q = rotate_activation(q)
+                # 优先使用 k_rot 模块（在线旋转）
+                if hasattr(self, 'k_rot'):
+                    k = self.k_rot(k)
+                else:
+                    # 如果没有在线旋转，使用原来的 rotate_activation
+                    k = rotate_activation(k)
+                # ====================================================
+
+                # ===== 插入 Indexer 的 FA3 占位 =====
+                if hasattr(self, 'fa3_q'):
+                    q = self.fa3_q(q)
+                if hasattr(self, 'fa3_k'):
+                    k = self.fa3_k(k)
+                # ===================================
+
+                q_scale = torch.ones(*q.size()[:-1], q.size(-1) // 128, dtype=torch.float32).npu()
+                weights = self.weights_proj(x) * self.n_heads ** -0.5
+                weights = weights.unsqueeze(-1) * q_scale * self.softmax_scale
+                
+                k = k.view(bsz, -1, 1, self.head_dim)
+                index_score = fp8_index(q.contiguous(), weights, k)
+                
+                if mask is not None:
+                    index_score += mask
+                topk_indices = index_score.topk(min(self.index_topk, end_pos), dim=-1)[1]
+                return topk_indices.clone()
+
+            # 替换 forward 方法
+            indexer_mod.forward = new_indexer_forward.__get__(indexer_mod, indexer_mod.__class__)
+
+        for name, module in root_module.named_modules():
+            module_type = module.__class__.__name__
+            
+            # 检查是否是目标模块类型
+            if module_type not in ["Indexer"]:
+                continue
+            
+            full_name = f"{root_name}.{name}" if root_name else name
+            if not should_inject(full_name):
+                continue
+            
+            if name == "":
+                prefix = ""
+            else:
+                prefix = f"{name}."
+            root_module.set_submodule(f'{name}.fa3_q', FA3QuantPlaceHolder(ratio=0.9999))
+            root_module.set_submodule(f'{name}.fa3_k', FA3QuantPlaceHolder(ratio=0.9999))
+            _wrap_indexer_forward(module)
+
+    def get_attention_module_cls(self) -> str:
+        return "MLA"
+
+    def get_attention_output_extractor(self) -> Callable[[Union[tuple, torch.Tensor]], torch.Tensor]:
+        return lambda x: x
+    
+    def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
+        """
+        根据 vLLM-Ascend 要求在deepseek Indexer c8动态量化场景下,
+        quant_model_description.json 中添加以下字段:
+        - indexer_quant_type: "INT8_DYNAMIC"
+        Args:
+            model: 模型
+            save_directory: 导出件的保存目录
+        """
+        use_per_token_c8 = False
+        for _, module in model.named_modules():
+            if isinstance(module, qir.FakeQuantActivationPerToken):
+                use_per_token_c8 = True
+                break
+
+        if use_per_token_c8:
+            description_file = os.path.join(save_directory, "quant_model_description.json")
+            description_data = json_safe_load(description_file, check_user_stat=False)
+            description_data["indexer_quant_type"] = "INT8_DYNAMIC"
+            json_safe_dump(description_data, description_file, indent=2, check_user_stat=False)
+
+        return
