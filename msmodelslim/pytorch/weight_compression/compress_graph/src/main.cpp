@@ -236,7 +236,10 @@ int main(int argc, char *argv[])
     GraphUtils::GetDataSizeFromShape(inputWeightShape, compress_size);
     int64_t tileNumN = (inputWeightShape[1] + 8 - 1) / 8;
     int64_t tileNumK = (inputWeightShape[0] + 8 - 1) / 8;
-    int64_t indexBaseSize = isTight ? 8 : 2;
+    int64_t indexBaseSize = 2;
+    if (isTight != 0) {
+        indexBaseSize = 8;
+    }
     int64_t index_size = indexBaseSize * tileNumK * tileNumN;
     /*
    (0)compressed_size,

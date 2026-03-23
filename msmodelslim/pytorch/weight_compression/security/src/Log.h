@@ -30,20 +30,41 @@ constexpr int LOG_INFO_LEVEL = 2;
 constexpr int LOG_WARNING_LEVEL = 3;
 constexpr int LOG_ERROR_LEVEL = 4;
 
-extern int g_frizyLogLevel;
-
 namespace Base {
+class LogManager {
+public:
+    static LogManager& GetInstance() {
+        static LogManager instance;
+        return instance;
+    }
+
+    void SetLogLevel(int level) {
+        logLevel_ = level;
+    }
+
+    int GetLogLevel() const {
+        return logLevel_;
+    }
+
+private:
+    LogManager() : logLevel_(LOG_INFO_LEVEL) {}
+    LogManager(const LogManager&) = delete;
+    LogManager& operator=(const LogManager&) = delete;
+
+    int logLevel_;
+};
+
 void SETLOGLEVEL(int level);
 }
 
 
-#define DEBUG_LOG(fmt, args...)  do { if (g_frizyLogLevel <= LOG_DEBUG_LEVEL) \
+#define DEBUG_LOG(fmt, args...)  do { if (Base::LogManager::GetInstance().GetLogLevel() <= LOG_DEBUG_LEVEL) \
     { printf("[DEBUG] " fmt "\n", ##args); fflush(stdout); } } while (0)
-#define INFO_LOG(fmt, args...)  do { if (g_frizyLogLevel <= LOG_INFO_LEVEL) \
+#define INFO_LOG(fmt, args...)  do { if (Base::LogManager::GetInstance().GetLogLevel() <= LOG_INFO_LEVEL) \
     { printf("[INFO] " fmt "\n", ##args); fflush(stdout); } } while (0)
-#define WARN_LOG(fmt, args...)  do { if (g_frizyLogLevel <= LOG_WARNING_LEVEL) \
+#define WARN_LOG(fmt, args...)  do { if (Base::LogManager::GetInstance().GetLogLevel() <= LOG_WARNING_LEVEL) \
     { printf("[WARN] " fmt "\n", ##args); fflush(stdout); } } while (0)
-#define ERROR_LOG(fmt, args...)  do { if (g_frizyLogLevel <= LOG_ERROR_LEVEL) \
+#define ERROR_LOG(fmt, args...)  do { if (Base::LogManager::GetInstance().GetLogLevel() <= LOG_ERROR_LEVEL) \
     { printf("[ERROR] " fmt "\n", ##args); fflush(stdout); } } while (0)
 #define ACLERR_LOG(ErrMsg) printf("[ACL ERROR] %s\n", ErrMsg)
 #define PROMPT_MSG(fmt, args...) printf(fmt, ##args)
