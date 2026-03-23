@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
+from decimal import Decimal
 from typing import Generator, List, Optional, Annotated
 
 from pydantic import BaseModel, Field, AfterValidator
@@ -34,7 +35,7 @@ TUNING_STRATEGY_PLUGIN_PATH = "msmodelslim.tuning_strategy.plugins"
 
 class EvaluateAccuracy(BaseModel):
     dataset: str
-    accuracy: float
+    accuracy: Decimal
 
 
 class AccuracyExpectation(BaseModel):
@@ -42,8 +43,8 @@ class AccuracyExpectation(BaseModel):
         str,
         AfterValidator(validate_str_length())
     ] = Field(description="数据集名称")
-    target: float = Field(gt=0.0, description="目标精度值，必须 > 0")
-    tolerance: float = Field(ge=0.0, description="容差值，必须 >= 0")
+    target: Decimal = Field(gt=Decimal('0'), description="目标精度，必须 > 0")
+    tolerance: Decimal = Field(ge=Decimal('0'), description="相对目标精度可容忍的偏差，必须 >= 0")
 
 
 class EvaluateResult(BaseModel):

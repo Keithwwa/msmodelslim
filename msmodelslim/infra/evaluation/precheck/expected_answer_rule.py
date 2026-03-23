@@ -15,6 +15,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+from decimal import Decimal
 from typing import List, Optional, Union, Any, Literal, Annotated
 
 from pydantic import BaseModel, Field, field_validator, AfterValidator
@@ -163,7 +164,7 @@ class ExpectedAnswerRule(BasePrecheckRule):
                         f"Expected: {test_case.expected_answer}. Skipping evaluation stage."
                     )
                     return [
-                        EvaluateAccuracy(dataset=dataset, accuracy=0.0)
+                        EvaluateAccuracy(dataset=dataset, accuracy=Decimal('0'))
                         for dataset in datasets
                     ]
                 get_logger().debug(f"Expected answer test case {idx} passed: Expected answer found in response")

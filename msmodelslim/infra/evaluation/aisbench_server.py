@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details.
 import importlib.util
 import os
 import re
+from decimal import Decimal
 import shlex
 import time
 from pathlib import Path
@@ -221,7 +222,7 @@ class AisBenchServer:
 
         def fail_to_evaluate_dataset(dataset_type: str, log_content: str, *variables):
             get_logger().error(log_content, *variables)
-            results.append(EvaluateAccuracy(dataset=dataset_type, accuracy=0.0))
+            results.append(EvaluateAccuracy(dataset=dataset_type, accuracy=Decimal('0')))
 
         try:
             for dataset_name in self.datasets:
@@ -432,7 +433,7 @@ class AisBenchServer:
         get_logger().info(f"AISBench logs for {dataset_alias} saved to: {log_path}")
         return log_path
 
-    def _parse_accuracy(self, logs: str, dataset_alias: str) -> float:
+    def _parse_accuracy(self, logs: str, dataset_alias: str) -> Decimal:
         """
         从 AISBench 日志中解析精度。
         
@@ -449,7 +450,7 @@ class AisBenchServer:
                 f"[AISBench] Could not find 'Current exp folder':"
                 f" in AISBench logs for {dataset_alias}. Defaulting to 0.0."
             )
-            return 0.0
+            return Decimal('0')
 
         exp_folder = Path(match.group(1).strip())
         get_logger().debug(f"Found AISBench exp folder: {exp_folder}")
@@ -473,7 +474,7 @@ class AisBenchServer:
             get_logger().warning(
                 f"[AISBench] No JSON file found in {results_dir} for {dataset_alias}. Defaulting to 0.0."
             )
-            return 0.0
+            return Decimal('0')
 
         # 使用第一个找到的 JSON 文件
         json_file = json_files[0]
@@ -486,15 +487,16 @@ class AisBenchServer:
             get_logger().warning(
                 f"[AISBench] Failed to load JSON file {json_file} for {dataset_alias}: {e}. Defaulting to 0.0."
             )
-            return 0.0
+            return Decimal('0')
 
         if 'accuracy' not in data:
             get_logger().warning(
                 f"[AISBench] No 'accuracy' field found in {json_file} for {dataset_alias}. Defaulting to 0.0."
             )
-            return 0.0
+            return Decimal('0')
 
-        accuracy = float(data['accuracy'])
+        # 使用字符串构造 Decimal，避免 JSON 浮点与二进制浮点误差
+        accuracy = Decimal(str(data['accuracy']))
         get_logger().debug(f"[AISBench] Parsed accuracy from JSON: {accuracy} for {dataset_alias}")
         return accuracy
 

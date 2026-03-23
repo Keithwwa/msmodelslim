@@ -155,7 +155,7 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
                     evaluation_md5, practice_md5
                 )
             
-            evaluation_dict = evaluation.model_dump()
+            evaluation_dict = evaluation.model_dump(mode='json')
             accuracy_cache[composite_key] = evaluation_dict
             self._accuracy_cache = accuracy_cache
         

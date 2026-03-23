@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details.
 msmodelslim.infra.evaluation.precheck 模块的单元测试
 主要测试模型输出预检功能。单测不依赖插件加载，通过 mock 直接验证工厂与规则类业务逻辑。
 """
+from decimal import Decimal
 from unittest.mock import patch, MagicMock
 import pytest
 
@@ -167,7 +168,7 @@ class TestModelOutputPrechecker:
         assert result is not None
         assert len(result) == 1
         assert result[0].dataset == "test_dataset"
-        assert result[0].accuracy == 0.0
+        assert result[0].accuracy == Decimal('0')
 
     @patch('msmodelslim.infra.evaluation.precheck.prechecker.BasePrecheckRule.test_chat_via_api')
     @patch('msmodelslim.utils.plugin.plugin_utils.load_plugin_function', side_effect=_fake_load_plugin_function)
@@ -258,7 +259,7 @@ class TestExpectedAnswerRule:
 
         assert result is not None # 校验返回失败结果列表
         assert len(result) == 1 # 校验结果数量为1
-        assert result[0].accuracy == 0.0 # 校验accuracy为0.0
+        assert result[0].accuracy == Decimal('0') # 校验accuracy为0.0
     
     @patch('msmodelslim.infra.evaluation.precheck.expected_answer_rule.BasePrecheckRule.test_chat_via_api')
     def test_check_return_none_when_no_expected_answer(self, mock_test_chat):
@@ -325,7 +326,7 @@ class TestGarbledTextRule:
         
         assert result is not None # 校验返回失败结果列表
         assert len(result) == 1 # 校验结果数量为1
-        assert result[0].accuracy == 0.0 # 校验accuracy为0.0
+        assert result[0].accuracy == Decimal('0') # 校验accuracy为0.0
 
 
 class TestGarbledTextCheckItems:
@@ -436,7 +437,7 @@ class TestModelOutputPrecheckDecorator:
     def test_decorator_return_failed_results_when_precheck_failed(self, mock_prechecker_class):
         """测试预检查失败时返回失败结果且不执行原函数"""
         mock_prechecker = MagicMock()
-        mock_prechecker.check.return_value = [EvaluateAccuracy(dataset="test_dataset", accuracy=0.0)]
+        mock_prechecker.check.return_value = [EvaluateAccuracy(dataset="test_dataset", accuracy=Decimal('0'))]
         mock_prechecker_class.return_value = mock_prechecker
         
         @model_output_precheck
@@ -456,7 +457,7 @@ class TestModelOutputPrecheckDecorator:
         result = test_func(obj)
         assert result is not None  # 校验返回失败结果列表
         assert len(result) == 1  # 校验结果数量为1
-        assert result[0].accuracy == 0.0  # 校验accuracy为0.0
+        assert result[0].accuracy == Decimal('0')  # 校验accuracy为0.0
         mock_prechecker.check.assert_called_once()  # 校验调用check方法
 
 

@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details.
 """
 msmodelslim.infra.yaml_practice_accuracy_manager 模块的单元测试
 """
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 
@@ -45,7 +46,7 @@ def create_test_practice_config(config_id: str = "test_config") -> PracticeConfi
     return PracticeConfig(metadata=Metadata(config_id=config_id))
 
 
-def create_test_evaluate_result(accuracy: float = 0.95) -> EvaluateResult:
+def create_test_evaluate_result(accuracy: Decimal = Decimal('0.95')) -> EvaluateResult:
     return EvaluateResult(
         accuracies=[EvaluateAccuracy(dataset="test_dataset", accuracy=accuracy)],
         is_satisfied=True
@@ -100,14 +101,14 @@ class TestYamlTuningAccuracy:
         
         practice = create_test_practice_config("test_config")
         evaluation_config = create_test_evaluation_config()
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         assert accuracy.get_accuracy(practice, evaluation_config) is None  # 校验未添加精度时返回None
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result)
         result = accuracy.get_accuracy(practice, evaluation_config)
         assert result is not None  # 校验添加精度后返回结果
-        assert result.accuracies[0].accuracy == 0.95  # 校验精度值正确
+        assert result.accuracies[0].accuracy == Decimal('0.95')  # 校验精度值正确
     
     def test_append_accuracy_add_new_record_when_first_time_and_overwrite_when_exist(self, tmp_path: Path):
         """测试首次添加精度记录和覆盖已存在记录"""
@@ -116,8 +117,8 @@ class TestYamlTuningAccuracy:
         
         practice = create_test_practice_config("test_config")
         evaluation_config = create_test_evaluation_config()
-        evaluate_result1 = create_test_evaluate_result(0.9)
-        evaluate_result2 = create_test_evaluate_result(0.95)
+        evaluate_result1 = create_test_evaluate_result(Decimal('0.9'))
+        evaluate_result2 = create_test_evaluate_result(Decimal('0.95'))
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result1)
         assert accuracy.get_accuracy_count() == 1  # 校验新增记录时缓存数量为1
@@ -129,7 +130,7 @@ class TestYamlTuningAccuracy:
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result2)
         cached_result = EvaluateResult.model_validate(accuracy._accuracy_cache[composite_key])
-        assert cached_result.accuracies[0].accuracy == 0.95  # 校验覆盖记录时精度值被更新
+        assert cached_result.accuracies[0].accuracy == Decimal('0.95')  # 校验覆盖记录时精度值被更新
     
     def test_get_accuracy_count_return_zero_when_empty_and_return_one_when_added(self, tmp_path: Path):
         """测试精度缓存为空和添加一条精度记录时获取精度缓存数量"""
@@ -140,7 +141,7 @@ class TestYamlTuningAccuracy:
         
         practice = create_test_practice_config("config1")
         evaluation_config = create_test_evaluation_config("eval1")
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result)
         assert accuracy.get_accuracy_count() == 1  # 校验添加记录后返回1
@@ -153,7 +154,7 @@ class TestYamlTuningAccuracy:
         
         practice = create_test_practice_config("test_config")
         evaluation_config = create_test_evaluation_config()
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result)
         
@@ -165,7 +166,7 @@ class TestYamlTuningAccuracy:
         
         result = accuracy.get_accuracy(practice, evaluation_config)
         assert result is not None  # 校验能通过复合键获取精度
-        assert result.accuracies[0].accuracy == 0.95  # 校验精度值正确
+        assert result.accuracies[0].accuracy == Decimal('0.95')  # 校验精度值正确
 
 
 class TestYamlTuningAccuracyManager:

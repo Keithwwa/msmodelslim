@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details.
 msmodelslim.infra.yaml_practice_history_manager 模块的单元测试
 主要测试历史记录管理功能
 """
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import patch
 
@@ -41,7 +42,7 @@ def create_test_practice_config(config_id: str = "test_config") -> PracticeConfi
     )
 
 
-def create_test_evaluate_result(accuracy: float = 0.95) -> EvaluateResult:
+def create_test_evaluate_result(accuracy: Decimal = Decimal('0.95')) -> EvaluateResult:
     """创建测试用的EvaluateResult"""
     return EvaluateResult(
         accuracies=[EvaluateAccuracy(dataset="test_dataset", accuracy=accuracy)],
@@ -68,7 +69,7 @@ class TestYamlTuningHistory:
         history = YamlTuningHistory(str(history_dir))
         
         practice = create_test_practice_config("test_config")
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         history.append_history(practice, evaluate_result)
         
@@ -83,8 +84,8 @@ class TestYamlTuningHistory:
         history = YamlTuningHistory(str(history_dir))
         
         practice = create_test_practice_config("test_config")
-        evaluate_result1 = create_test_evaluate_result(0.9)
-        evaluate_result2 = create_test_evaluate_result(0.95)
+        evaluate_result1 = create_test_evaluate_result(Decimal('0.9'))
+        evaluate_result2 = create_test_evaluate_result(Decimal('0.95'))
         
         history.append_history(practice, evaluate_result1)
         assert len(history._history_index.records) == 1  # 校验第一次追加成功
@@ -94,7 +95,7 @@ class TestYamlTuningHistory:
         assert len(history._history_index.records) >= 1  # 校验历史索引记录数递增
         last_record = history._history_index.records[-1]
         assert last_record.practice_id == "test_config"  # 校验最后一条记录的practice_id
-        assert last_record.evaluation.accuracies[0].accuracy == 0.95  # 校验最后一条记录正确
+        assert last_record.evaluation.accuracies[0].accuracy == Decimal('0.95')  # 校验最后一条记录正确
         
         from msmodelslim.utils.security import yaml_safe_load
         history_file = history_dir / "history.yaml"
@@ -110,7 +111,7 @@ class TestYamlTuningHistory:
         
         practice1 = create_test_practice_config("config1")
         practice2 = create_test_practice_config("config2")
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         history.append_history(practice1, evaluate_result)
         history.append_history(practice2, evaluate_result)
@@ -138,7 +139,7 @@ class TestYamlTuningHistoryManager:
         
         history_dir.mkdir(exist_ok=True)
         practice = create_test_practice_config("test_config")
-        evaluate_result = create_test_evaluate_result(0.95)
+        evaluate_result = create_test_evaluate_result(Decimal('0.95'))
         
         history2 = manager.load_history(str(history_dir))
         history2.append_history(practice, evaluate_result)
@@ -186,7 +187,7 @@ class TestResumeIntegration:
         history_dir.mkdir()
         
         practice1 = create_test_practice_config("config1")
-        evaluate_result1 = create_test_evaluate_result(0.9)
+        evaluate_result1 = create_test_evaluate_result(Decimal('0.9'))
         
         history1 = YamlTuningHistory(str(history_dir))
         history1.append_history(practice1, evaluate_result1)
@@ -200,7 +201,7 @@ class TestResumeIntegration:
         assert len(history2._history_index.records) == 0  # 校验清除后历史索引为空
         
         practice2 = create_test_practice_config("config2")
-        evaluate_result2 = create_test_evaluate_result(0.85)
+        evaluate_result2 = create_test_evaluate_result(Decimal('0.85'))
         history2.append_history(practice2, evaluate_result2)
         
         assert len(history2._history_index.records) == 1  # 校验添加新记录后历史索引包含新记录

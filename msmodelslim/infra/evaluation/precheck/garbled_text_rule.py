@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details.
 """
 import re
 from abc import ABC, abstractmethod
+from decimal import Decimal
 from typing import List, Optional, Any, Literal, Dict, Annotated
 
 from pydantic import BaseModel, Field, field_validator, AfterValidator
@@ -312,7 +313,7 @@ class GarbledTextRule(BasePrecheckRule):
                         f"Garbled text test case {idx} failed: Garbled output detected for message "
                         f"'{test_case.message}' with check items {test_case.items}. Skipping evaluation stage."
                     )
-                    return [EvaluateAccuracy(dataset=dataset, accuracy=0.0) for dataset in datasets]
+                    return [EvaluateAccuracy(dataset=dataset, accuracy=Decimal('0')) for dataset in datasets]
 
                 get_logger().debug(f"Garbled text test case {idx} passed")
 

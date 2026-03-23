@@ -171,4 +171,4 @@ def _get_modifiable_history_index(history_index_file_path: Path):
     try:
         yield history_index
     finally:
-        yaml_safe_dump(history_index.model_dump(), str(history_index_file_path))
+        yaml_safe_dump(history_index.model_dump(mode='json'), str(history_index_file_path))
