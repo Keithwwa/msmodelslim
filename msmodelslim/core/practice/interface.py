@@ -19,11 +19,26 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from dataclasses import field
+from enum import Enum
 from typing import Dict, List, Optional
 
 from pydantic import Field, BaseModel
 
 from msmodelslim.core.quant_service.interface import BaseQuantConfig
+
+
+class ScenarioTagMatch(str, Enum):
+    """
+    Scenario tag match result for practice selection.
+
+    - NO_MATCH: verified scenarios are absent or none matches requested tags
+    - MATCH: found a scenario that contains all requested tags
+    - STANDBY: there are verified scenarios, but none matches; can be used as standby config
+    """
+
+    NO_MATCH = "no_match"
+    MATCH = "match"
+    STANDBY = 'standby'
 
 
 class Metadata(BaseModel):
@@ -47,20 +62,25 @@ class PracticeConfig(BaseQuantConfig):
     def extract_quant_config(self) -> BaseQuantConfig:
         return self
 
-    def matches_scenario_tags(self, model_type: str, scenario_tags: Optional[List[str]]) -> bool:
+    def matches_scenario_tags(self, model_type: str, scenario_tags: Optional[List[str]]) -> ScenarioTagMatch:
         """
-        Return True if config's verified_tags has at least one scenario (for model_type)
-        that contains ALL effective tags.
+        Match scenario tags against verified tags for a model.
+
+        Returns:
+            - ScenarioTagMatch.NO_MATCH: no verified scenarios are available for this model_type.
+            - ScenarioTagMatch.MATCH: at least one verified scenario contains all requested scenario_tags.
+            - ScenarioTagMatch.STANDBY: verified scenarios exist, but none match requested tags.
         """
         model_scenario = getattr(self.metadata, 'verified_tags', None) or {}
         scenarios = model_scenario.get(model_type, [])
         if not scenarios:
-            return False
+            return ScenarioTagMatch.NO_MATCH
         if not scenario_tags:
-            return True
+            return ScenarioTagMatch.MATCH
+            
         user_lower = [t.lower() for t in scenario_tags]
         for scenario_tags_list in scenarios:
             scenario_lower = [str(t).lower() for t in scenario_tags_list]
             if all(ut in scenario_lower for ut in user_lower):
-                return True
-        return False
+                return ScenarioTagMatch.MATCH
+        return ScenarioTagMatch.STANDBY

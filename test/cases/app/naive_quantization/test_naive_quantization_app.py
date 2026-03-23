@@ -94,46 +94,51 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
     def test_check_config_label_mismatch_w_bit(self):
         """测试 labels 不匹配 w_bit"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(w_bit=4)
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8
         )
-        self.assertFalse(result)
+        self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_label_mismatch_a_bit(self):
         """测试 labels 不匹配 a_bit"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(a_bit=4)
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8
         )
-        self.assertFalse(result)
+        self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_verified_model_types_match(self):
         """测试 verified_model_types 匹配时直接返回 True"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(verified_model_types=["Qwen2.5-7B"])
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8
         )
-        self.assertTrue(result)
+        self.assertEqual(result, ScenarioTagMatch.MATCH)
 
     def test_check_config_verified_model_types_no_match(self):
         """测试 verified_model_types 不匹配时返回 False"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(verified_model_types=["Other-Model"])
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8
         )
-        self.assertFalse(result)
+        self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_scenario_tags_match(self):
         """测试 scenario_tags 匹配 verified_tags"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(
             verified_tags={"Qwen2.5-7B": [["mindie", "npu"], ["vllm", "cpu"]]}
@@ -142,14 +147,12 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
             config, "Qwen2.5-7B", QuantType.W8A8,
             scenario_tags=["mindie", "npu"],
         )
-        self.assertTrue(result)
+        self.assertEqual(result, ScenarioTagMatch.MATCH)
 
     def test_check_config_scenario_tags_no_match_returns_standby(self):
         """测试 scenario_tags 不匹配时返回 standby"""
-        from msmodelslim.app.naive_quantization.application import (
-            NaiveQuantizationApplication,
-            STANDBY_CONFIG,
-        )
+        from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(
             verified_tags={"Qwen2.5-7B": [["mindie", "npu"]]}
@@ -158,18 +161,19 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
             config, "Qwen2.5-7B", QuantType.W8A8,
             scenario_tags=["vllm"],
         )
-        self.assertEqual(result, STANDBY_CONFIG)
+        self.assertEqual(result, ScenarioTagMatch.STANDBY)
 
     def test_check_config_no_scenario_tags_returns_true(self):
         """测试无 scenario_tags 时返回 True"""
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(verified_tags={"Qwen2.5-7B": [["mindie", "npu"]]})
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8,
             scenario_tags=None,
         )
-        self.assertTrue(result)
+        self.assertEqual(result, ScenarioTagMatch.MATCH)
 
 
 class TestGetBestPractice(TestNaiveQuantizationAppBase):

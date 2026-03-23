@@ -27,7 +27,7 @@ import torch
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.const import QuantType
-from msmodelslim.core.practice.interface import PracticeConfig
+from msmodelslim.core.practice.interface import PracticeConfig, ScenarioTagMatch
 from msmodelslim.core.quant_service import IQuantService
 from msmodelslim.model import IModelFactory, IModel
 from msmodelslim.utils.exception import SchemaValidateError, ToDoError, UnsupportedError
@@ -45,7 +45,6 @@ from .practice_manager_infra import PracticeManagerInfra, QuantConfigExportInfra
 
 DEFAULT_PEDIGREE = 'default'
 DEFAULT_QUANT_TYPE = QuantType.W8A8
-STANDBY_CONFIG = 'standby'
 
 
 class TipsType(str, Enum):
@@ -165,11 +164,12 @@ class NaiveQuantizationApplication:
 
     @staticmethod
     def check_config(
-        config: PracticeConfig,
-        model_type: str,
-        quant_type: QuantType,
-        scenario_tags: Optional[List[str]] = None
-    ):
+            config: PracticeConfig,
+            model_type: str,
+            quant_type: QuantType,
+            scenario_tags: Optional[List[str]] = None,
+            is_default=False
+    ) -> ScenarioTagMatch:
         label = config.metadata.label
         # Parse quant_type parameters
         match_result = re.match(r'^w(\d+)a(\d+)(c?8?)(s?)$', quant_type.value)
@@ -182,23 +182,23 @@ class NaiveQuantizationApplication:
 
         """Check if the label matches the quantization parameters"""
         if label.get('w_bit') != w_bit:
-            return False
+            return ScenarioTagMatch.NO_MATCH
         if label.get('a_bit') != a_bit:
-            return False
+            return ScenarioTagMatch.NO_MATCH
         if is_sparse ^ label.get('is_sparse', False):
-            return False
+            return ScenarioTagMatch.NO_MATCH
         if use_kv_cache ^ label.get('kv_cache', False):
-            return False
+            return ScenarioTagMatch.NO_MATCH
+        if is_default:
+            return ScenarioTagMatch.MATCH
 
         verified_model_types = getattr(config.metadata, 'verified_model_types', None)
         if verified_model_types:
             if model_type in verified_model_types:
-                return True
-            return False
+                return ScenarioTagMatch.MATCH
+            return ScenarioTagMatch.NO_MATCH
 
-        if config.matches_scenario_tags(model_type, scenario_tags):
-            return True
-        return STANDBY_CONFIG
+        return config.matches_scenario_tags(model_type, scenario_tags)
 
     def get_best_practice(self,
                           model_adapter: IModel,
@@ -247,18 +247,19 @@ class NaiveQuantizationApplication:
         return config
 
     def get_config(
-        self,
-        model_pedigree: str,
-        model_type: str,
-        quant_type: Optional[QuantType] = None,
-        tag: Optional[List[str]] = None
+            self,
+            model_pedigree: str,
+            model_type: str,
+            quant_type: Optional[QuantType] = None,
+            tag: Optional[List[str]] = None
     ):
         has_quant_type = True if quant_type is not None else False
         use_quant_type = quant_type if quant_type is not None else DEFAULT_QUANT_TYPE
         standby_configs: List[PracticeConfig] = []
 
-        def _check(config: PracticeConfig, model_type: str, qt: QuantType, tag: Optional[List[str]] = None):
-            return self.check_config(config, model_type, qt, tag)
+        def _check(config: PracticeConfig, model_type: str, qt: QuantType, tag: Optional[List[str]] = None,
+                   is_default=False):
+            return self.check_config(config, model_type, qt, tag, is_default)
 
         def _build_return(config: PracticeConfig, tips_type: TipsType, qt: QuantType):
             tips = _build_quant_tips(tips_type, model_type, quant_type, config.metadata.config_id)
@@ -267,9 +268,9 @@ class NaiveQuantizationApplication:
         # 场景1：【指定量化方式】在模型适配器的最佳实践目录搜索指定量化类型的最佳实践
         for config in self.practice_manager.iter_config(model_pedigree):
             result = _check(config, model_type, use_quant_type, tag)
-            if result is False:
+            if result == ScenarioTagMatch.NO_MATCH:
                 continue
-            if result == STANDBY_CONFIG:
+            if result == ScenarioTagMatch.STANDBY:
                 standby_configs.append(config)
                 continue
             # 默认模型适配器（未知模型）
@@ -278,7 +279,7 @@ class NaiveQuantizationApplication:
             else:
                 tips_type = TipsType.Q0C0B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q0C0B1
             return _build_return(config, tips_type, use_quant_type)
-        
+
         if standby_configs:
             tips = (
                 f"No config verified for tags {tag}, including device_type and inference_engine. "
@@ -289,8 +290,8 @@ class NaiveQuantizationApplication:
         # 场景2：【指定量化方式】在最佳实践的default目录搜索指定量化类型的最佳实践
         if model_pedigree != DEFAULT_PEDIGREE:
             for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
-                result = _check(config, model_type, use_quant_type, tag)
-                if result is False:
+                result = _check(config, model_type, use_quant_type, tag, is_default=True)
+                if result == ScenarioTagMatch.NO_MATCH:
                     continue
                 tips_type = TipsType.Q1C0B0 if has_quant_type else TipsType.Q0C0B0
                 return _build_return(config, tips_type, use_quant_type)
@@ -301,9 +302,9 @@ class NaiveQuantizationApplication:
         # 场景3：【默认量化方式】在模型适配器的最佳实践目录搜索默认量化类型的最佳实践
         for config in self.practice_manager.iter_config(model_pedigree):
             result = _check(config, model_type, DEFAULT_QUANT_TYPE, tag)
-            if result is False:
+            if result == ScenarioTagMatch.NO_MATCH:
                 continue
-            if result == STANDBY_CONFIG:
+            if result == ScenarioTagMatch.STANDBY:
                 standby_configs.append(config)
                 continue
             tips_type = TipsType.Q1C1B0 if model_pedigree == DEFAULT_PEDIGREE else TipsType.Q1C1B1
@@ -319,8 +320,8 @@ class NaiveQuantizationApplication:
         # 场景4：【默认量化方式】在最佳实践的default目录搜索默认量化类型的最佳实践
         if model_pedigree != DEFAULT_PEDIGREE:
             for config in self.practice_manager.iter_config(DEFAULT_PEDIGREE):
-                result = _check(config, model_type, DEFAULT_QUANT_TYPE, tag)
-                if result is False:
+                result = _check(config, model_type, DEFAULT_QUANT_TYPE, tag, is_default=True)
+                if result == ScenarioTagMatch.NO_MATCH:
                     continue
                 return _build_return(config, TipsType.Q1C1B0, DEFAULT_QUANT_TYPE)
 
