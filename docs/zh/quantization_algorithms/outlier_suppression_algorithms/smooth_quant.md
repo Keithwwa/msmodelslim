@@ -16,11 +16,12 @@
 
 SmoothQuant 算法基于以下数学等价变换：
 
-```
+```text
 Y = XW = (X · diag(s)^(-1)) · (diag(s) · W) = X̂ · Ŵ
 ```
 
 其中：
+
 - `X`：激活值
 - `W`：权重
 - `s`：平滑缩放因子
@@ -29,11 +30,12 @@ Y = XW = (X · diag(s)^(-1)) · (diag(s) · W) = X̂ · Ŵ
 
 平滑缩放因子的计算公式：
 
-```
+```text
 scales = (A_scale**α / W_scale**(1-α)).clamp(min=1e-5)
 ```
 
 其中：
+
 - `A_scale`：激活值每通道的绝对值最大值
 - `W_scale`：权重每列的绝对值最大值
 - `α`：平衡参数，控制激活和权重的相对重要性（默认值：0.5）
@@ -53,6 +55,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 ```
 
 **处理方式：**
+
 - 计算所有线性层权重的列最大值作为权重缩放因子
 - 对每个线性层执行正向缩放操作（权重乘以 scales）
 - 对归一化层执行反向缩放操作（权重除以 scales）
@@ -65,14 +68,17 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 #### 1) 预处理阶段（preprocess）
 
 **子图发现与构建：**
+
 - 通过模型适配器的 `get_adapter_config_for_subgraph()` 获取子图信息。
 - 仅处理 `norm-linear` 类型的子图，其他类型会被自动过滤。
 - 根据配置的 `include/exclude` 模式过滤子图。
 
 **归一化层替换：**
+
 - 将原始的 RMSNorm 模块替换为支持偏置的 RMSNormBias 模块（为了在非对称量化模式下能够正确处理偏移量）。
 
 **统计信息收集：**
+
 - 为所有子图中的线性模块安装前向钩子（forward hook）。
 - 钩子在 `[batch, seq, hidden_dim]` 维度上收集激活值统计信息：
   - 每通道的绝对最大值（用于平滑缩放计算）
@@ -81,16 +87,19 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 #### 2) 后处理阶段（postprocess）
 
 **子图平滑处理：**
+
 - 遍历所有 `norm-linear` 子图，依次应用平滑算法。
 - 基于收集的激活统计信息和权重信息计算平滑缩放因子。
 - 对归一化层和线性层分别应用反向/正向缩放。
 
 **平滑算法核心：**
+
 - 使用 `smooth_quant` 算法对子图进行平滑处理。
 - 支持可配置的平滑参数：`alpha`（平滑强度）、`symmetric`（对称量化）。
 - 缩放因子下界固定为 `1e-5`。
 
 **资源清理：**
+
 - 清理所有安装的统计钩子
 - 释放统计信息内存
 - 恢复模型原始状态
@@ -121,7 +130,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 
 **注意**：SmoothQuant 仅支持 `norm-linear` 子图类型，不支持其他子图类型（如 `ov`、`up-down`、`linear-linear`），因而不支持指定 `enable_subgraph_type` 字段。
 
-### YAML配置示例 {#yaml配置示例}
+### YAML配置示例
 
 ```yaml
 spec:
@@ -133,7 +142,7 @@ spec:
       exclude: ["*self_attn*"]             # 排除的层，支持通配符。
 ```
 
-### YAML配置字段详解 {#yaml配置字段详解}
+### YAML配置字段详解
 
 | 字段名 | 作用      | 说明 |
 |--------|---------|------|
@@ -143,8 +152,7 @@ spec:
 | include | 包含的层  | 字符串列表，支持通配符匹配，默认为["*"]（全量）。 |
 | exclude | 排除的层  | 字符串列表，支持通配符匹配，默认为空。|
 
-
-## 模型适配 {#模型适配}
+## 模型适配
 
 ### 接口与数据结构
 
@@ -183,12 +191,14 @@ class SmoothQuantInterface(ABC):
 ### 适配步骤
 
 **前置要求：**
+
 - 模型需要继承 `SmoothQuantInterface` 接口。
 - 模块名称必须与 `named_modules()` 返回的完整路径一致。
 - SmoothQuant 仅支持 `norm-linear` 子图类型。
 - 配置中的`subgraph_type`、`mapping` 是必要参数。
 
 **步骤：**
+
 1. **继承接口**：模型适配器继承 `SmoothQuantInterface` 接口，实现 `get_adapter_config_for_subgraph()` 方法。
 2. **配置子图映射**：为每层配置 norm-linear 子图映射关系。
 3. **指定模块路径**：使用完整的模块路径，如 `model.layers.{i}.input_layernorm`。
@@ -236,17 +246,21 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
 ## FAQ
 
 ### 1. 模块名称不匹配
+
 **现象**: `include/exclude` 未命中时，日志提示未匹配模式。  
 **解决方案**: 核对完整模块名称是否与 `named_modules()` 返回的路径一致。
 
 ### 2. 子图配置错误
+
 **现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。  
 **解决方案**: 检查配置中的 `source` 和 `targets` 字段是否正确。
 
 ### 3. 模块不存在
+
 **现象**: 配置中指定的模块名称在模型中不存在。  
 **解决方案**: 通过 `model.named_modules()` 验证模块是否确实存在。
 
 ### 5. 映射关系错误
+
 **现象**: `MappingConfig` 中的 `source` 和 `targets` 指向错误的模块。  
 **解决方案**: 检查 `MappingConfig` 中的 `source` 是否为归一化层，`targets` 是否为其后续的线性层。

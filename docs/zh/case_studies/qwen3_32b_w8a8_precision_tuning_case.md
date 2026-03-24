@@ -39,16 +39,19 @@
 综合考虑精度和量化时间，最终选择 **Iterative Smooth（对称/alpha:0.9）** 算法，具体分析如下：
 
 **1. 精度对比分析**：
+
 - Iterative Smooth（对称/alpha:0.9）精度为66.67%，在对称方案中最高。
 - 相比Iterative Smooth（对称/alpha:0.5）的53.33%，精度提升13.34个百分点。
 - 虽然Iterative Smooth（非对称/alpha:0.5）精度为63.33%，但对称方案（alpha:0.9）精度为66.67%，已超过非对称方案。
 - 相比Flex Smooth Quant的63.33%，精度提升3.34个百分点。
 
 **2. 量化时间对比分析**：
+
 - Iterative Smooth（对称/alpha:0.9）量化时间为319秒，与Iterative Smooth（对称/alpha:0.5）的324秒相当。
 - 相比Flex Smooth Quant的1380秒，量化时间节省76.9%，效率明显提升。
 
 **最终决策**：
+
 综合以上分析，**Iterative Smooth（对称/alpha:0.9）** 是当前场景下的最佳选择。
 
 ### 步骤3：量化算法选择
@@ -64,21 +67,23 @@
 | ssz | per-tensor（静态量化） | 63.33 | 408 | 权重量化使用ssz方法，但静态量化精度下降 |
 | ssz | per-token（动态量化） | 70.00 | 348 | ssz + per-token精度低于minmax+per-token |
 
-
 #### 调优结果
 
 综合考虑精度和量化时间，最终选择 **minmax + per-token（动态量化）** 配置，具体分析如下：
 
 **1. 精度对比分析**：
+
 - minmax + per-token（动态量化）精度为80.00%，相比minmax + per-tensor（静态量化）的66.67%，精度提升13.33个百分点。
 - ssz + per-tensor（静态量化）精度为63.33%，相比minmax + per-tensor（静态量化）配置下降3.34个百分点，说明ssz方法在该INT8量化场景下效果不如minmax方法。
 - ssz + per-token（动态量化）精度为70.00%，低于minmax + per-token（80.00%）10个百分点，说明ssz方法在该INT8动态量化场景下也不如minmax方法。
 
 **2. 量化时间对比分析**：
+
 - minmax + per-token量化时间为289秒，相比minmax + per-tensor（319秒）节省30秒（9.4%），量化效率提升。
 - ssz + per-token量化时间为348秒，比minmax + per-token多59秒（20.4%），量化效率较低。
 
 **3. 综合对比分析**：
+
 - **精度方面**：minmax + per-token精度最高（80.00%），优于ssz + per-token（70.00%）和所有静态量化方案。
 - **量化时间方面**：minmax + per-token量化时间最短（289秒），相比ssz + per-token（348秒）节省59秒（17.0%），相比minmax + per-tensor（319秒）也节省30秒。
 - **方法复杂度**：minmax方法实现简单，计算速度快；ssz方法通过迭代搜索，计算更复杂，INT8量化优先选择minmax算法。
@@ -107,9 +112,9 @@
 
 将AISBench测评结果中的badcase样本加入量化校准集，重新生成量化权重。具体操作如下：
 
-1. **获取badcase样本**：从AISBench测评结果中提取少量badcase样本。例如，一个badcase样本为：
+1.**获取badcase样本**：从AISBench测评结果中提取少量badcase样本。例如，一个badcase样本为：
 
-```
+```text
 What is the correct answer to this question: Two quantum states with energies E1 and E2 have a lifetime of 10^-9 sec and 10^-8 sec, respectively. We want to clearly distinguish these two energy levels. Which one of the following options could be their energy difference so that they can be clearly resolved?
 
 Choices:
@@ -120,14 +125,17 @@ Choices:
 Format your response as follows: "The correct answer is (insert answer here)"
 ```
 
-2. **格式转换**：
+2.**格式转换**：
+
    - **JSONL格式**：参考 `msmodelslim/lab_calib/mix_calib.jsonl`，将文本放在`"inputs_pretokenized"`字段后，格式如下：
+
      ```json
      {"inputs_pretokenized":"What is the correct answer to this question: Two quantum states with energies E1 and E2 have a lifetime of 10^-9 sec and 10^-8 sec, respectively. We want to clearly distinguish these two energy levels. Which one of the following options could be their energy difference so that they can be clearly resolved?\n\nChoices:\n(A)10^-11 eV\n(B)10^-8 eV\n\n(C)10^-9 eV\n(D)10^-4 eV\nFormat your response as follows: \"The correct answer is (insert answer here)\""}
      ```
+
    - **JSON格式**：参考 `msmodelslim/lab_calib/qwen3_cot_w4a4.json`，直接将文本加入字符串列表中即可。
 
-3. **重新量化**：将调整后的校准集用于量化，重新生成量化权重。
+3.**重新量化**：将调整后的校准集用于量化，重新生成量化权重。
 
 #### 调优结果
 
@@ -143,6 +151,7 @@ Format your response as follows: "The correct answer is (insert answer here)"
 #### 使用场景
 
 量化回退适用于以下情况：
+
 - 通过步骤1-4调整后，精度仍无法满足精度要求。
 - 需要在精度和性能之间寻求更精细的平衡。
 - 某些特定层对量化极度敏感，需要保持高精度。
@@ -163,7 +172,7 @@ msmodelslim analyze \
 
 根据量化敏感度得分从高到低排序，Top敏感层结果如下：
 
-```
+```text
 layers.3.mlp.down_proj
 layers.63.mlp.down_proj
 layers.2.mlp.down_proj
@@ -245,7 +254,6 @@ spec:
 | Iterative Smooth + 静态量化 | 46.97 | 基准配置 |
 | Iterative Smooth + 静态量化 + 回退前9层 | 51.51 | 相比基准配置精度提升4.54个百分点，说明回退量化敏感层能有效提升量化精度，但会带来一定的性能开销和模型大小增加 |
 
-
 ## 最终配置总结
 
 ### 调优路径回顾
@@ -263,9 +271,9 @@ spec:
 **离群值抑制算法**：Iterative Smooth（对称/alpha:0.9）
 
 **量化配置**：
+
 - **权重量化**：`minmax` 方法，`per_channel` 粒度，`int8` 数据类型，对称量化。
 - **激活量化**：`minmax` 方法，`per_token` 粒度（动态量化），`int8` 数据类型，对称量化。
-
 
 ### 调优经验总结
 
@@ -278,6 +286,3 @@ spec:
 4. **校准集质量影响精度**：在GPQA数据集上验证，通过加入badcase样本优化校准集，精度从46.97%提升至55.56%，提升8.59个百分点，说明场景匹配数据和困难样本对量化精度提升有显著作用。
 
 5. **量化回退是最后手段**：在GPQA数据集上验证，通过回退9个量化敏感层，精度从46.97%提升至51.51%，提升4.54个百分点。量化回退能有效提升精度，但会带来性能开销和模型大小增加，应在其他优化手段无法满足要求时使用。
-
-
-

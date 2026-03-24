@@ -1,18 +1,21 @@
 # msModelSlim工具安装指南
 
 ## 安装说明
-本文介绍msModelSlim工具的安装。
+
+本文介绍msModelSlim工具的安装。当前支持从PyPI安装、下载whl包安装和编译安装三种方式。
 
 ## 安装前准备
+
 准备python环境：需要 Python 3.8 或更高版本。
 
-## 安装步骤
+## 源码安装
 
-> [!NOTE] 说明
-> - 使用 `msModelslim` 命令行工具时，请勿在 `msModelslim` 的源码目录下直接运行命令。这可能会因 Python 在导入模块时出现源码路径和安装路径冲突，导致命令执行失败。
-> - 若安装 `msmodelslim` 时遇到报错，请先查阅 [FAQ](../appendix/faq.md) 寻找解决方案。如问题仍未解决，欢迎提交 [Issue](https://gitcode.com/Ascend/msmodelslim/issues)，并附上您的运行环境及完整的错误日志，我们将尽快为您排查。
+[!NOTE] 说明
 
-#### 基于Atlas A2 训练、推理产品，Atlas A3 训练、推理系列产品安装
+- 使用 `msModelslim` 命令行工具时，请勿在 `msModelslim` 的源码目录下直接运行命令。这可能会因 Python 在导入模块时出现源码路径和安装路径冲突，导致命令执行失败。
+- 若安装 `msmodelslim` 时遇到报错，请先查阅 [FAQ](../appendix/faq.md) 寻找解决方案。如问题仍未解决，欢迎提交 [Issue](https://gitcode.com/Ascend/msmodelslim/issues)，并附上您的运行环境及完整的错误日志，我们将尽快为您排查。
+
+### 基于Atlas A2 训练、推理产品，Atlas A3 训练、推理系列产品安装
 
 ```shell
 # 1.git clone msmodelslim代码
@@ -23,7 +26,7 @@ cd msmodelslim
 bash install.sh
 ```
 
-#### 基于Atlas 300I Duo 系列产品安装
+### 基于Atlas 300I Duo 系列产品安装
 
 前置条件：已安装CANN并设置环境变量
 
@@ -56,6 +59,26 @@ sudo bash build.sh ${install_path}/ascend-toolkit/latest
 chmod -R 550 build
 ```
 
+## 从PyPI安装
+
+```bash
+pip install msmodelslim
+```
+
+## 下载whl包安装
+
+请参考[版本说明](../appendix/release_notes.md)中的“whl包获取”章节，下载msmodelslim的whl软件包。
+
+获取到whl软件包后执行如下命令进行安装。
+
+```bash
+sha256sum {name}.whl # 验证whl包，若校验码一致，则whl包在下载中没有受损
+```
+
+```bash
+pip install ./msmodelslim-{version}-py3-none-any.whl # 安装whl包
+```
+
 ## 安装后配置
 
 如果是昇腾NPU设备，请参考如下配置
@@ -70,6 +93,6 @@ PyTorch安装请参考[Ascend Extension for PyTorch](https://www.hiascend.com/do
 
 ## 卸载
 
-```
+```shell
 pip uninstall msmodelslim -y
 ```

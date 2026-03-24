@@ -15,11 +15,12 @@
 
 Flex Smooth Quant算法使用以下公式计算平滑缩放因子：
 
-```
+```text
 scales = (A_scale**alpha / W_scale**beta).clamp(min=1e-5)
 ```
 
 其中：
+
 - `A_scale`：激活值的缩放因子。
 - `W_scale`：权重的缩放因子（取每列的最大值）。
 - `alpha`：激活缩放的系数，控制激活对缩放因子的影响程度（0-1之间）。
@@ -39,6 +40,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 ```
 
 **处理方式：**
+
 - 计算所有线性层权重的列最大值作为权重缩放因子。
 - 对每个线性层应用正向缩放。
 - 对归一化层应用反向缩放（1/scales）。
@@ -52,6 +54,7 @@ y = linear2(linear1(x))
 ```
 
 **处理方式：**
+
 - 基于linear2的权重计算缩放因子。
 - 对linear2应用正向缩放。
 - 对linear1应用反向缩放（1/scales）。
@@ -59,11 +62,13 @@ y = linear2(linear1(x))
 #### 3. OVSubgraph（注意力输出-值子图）
 
 适用于注意力机制中的输出投影和值投影：
+
 - 支持MHA（多头注意力）
 - 支持MQA（多查询注意力）
 - 支持GQA（分组查询注意力）
 
 **处理方式：**
+
 - 基于o_proj权重计算缩放因子。
 - 对o_proj应用正向缩放。
 - 对v_proj应用反向缩放（1/scales）。
@@ -77,6 +82,7 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 ```
 
 **处理方式：**
+
 - 基于down_proj权重计算缩放因子。
 - 对down_proj应用正向缩放。
 - 对up_proj应用反向缩放（1/scales）。
@@ -86,10 +92,12 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 适用于**仅对若干线性层做平滑、且不融合到前置层**的场景。当映射中 `source` 为 `None`、仅提供 `targets` 时，处理器会走非融合分支，将 `targets` 中的线性层组成非融合子图进行 Flex Smooth 平滑。
 
 **典型场景：**
+
 - 没有可融合的前置归一化/线性层，仅需对若干独立线性层做离群值抑制。
 - 结构特殊，无法归类为 norm-linear / linear-linear / ov / up-down，但仍希望对这些线性层做平滑。
 
 **处理方式：**
+
 - 将 `targets` 中的多个线性层视为一组，基于收集的激活与权重做 **alpha/beta 搜索**（或使用配置的 alpha/beta）得到最优缩放，计算统一的每通道 scale。
 - 对每个线性层的权重应用正向缩放（通过 `SubgraphFusionFactory` 的 NonFusionSubgraphFusion）。
 - 在每个线性层上注册前向 pre-hook（`NonFusionSmoothQuantHookIR`），在推理时对**输入**施加对应的反向缩放（1/scales），与权重缩放配合保持数值一致。
@@ -103,10 +111,12 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 #### 1) 预处理阶段（preprocess）
 
 **子图发现与构建：**
+
 - 通过 `SubgraphProcessor` 获取全局子图信息，识别四种类型的子图：`norm-linear`、`linear-linear`、`ov`、`up-down`。
 - 根据配置的 `include/exclude` 模式过滤子图。
 
 **统计信息收集：**
+
 - 为所有子图中的线性模块安装前向钩子（forward hook）。
 - 钩子在 `[batch, seq, hidden_dim]` 维度上收集激活值统计信息：
   - **激活张量数据**：收集完整的激活张量，用于后续平滑计算。
@@ -115,10 +125,12 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 #### 2) 后处理阶段（postprocess）
 
 **按优先级处理子图：**
+
 - 按默认配置的优先级顺序处理：`up-down`（最高）→ `ov`（高）→ `norm-linear`（中）→ `linear-linear`（低）。
 - 每种子图类型调用相应的平滑处理方法。
 
 **子图平滑处理：**
+
 - **Norm-Linear子图**：对归一化层和后续线性层应用平滑。
 - **Linear-Linear子图**：对两个线性层应用平滑，调整权重和偏置。
 - **OV子图**：处理注意力机制中的输出投影（Output projection）和值投影（Value projection）之间的连接关系，支持QKV融合模式。
@@ -126,11 +138,13 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 - **非融合子图**：当 `mapping.source` 为 `None` 且 `mapping.targets` 非空时，将目标线性层组成 NonFusionSubgraph，做 alpha/beta 搜索（或使用配置值）后对权重做缩放，并在每层注册输入侧 scale 的 pre-hook。
 
 **Flex Smooth Quant算法核心：**
+
 - 基于收集的激活统计信息计算每通道的缩放因子。
 - 使用 `flex_smooth_quant` 算法对子图进行灵活平滑量化优化。
 - 支持可配置的平滑参数：`alpha`（激活缩放系数）、`beta`（权重缩放系数），若用户不配置的话，采用二阶段网格搜索方法搜索最佳alpha和beta参数。
 
 **资源清理：**
+
 - 清理所有安装的统计钩子。
 - 释放统计信息内存。
 - 恢复模型原始状态。
@@ -144,6 +158,7 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
 - **模型结构假设**：算法基于标准的Transformer架构设计，对于非标准结构需要谨慎评估适用性。
 
 ## 功能介绍
+
 ### 使用说明
 
 作为 Processor 使用
@@ -163,7 +178,7 @@ y = down_proj(ReLU(gate_proj(x)) * up_proj(x))
     - "*self_attn*"
 ```
 
-### YAML配置示例 {#yaml配置示例}
+### YAML配置示例
 
 ```yaml
 spec:
@@ -180,7 +195,7 @@ spec:
       exclude: ["*self_attn*"]            # 排除的层，支持通配符。
 ```
 
-### YAML配置字段详解 {#yaml配置字段详解}
+### YAML配置字段详解
 
 | 字段名 | 作用 | 说明 |
 |--------|------|------|
@@ -191,7 +206,7 @@ spec:
 | include | 包含的层 | 支持通配符匹配。 |
 | exclude | 排除的层 | 支持通配符匹配。 |
 
-## 模型适配 {#模型适配}
+## 模型适配
 
 ### 接口与数据结构
 
@@ -240,6 +255,7 @@ class FlexSmoothQuantInterface(ABC):
 ### 适配步骤
 
 **前置要求：**
+
 - 模型需要继承 `FlexSmoothQuantInterface` 接口。
 - 模块名称必须与 `named_modules()` 返回的完整路径一致。
 - 支持的子图类型：`norm-linear`、`linear-linear`、`ov`、`up-down`；另支持**非融合子图**（`mapping.source=None`，仅提供 `targets`）。
@@ -247,6 +263,7 @@ class FlexSmoothQuantInterface(ABC):
 - 当配置`FusionConfig`且`fusion_type`为qkv时，必须给出num_attention_heads和num_key_value_heads。
 
 **步骤：**
+
 1. **继承接口**：模型适配器继承 `FlexSmoothQuantInterface` 接口，实现 `get_adapter_config_for_subgraph()` 方法。
 2. **配置子图映射**：为每层配置子图映射关系：
    - **Norm-Linear子图**：归一化层到后续线性层的映射（`source` 为 norm，`targets` 为后续线性层）
@@ -328,22 +345,28 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
 ```
 
 ## FAQ
+
 ### 1. 模块名不匹配
+
 **现象**: `include/exclude` 未命中时，日志提示未匹配模式。  
 **解决方案**: 核对完整模块名是否与 `named_modules()` 返回的路径一致。
 
 ### 2. 子图配置错误
+
 **现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。  
 **解决方案**: 检查配置中的 `source` 和 `targets` 字段是否正确。
 
 ### 3. 模块不存在
+
 **现象**: 配置中指定的模块名称在模型中不存在。  
 **解决方案**: 通过 `model.named_modules()` 验证模块是否确实存在。
 
 ### 4. 子图类型不支持
+
 **现象**: 配置的子图类型不被支持。  
 **解决方案**: 确保配置的子图类型在 `ENABLE_SUBGRAPH_TYPES` 列表中。
 
 ### 6. 映射关系错误
+
 **现象**: `MappingConfig` 中的 `source` 和 `targets` 指向错误的模块。  
 **解决方案**: 检查 `MappingConfig` 中的 `source` 和 `targets` 是否指向正确的模块。

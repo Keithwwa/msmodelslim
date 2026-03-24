@@ -15,6 +15,7 @@
 $$Q = \text{clamp}(\text{round}(\frac{V}{S}) + Z, Q_{min}, Q_{max})$$
 
 其中：
+
 - $V$：原始浮点值。
 - $S$ (Scale)：缩放因子，决定了量化的步长。
 - $Z$ (Zero-point)：偏移量（零点），用于处理非对称分布。
@@ -50,11 +51,12 @@ $$Q = \text{clamp}(\text{round}(\frac{V}{S}) + Z, Q_{min}, Q_{max})$$
 ### 静态量化与动态量化的核心差异
 
 在一键量化中，通过 `qconfig.act.scope` 字段来区分 **静态量化** 与 **动态量化**：
+
 - **静态量化 (`per_tensor`)**：在量化校准阶段统计并固定量化参数（scale和offset），推理时直接使用。**特点**：推理性能最优，计算开销最小，但在分布变化剧烈时精度可能受损。
 - **动态量化 (`per_token`)**：在推理过程中，针对每个 token 实时计算量化参数。**特点**：量化粒度更细，能够更好地捕捉激活值的动态分布，**精度通常优于静态量化**，但会引入一定的实时计算开销。
 - **PDMIX 混合量化 (`pd_mix`)**：Prefilling 阶段使用 `per_token`，Decoding 阶段使用 `per_tensor`。**特点**：旨在平衡精度和性能，特别适用于生成式模型的推理加速，参考[PDMIX：激活值阶段间混合量化算法说明](pdmix.md)。
 
-### YAML配置示例 {#yaml配置示例}
+### YAML配置示例
 
 #### W8A8静态量化配置
 
@@ -111,7 +113,7 @@ $$Q = \text{clamp}(\text{round}(\frac{V}{S}) + Z, Q_{min}, Q_{max})$$
   include: [ "*" ]             # 包含所有层
 ```
 
-### YAML配置字段详解 {#yaml配置字段详解}
+### YAML配置字段详解
 
 | 字段名 | 作用 | 类型 | 说明 | 示例值 |
 |--------|------|------|------|--------|
@@ -246,7 +248,6 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
 
 **重要提醒**：并非所有配置组合都是有效的量化组合，当检测到无效的量化配置组合时，无效组合会抛出`UnsupportedError`异常。
 
-
 #### 解决方案
 
 - 异常信息会详细说明具体的配置冲突原因，请根据异常信息调整配置参数。
@@ -258,6 +259,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
 #### 常见匹配失败原因
 
 1. **层名不匹配**
+
    ```yaml
    # ❌ 可能匹配失败：层名中不包含"self_attn"
    include: ["*self_attn*"]
@@ -265,6 +267,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    ```
 
 2. **路径层级错误**
+
    ```yaml
    # ❌ 可能匹配失败：路径层级不匹配
    include: ["model.layers.*.attention"]
@@ -272,6 +275,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    ```
 
 3. **大小写敏感**
+
    ```yaml
    # ❌ 可能匹配失败：大小写不匹配
    include: ["*SelfAttn*"]
@@ -279,6 +283,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    ```
 
 4. **拼写错误**
+
    ```yaml
    # ❌ 可能匹配失败：拼写错误
    include: ["*self_atttn*"]  # 拼写错误：多了一个t
@@ -289,6 +294,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    ```
 
 5. **不是nn.Linear的路径**
+
    ```yaml
    # ❌ 可能匹配失败：匹配到非Linear层
    include: ["*gate.weight"]

@@ -15,7 +15,7 @@
 
 AWQ算法使用以下公式计算缩放因子：
 
-```
+```text
 scales = act_mean.pow(ratio).clamp(min=1e-4)
 scales = scales / sqrt(scales.max() * scales.min())
 ```
@@ -322,7 +322,7 @@ class AWQInterface(ABC):
    - **Linear-Linear子图**：连续线性层的映射。
 3. **指定模块路径**：使用完整的模块路径，如 `model.layers.{i}.self_attn.q_proj`。
 
-**参考实现：** 可参考 [`msmodelslim/model/qwen2/model_adapter.py`](../../../../msmodelslim/model/qwen2/model_adapter.py) 中的 [`Qwen2ModelAdapter`](../../../../msmodelslim/model/qwen2/model_adapter.py#L40) 实现。
+**参考实现：** 可参考 [`msmodelslim/model/qwen2/model_adapter.py`](../../../../msmodelslim/model/qwen2/model_adapter.py) 中的 [`Qwen2ModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen2/model_adapter.py#L40) 实现。
 
 ### 配置示例
 

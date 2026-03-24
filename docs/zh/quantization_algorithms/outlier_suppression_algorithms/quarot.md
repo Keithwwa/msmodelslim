@@ -107,7 +107,7 @@ post_run阶段在Runner结束调度后执行，主要完成以下操作：
 - 清理状态，清空所有保存的映射和命令列表。
 - 如果启用了在线旋转，调用`online_processor.post_run()`，将HookIR转换为WrapperIR。
 
-## 适用要求 {#适用范围与局限性}
+## 适用要求
 
 - **模型结构限制**：当前的适配器已支持Qwen3 Dense模型系列、Qwen3 MOE模型系列、DeepSeek-V3/R1系列。
 - **张量并行限制**：若在配置中启用了在线旋转，在使用推理引擎以TP并行的方式进行部署时，需要保证`tp_size`为2的幂，并且`tp_size`需要小于等于QuaRot的配置参数`max_tp_size`，否则必然导致精度异常。
@@ -179,7 +179,7 @@ spec:
 | down_proj_online_layers | 指定使用在线旋转的down层 | `array[int]` | 用于指定哪些层的down_proj使用在线旋转，类型为由层索引组成的列表        | `[]`       |
 | export_extra_info       | 是否导出全局旋转信息     | `bool`       | 为 True 时注入相应 HookIR；若使用 ascend_v1_saver，会在量化权重路径下生成 optional 目录保存额外 safetensors（含 QuaRot 全局旋转矩阵），并在 quant_model_description.json 中追加描述字段；为 False 则不导出 | `True`     |
 
-## 模型适配 {#模型适配}
+## 模型适配
 
 ### 接口与数据结构
 
