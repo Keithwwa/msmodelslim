@@ -2,8 +2,16 @@ apiversion: modelslim_v1
 metadata:
   config_id: glm_5_w4a8
   score: 90
-  verified_model_types:
-    - GLM-5
+  verified_tags:
+    GLM-5:
+      - - vLLM_Ascend
+        - Atlas_A2_Inference
+      - - vLLM_Ascend
+        - Atlas_A3_Inference
+      - - SGLang
+        - Atlas_A2_Inference
+      - - SGLang
+        - Atlas_A3_Inference 
   label:
     w_bit: 4
     a_bit: 8
