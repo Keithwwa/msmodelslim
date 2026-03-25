@@ -57,7 +57,7 @@
 
 ### <span id="qwen25-omni-7b-w8a8-量化">Qwen2.5-Omni-7B W8A8 动态量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明-参数说明)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。
 
 ```shell
 msmodelslim quant \
@@ -71,4 +71,4 @@ msmodelslim quant \
 
 ## 附录
 
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解-multimodal_vlm_modelslim_v1-配置详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)
