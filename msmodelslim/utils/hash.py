@@ -31,6 +31,7 @@ def calculate_md5(obj: BaseModel) -> str:
     Returns:
         str: MD5 hash string
     """
-    obj_dict = obj.model_dump()
+    # Use json mode so Decimal/datetime and similar values are JSON-serializable.
+    obj_dict = obj.model_dump(mode='json')
     obj_json = json.dumps(obj_dict, sort_keys=True)
     return hashlib.md5(obj_json.encode('utf-8')).hexdigest()

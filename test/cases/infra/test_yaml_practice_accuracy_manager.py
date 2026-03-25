@@ -78,7 +78,7 @@ class TestYamlTuningAccuracy:
         
         accuracy_data = {
             "eval1-prac1": {
-                "accuracies": [{"dataset": "test1", "accuracy": 0.9}],
+                "accuracies": [{"dataset": "test1", "accuracy": "0.9"}],
                 "is_satisfied": True
             }
         }
@@ -184,7 +184,7 @@ class TestYamlTuningAccuracyManager:
         accuracy_dir.mkdir(exist_ok=True)
         accuracy_data = {
             "eval1-prac1": {
-                "accuracies": [{"dataset": "test1", "accuracy": 0.9}],
+                "accuracies": [{"dataset": "test1", "accuracy": "0.9"}],
                 "is_satisfied": True
             }
         }

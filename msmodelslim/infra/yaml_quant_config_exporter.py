@@ -49,7 +49,7 @@ class YamlQuantConfigExporter(QuantConfigExportInfra):
         
         # 导出配置
         yaml_safe_dump(
-            quant_config.model_dump(),
+            quant_config.model_dump(mode='json'),
             str(file_path),
             check_user_stat=False
         )

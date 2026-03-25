@@ -42,8 +42,8 @@ evaluation:
   demand:
     expectations:
       - dataset: gsm8k # replace with your own dataset, equal to datasets in evaluation.aisbench.datasets
-        target: 83 # replace with your own target, according to your model's performance on the dataset
-        tolerance: 2 # replace with your own tolerance
+        target: "83" # replace with your own target (quoted string, matches Decimal JSON encoding)
+        tolerance: "2" # replace with your own tolerance (quoted string, matches Decimal JSON encoding)
   evaluation:
     type: aisbench
     precheck: # optional, pre-validation configuration before formal evaluation

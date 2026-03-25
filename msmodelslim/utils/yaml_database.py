@@ -68,7 +68,8 @@ class YamlDatabase:
                                       action='Please make sure the key is a string')
 
         if isinstance(value, BaseModel):
-            value = value.model_dump()
+            # mode='json'：Decimal 等在 PyYAML safe_dump 中会 RepresenterError
+            value = value.model_dump(mode="json")
 
         value_file = self.config_dir / f"{key}.yaml"
         yaml_safe_dump(value, str(value_file))

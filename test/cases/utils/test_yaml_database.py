@@ -24,6 +24,7 @@ msmodelslim.utils.yaml_database 模块的单元测试
 from pathlib import Path
 import yaml
 import pytest
+from unittest.mock import patch
 
 from msmodelslim.utils.exception import (
     SchemaValidateError,
@@ -102,6 +103,38 @@ def test_yaml_database_setitem_invalid_key_type(tmp_path: Path):
         db[123] = {"key": "value"}  # 使用整数作为键
 
     assert exc_info.value.action == "Please make sure the key is a string"
+
+
+def test_yaml_database_setitem_pass_json_safe_dict_to_yaml_dump_when_basemodel_has_decimal_field(
+    tmp_path: Path,
+):
+    """
+    Python 模式 model_dump 会保留 Decimal，直接 yaml_safe_dump 会 RepresenterError；
+    __setitem__ 应先转为 JSON 兼容 dict（float）再交给 yaml_safe_dump。
+    不调用真实 yaml_safe_dump，避免 Windows 下 tmp 路径反斜杠与 get_valid_path 白名单冲突。
+    """
+    from decimal import Decimal
+
+    from msmodelslim.utils.yaml_database import YamlDatabase
+    from pydantic import BaseModel
+
+    class DecimalRecord(BaseModel):
+        """BaseModel 须在 import msmodelslim（含 patch_pydantic）之后绑定。"""
+        score: Decimal
+
+    captured: dict = {}
+
+    def _capture_dump(obj, path, *args, **kwargs):
+        captured["payload"] = obj
+        captured["path"] = path
+
+    with patch("msmodelslim.utils.yaml_database.yaml_safe_dump", side_effect=_capture_dump):
+        db = YamlDatabase(config_dir=tmp_path, read_only=False)
+        db["record"] = DecimalRecord(score=Decimal("0.95"))
+
+    # Pydantic v2：Decimal 在 mode='json' 中通常为字符串，避免 float 精度丢失
+    assert captured["payload"] == {"score": "0.95"}
+    yaml.safe_dump(captured["payload"])  # 断言：载荷无 Decimal，PyYAML 可接受
 
 
 # ------------------------------ 测试__contains__方法 ------------------------------
