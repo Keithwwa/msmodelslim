@@ -26,6 +26,7 @@ import sys
 
 import torch
 import torch_npu
+torch_npu.npu.set_compile_mode(jit_compile=False)
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.abspath(os.path.join(current_directory, '..', ".."))

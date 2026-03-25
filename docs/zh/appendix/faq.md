@@ -4,7 +4,7 @@
 
 在使用msModelSlim工具运行推理量化时，出现类似以下报错信息：
 
-```
+```text
 Killed
 ...
 [Error] TBE Subprocess[task_distribute] raise error[], main process disappeared!
@@ -35,7 +35,7 @@ msModelSlim依赖pydantic>=2.10.1，请确保环境中的pydantic版本满足此
 
 ### pip安装时的错误信息
 
-```
+```text
 ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
 check-wheel-contents 0.6.0 requires pydantic~=2.0, but you have pydantic 1.0 which is incompatible.
 ```
@@ -47,11 +47,12 @@ check-wheel-contents 0.6.0 requires pydantic~=2.0, but you have pydantic 1.0 whi
 ## 3. 为什么安装msModelSlim报错？
 
 ### 3.1 自动安装accelerate依赖库时报错
+
 msModelSlim依赖accelerate库来支持多卡运行，因此将其写入requirements.txt，在安装时通过pip自动下载accelerate。
 
 第一种已知原因是部分 Python 3.8 环境与accelerate冲突，报错信息如下：
 
-```
+```text
 ERROR: Could not find a version that satisfies the requirement puccinialin (from versions: none)
 ```
 
@@ -59,13 +60,13 @@ ERROR: Could not find a version that satisfies the requirement puccinialin (from
 
 如果您的环境已升级至 Python 3.9 或以上版本，但仍然出现报错，可能是由于os版本过低，导致安装 `hugginface_hub` 的子依赖失败，报错信息如下：
 
-```
+```text
 error: subprocess-exited-with-error
 ```
 
 此时可尝试升级os版本，或通过以下命令进行规避：
 
-```
+```bash
 pip install "huggingface_hub==0.20.3"
 pip install accelerate
 ```
@@ -79,3 +80,25 @@ pip install accelerate
 ### 解决方法
 
 修改模型权重路径下`config.json`中的`torch_dtype`为`float16`进行量化。
+
+## 5. 为什么在300I/300T系列硬件上量化权重时会报错**RuntimeError: The Inner error is reported as above. The process exits for this inner error, and the current working operator name is InplaceIndexAdd.**
+
+### 问题原因
+
+在300I/300T系列硬件上进行传统量化（V0）时，由于JIT编译模式与该系列硬件存在兼容性问题，导致`InplaceIndexAdd`算子编译失败，从而引发运行时错误。
+
+### 解决方法
+
+在传统量化（V0）模型量化脚本（`msmodelslim/example`路径下）中，添加`torch_npu.npu.set_compile_mode(jit_compile=False)`来禁用JIT编译模式。
+
+**示例代码：**
+
+```python
+import torch_npu
+
+# 在量化脚本开头添加以下代码
+torch_npu.npu.set_compile_mode(jit_compile=False)
+
+# 然后执行量化操作
+# ... 后续的量化代码
+```
