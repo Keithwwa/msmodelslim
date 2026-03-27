@@ -34,6 +34,7 @@ class DummyConfig:
 
     def __init__(self):
         self.num_hidden_layers = 3
+        self.hidden_size = 4096
 
 
 class TestQwen3MoeModelAdapter(unittest.TestCase):
@@ -70,6 +71,17 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
             result = adapter.get_model_pedigree()
 
             self.assertEqual(result, 'qwen3_moe')
+
+    def test_get_hidden_dim_when_called_then_return_hidden_size(self):
+        """测试get_hidden_dim方法：应返回config.hidden_size"""
+        with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
+            adapter = Qwen3MoeModelAdapter(
+                model_type=self.model_type,
+                model_path=self.model_path
+            )
+            adapter.config = DummyConfig()
+
+            self.assertEqual(adapter.get_hidden_dim(), adapter.config.hidden_size)
 
     def test_load_model_when_called_then_delegate_to_load_model(self):
         """测试load_model方法：应委托给_load_model方法"""

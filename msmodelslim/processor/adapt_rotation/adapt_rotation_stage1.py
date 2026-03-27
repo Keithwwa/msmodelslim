@@ -31,6 +31,7 @@ from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.processor.quarot.offline_quarot.quarot_interface import QuaRotInterface
 from msmodelslim.processor.quarot.common.quarot_utils import fuse_ln_linear, is_power_of_two
+from .interface import AdaptRotationInterface
 from .iterative_hadamard_optimization import HadamardOptimizer
 
 LAYER_TYPE_STR_MAX_LEN = 128
@@ -81,23 +82,29 @@ class AdaptRotationStage1ProcessorConfig(BaseModel):
 
 @logger_setter(prefix="msmodelslim.processor.adapt_rotation")
 class AdaptRotationStage1Processor(AutoSessionProcessor):
-    def __init__(self, model: nn.Module, config: AdaptRotationStage1ProcessorConfig, adapter: QuaRotInterface, **kwargs) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        config: AdaptRotationStage1ProcessorConfig,
+        adapter: AdaptRotationInterface,
+        **kwargs
+    ) -> None:
         super().__init__(model)
         self.config = config
         self.model = model
         self.adapter = adapter
         self.act_dict = defaultdict(list)
         self._stat_hooks: list = []
-        if not isinstance(adapter, QuaRotInterface):
+        if not isinstance(adapter, AdaptRotationInterface):
             raise UnsupportedError(
-                f'{adapter.__class__.__name__} does not support QuaRotInterface',
-                action='AdaptRotationStage1Processor depends on QuaRotInterface. '
-                       'Please provide a valid model adapter which implements QuaRotInterface',
+                f'{adapter.__class__.__name__} does not support AdaptRotationInterface',
+                action='AdaptRotationStage1Processor depends on AdaptRotationInterface. '
+                       'Please provide a valid model adapter which implements AdaptRotationInterface',
             )
 
     def stat_tensor(self, name, tensor):
-        tensor = tensor.detach().cpu()
-        tensor = tensor.mean(dim=1)
+        tensor = tensor.detach()
+        tensor = tensor.mean(dim=1).cpu()
         self.act_dict[name].append(tensor)
 
     def support_distributed(self) -> bool:

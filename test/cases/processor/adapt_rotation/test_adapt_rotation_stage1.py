@@ -33,7 +33,6 @@ from msmodelslim.processor.adapt_rotation.adapt_rotation_stage1 import (
     AdaptRotationStage1ProcessorConfig,
     LAYER_TYPE_STR_MAX_LEN,
 )
-from msmodelslim.processor.quarot.offline_quarot.quarot_interface import QuaRotInterface
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 
 from .common import MockQuaRotAdapter
@@ -82,17 +81,17 @@ class TestAdaptRotationStage1ProcessorConfig(unittest.TestCase):
 class TestAdaptRotationStage1Processor(unittest.TestCase):
     """测试 AdaptRotationStage1Processor 类"""
 
-    def test_init_raise_unsupported_error_when_adapter_not_quarot_interface(self):
-        """测试 adapter 非 QuaRotInterface 时抛出 UnsupportedError"""
+    def test_init_raise_unsupported_error_when_adapter_not_adapt_rotation_interface(self):
+        """测试 adapter 非 AdaptRotationInterface 时抛出 UnsupportedError"""
         mock_model = MagicMock()
         config = AdaptRotationStage1ProcessorConfig(type="_adapt_rotation_stage1")
         invalid_adapter = MagicMock()
         with self.assertRaises(UnsupportedError) as ctx:
             AdaptRotationStage1Processor(mock_model, config, invalid_adapter)
-        self.assertIn("QuaRotInterface", str(ctx.exception))
+        self.assertIn("AdaptRotationInterface", str(ctx.exception))
 
-    def test_init_succeed_when_adapter_implements_quarot_interface(self):
-        """测试 adapter 实现 QuaRotInterface 时初始化成功"""
+    def test_init_succeed_when_adapter_implements_adapt_rotation_interface(self):
+        """测试 adapter 实现 AdaptRotationInterface 时初始化成功"""
         mock_model = MagicMock()
         config = AdaptRotationStage1ProcessorConfig(type="_adapt_rotation_stage1")
         adapter = MockQuaRotAdapter()

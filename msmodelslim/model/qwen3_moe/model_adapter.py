@@ -31,7 +31,7 @@ from msmodelslim.utils.logging import logger_setter
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
 from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
-    IterSmoothInterface, FlexSmoothQuantInterface
+    IterSmoothInterface, FlexSmoothQuantInterface, AdaptRotationInterface
 
 
 @logger_setter()
@@ -41,13 +41,16 @@ class Qwen3MoeModelAdapter(DefaultModelAdapter,
                            ModelSlimPipelineInterfaceV1,
                            IterSmoothInterface,
                            FlexSmoothQuantInterface,
-                           QuaRotInterface,
+                           AdaptRotationInterface,
                            ):
     def get_model_type(self) -> str:
         return self.model_type
 
     def get_model_pedigree(self) -> str:
         return 'qwen3_moe'
+
+    def get_hidden_dim(self):
+        return self.config.hidden_size
 
     def load_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
         return self._load_model(device)

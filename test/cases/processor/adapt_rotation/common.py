@@ -18,11 +18,11 @@ See the Mulan PSL v2 for more details.
 """
 adapt_rotation 测试共用的 mock 与工具。
 """
-from msmodelslim.processor.quarot.offline_quarot.quarot_interface import QuaRotInterface
+from msmodelslim.processor.adapt_rotation.interface import AdaptRotationInterface
 
 
-class MockQuaRotAdapter(QuaRotInterface):
-    """实现 QuaRotInterface 的 mock 适配器，供 adapt_rotation 相关单测共用。"""
+class MockQuaRotAdapter(AdaptRotationInterface):
+    """实现 AdaptRotationInterface 的 mock 适配器，供 adapt_rotation 相关单测共用。"""
 
     def __init__(self, hidden_dim: int = 4):
         self._hidden_dim = hidden_dim

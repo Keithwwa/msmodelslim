@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
 -------------------------------------------------------------------------
 This file is part of the MindStudio project.
@@ -16,13 +19,14 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-__all__ = [
-    'AdaptRotationProcessor',
-    'AdaptRotationProcessorConfig',
-    'AdaptRotationInterface',
-]
+from abc import abstractmethod
 
-# Parent module imports stage1/stage2 for registration; only parent is public API
-from .adapt_rotation import AdaptRotationProcessor, AdaptRotationProcessorConfig
-from .interface import AdaptRotationInterface
+from msmodelslim.processor.quarot.offline_quarot.quarot_interface import QuaRotInterface
+
+
+class AdaptRotationInterface(QuaRotInterface):
+    @abstractmethod
+    def get_hidden_dim(self) -> int:
+        """Return model hidden dimension used by AdaptRotation stage1."""
+        raise NotImplementedError
 

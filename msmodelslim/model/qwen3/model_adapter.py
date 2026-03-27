@@ -38,7 +38,7 @@ from ..common.layer_wise_forward import generated_decoder_layer_visit_func, tran
 from ..default.model_adapter import DefaultModelAdapter
 from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
     AnalyzePipelineInterface, KVSmoothFusedInterface, SmoothQuantInterface, IterSmoothInterface, \
-    FlexSmoothQuantInterface
+    FlexSmoothQuantInterface, AdaptRotationInterface
 
 from msmodelslim.processor.flat_quant import FlatQuantInterface
 from msmodelslim.processor.flat_quant.flat_quant_utils.structure_pair import(
@@ -58,7 +58,7 @@ class Qwen3ModelAdapter(DefaultModelAdapter,
                         SmoothQuantInterface,
                         IterSmoothInterface,
                         FlexSmoothQuantInterface,
-                        QuaRotInterface,
+                        AdaptRotationInterface,
                         LAOSOnlineRotationInterface,
                         FlatQuantInterface,
                         AWQInterface
