@@ -78,7 +78,7 @@ msmodelslim analyze [参数选项]
 | DeepSeek-R1-0528 |
 | DeepSeek-V3.1    |
 
-- **不支持的 model_type**：若输入的 model_type 不在所选指标对应的列表中，系统会打印 warning 并可能回退到默认的模型适配器，或（如 attention_mse）因适配器未实现接口而报错。
+- **不支持的 model_type**：若输入的 model_type 不在所选指标对应的列表中，系统会打印 warning 并可能回退到默认的模型适配器，或在使用特定指标（如attention_mse）时，因 model_type 对应的模型适配器未实现相关接口而报错。
 - **建议**：使用上述列表中与 `--metrics` 匹配的 model_type，以获得正确的分析行为和兼容性。
 
 #### 路径和文件要求

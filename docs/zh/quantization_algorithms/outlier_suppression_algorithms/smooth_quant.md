@@ -63,9 +63,9 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 
 ### 实现
 
-算法在 `msmodelslim/processor/anti_outlier/smooth_quant/` 中实现，处理流程分两阶段：
+算法在 [msmodelslim/processor/anti_outlier/smooth_quant/](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/processor/anti_outlier/smooth_quant) 中实现，处理流程分两阶段：
 
-#### 1) 预处理阶段（preprocess）
+#### 预处理阶段（preprocess）
 
 **子图发现与构建：**
 
@@ -84,7 +84,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
   - 每通道的绝对最大值（用于平滑缩放计算）
   - 通道偏移量（用于非对称量化）
 
-#### 2) 后处理阶段（postprocess）
+#### 后处理阶段（postprocess）
 
 **子图平滑处理：**
 
@@ -203,7 +203,7 @@ class SmoothQuantInterface(ABC):
 2. **配置子图映射**：为每层配置 norm-linear 子图映射关系。
 3. **指定模块路径**：使用完整的模块路径，如 `model.layers.{i}.input_layernorm`。
 
-**参考实现：** 可参考 `msmodelslim/model/qwen3/model_adapter.py` 中的 `Qwen3ModelAdapter` 实现。
+**参考实现：** 可参考 [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) 中的 `Qwen3ModelAdapter` 实现。
 
 ### 配置示例
 
@@ -245,22 +245,22 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
 
 ## FAQ
 
-### 1. 模块名称不匹配
+### 模块名称不匹配
 
 **现象**: `include/exclude` 未命中时，日志提示未匹配模式。  
 **解决方案**: 核对完整模块名称是否与 `named_modules()` 返回的路径一致。
 
-### 2. 子图配置错误
+### 子图配置错误
 
 **现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。  
 **解决方案**: 检查配置中的 `source` 和 `targets` 字段是否正确。
 
-### 3. 模块不存在
+### 模块不存在
 
 **现象**: 配置中指定的模块名称在模型中不存在。  
 **解决方案**: 通过 `model.named_modules()` 验证模块是否确实存在。
 
-### 5. 映射关系错误
+### 映射关系错误
 
 **现象**: `MappingConfig` 中的 `source` 和 `targets` 指向错误的模块。  
 **解决方案**: 检查 `MappingConfig` 中的 `source` 是否为归一化层，`targets` 是否为其后续的线性层。
