@@ -35,7 +35,7 @@
     sudo yum install -y ffmpeg
 
     # 验证ffmpeg安装成功
-    ffmpeg -v
+    ffmpeg -version
 
 ## Qwen2.5-Omni 模型当前已验证的量化方法
 

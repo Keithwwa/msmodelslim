@@ -1,7 +1,7 @@
 # 加速库场景下W8A8量化权重的使用案例
 
 ## 概述
-量化工具与MindIE工具关系：msmodelslim作为量化工具提供量化能力，MindIE加速库可以调用量化权重进行推理。
+量化工具与MindIE工具关系：msModelSlim作为量化工具提供量化能力，MindIE加速库可以调用量化权重进行推理。
 
 ## 前期准备
 请参考《[MindIE安装指南](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0001.html)》安装MindIE，并参考《MindIE安装指南》中“配置MindIE > [配置MindIE LLM](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0028.html)”章节配置MindIE LLM。
@@ -38,7 +38,7 @@ bash examples/models/llama/generate_quant_weight.sh -src {浮点权重路径} -d
 
 # 以上指令展示了生成Llama2-13b-hf W8A8权重，不同模型的参数配置不同，请参考模型Readme文件。
 # W8A8量化权重的config.json中应包含quantize字段，其值为"w8a8"。
-# MindIE量化脚本除了调用msmodelslim量化工具生成权重及权重描述外，还复制了tokenizer文件以及复制并修改了config.json到量化权重保存路径中。
+# MindIE量化脚本除了调用msModelSlim量化工具生成权重及权重描述外，还复制了tokenizer文件以及复制并修改了config.json到量化权重保存路径中。
 ```
 
   （3）量化后权重目录结构：
