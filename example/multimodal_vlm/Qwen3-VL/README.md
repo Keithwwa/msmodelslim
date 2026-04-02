@@ -73,7 +73,7 @@ Atlas 300I DUO 使用以下方法稀疏量化
   torchrun --nproc_per_node {TP数} -m examples.convert.model_slim.sparse_compressor --model_path {W8A8S量化权重路径} --save_directory {W8A8SC量化权重路径}
   ```
 
-### 量化参数说明
+#### 量化参数说明
 
 | 参数名 | 含义 | 默认值 | 使用方法 |
 | ------ | ---- | --- | -------- |
@@ -99,7 +99,7 @@ Atlas 300I DUO 使用以下方法稀疏量化
 - 更多参数配置要求，请参考量化过程中配置的参数 [QuantConfig](../../../docs/zh/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_QuantConfig.md)
   以及量化参数配置类 [Calibrator](../../../docs/zh/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)。
 
-#### <span id="qwen3-vl-4b-w8a8">1.1.5 Qwen3-VL-4B-Instruct W8A8量化</span>
+##### <span id="qwen3-vl-4b-w8a8">1.2 Qwen3-VL-4B-Instruct W8A8量化</span>
 
 该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。使用 `model_type=Qwen3-VL-4B-Instruct`、`quant_type=w8a8` 即可。若需使用自定义配置（如指定保存选项），可通过 `config_path` 指定 [qwen3_vl_4b_w8a8.yaml](../../../lab_practice/qwen3_vl/qwen3_vl_4b_w8a8.yaml)。
 
@@ -130,7 +130,7 @@ msmodelslim quant \
 - Qwen3-VL-4B-Instruct 默认精度为`bfloat16`，若修改模型权重路径下`config.json`中的`torch_dtype`为`float16`进行量化，可能会导致模型精度异常。
 - 若硬件只支持float16精度推理（例如Atlas 300I/300T系列），建议采用默认精度`bfloat16`量化后将模型权重路径下`config.json`中的`torch_dtype`修改为`float16`进行推理。
 
-##### <span id="qwen3-vl-w8a8">1.2 Qwen3-VL-32B-Instruct W8A8量化</span>
+##### <span id="qwen3-vl-w8a8">1.3 Qwen3-VL-32B-Instruct W8A8量化</span>
 
 该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。
 

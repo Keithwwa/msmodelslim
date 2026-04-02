@@ -33,8 +33,7 @@ msModelSlim认识到量化机制和算法都有适用范围和局限性，而新
 
 模型适配器类必须继承自[`BaseModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/base.py)。
    
-根据经验，W8A8动态量化的精度损失很小，无需搭配离群值抑制算法，也很少需要回退；因此，在场景示例中，我们仅需支持量化调度，无需支持离群值量化、敏感层分析等额外功能。需要接入其他算法可以参考[附录-可用算法接口适配指导](#可用算法接口适配指导)
-
+根据经验，W8A8动态量化的精度损失很小，无需搭配离群值抑制算法，也很少需要回退；因此，在场景示例中，我们仅需支持量化调度，无需支持离群值量化、敏感层分析等额外功能。需要接入其他算法可以参考[`算法总览`](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/quantization_algorithms/)
 ```python
 from typing import List, Any, Generator
 from torch import nn
@@ -165,15 +164,3 @@ msmodelslim quant --model_path ${MODEL_PATH} \
 
 - 详细用法与参数说明请参阅：[`一键量化使用说明`](../feature_guide/quick_quantization_v1/usage.md)
 
-## 附录
-
-### 可用算法接口适配指导
-
-| 算法               | 算法介绍       | 适配指导       |
-| ------------------ | ------------- | ------------- |
-| SmoothQuant | [SmoothQuant：离群值抑制算法说明](../quantization_algorithms/outlier_suppression_algorithms/smooth_quant.md) | [SmoothQuant 适配](../quantization_algorithms/outlier_suppression_algorithms/smooth_quant.md#模型适配)
-| Iterative Smooth | [Iterative Smooth：离群值抑制算法说明](../quantization_algorithms/outlier_suppression_algorithms/iterative_smooth.md) | [Iterative Smooth 适配](../quantization_algorithms/outlier_suppression_algorithms/iterative_smooth.md#模型适配)
-| Flex Smooth Quant| [Flex Smooth Quant：灵活平滑量化算法说明](../quantization_algorithms/outlier_suppression_algorithms/flex_smooth_quant.md)| [Flex Smooth Quant 适配](../quantization_algorithms/outlier_suppression_algorithms/flex_smooth_quant.md#模型适配)
-| KV Smooth | [KVSmooth：KVCache量化离群值抑制算法说明](../quantization_algorithms/outlier_suppression_algorithms/kv_smooth.md) | [KV Smooth 适配](../quantization_algorithms/outlier_suppression_algorithms/kv_smooth.md#模型适配)
-| QuaRot | [QuaRot：基于旋转的离群值抑制算法说明](../quantization_algorithms/outlier_suppression_algorithms/quarot.md) | [QuaRot 适配](../quantization_algorithms/outlier_suppression_algorithms/quarot.md#模型适配)
-| FA3 | [FA3量化：Flash Attention 3激活量化算法说明](../quantization_algorithms/quantization_algorithms/fa3_quant.md) | [FA3 适配](../quantization_algorithms/quantization_algorithms/fa3_quant.md#模型适配)

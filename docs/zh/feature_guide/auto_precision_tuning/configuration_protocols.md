@@ -291,7 +291,7 @@ AISbench 测评工具的详细配置参数：
 
 | 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
 |--------|------|------|----------|------|
-| binary | 指定 aisbench 启动命令 | string | 可选 | 固定值：`ais_bench`。默认值：`"ais_bench"` |
+| binary | 指定 AISBench 启动命令 | string | 可选 | 固定值：`ais_bench`。默认值：`"ais_bench"` |
 | mode | 设置评测模式 | string | 可选 | 评测模式。默认值：`"all"` |
 | timeout | 设置命令执行超时时间 | int | 可选 | 超时时间（秒），必须大于 0。默认值：`7200`（2小时） |
 | cleanup_model_config | 控制是否清理模型配置 | bool | 可选 | 是否清理生成的模型配置文件。默认值：`true` |
@@ -317,7 +317,7 @@ AISbench 测评工具的详细配置参数：
 | abbr | 指定模型配置缩写 | string | 可选 | 模型配置缩写。默认值：`"vllm-api-general-chat"` |
 | attr | 指定模型配置属性 | string | 可选 | 模型配置属性。默认值：`"service"` |
 
-**注意**: 上面大部分参数来自于 aisbench 命令行参数与服务化推理后端参数，可以参考 [AISBench 详细参数说明](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/index.html) 进行配置。
+**注意**: 上面大部分参数来自于 AISBench 命令行参数与服务化推理后端参数，可以参考 [AISBench 详细参数说明](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/index.html) 进行配置。
 
 ##### precheck - 预检查配置（可选）
 

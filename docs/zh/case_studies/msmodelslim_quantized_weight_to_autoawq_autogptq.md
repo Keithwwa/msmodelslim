@@ -21,7 +21,7 @@ AutoGPTQ：GPU
 
 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../getting_started/install_guide.md)。
 
-参考大模型量化中的[使用前准备](../feature_guide/traditional_quantization_v0/foundation_model_compression.md#使用前准备)，进行依赖安装大模型量化工具依赖安装
+参考大模型量化中的[使用前准备](../feature_guide/traditional_quantization_v0/foundation_model_compression.md#使用前准备)，进行依赖安装。
 
 ### 量化使用说明
 量化脚本跟正常的量化脚本一样，可以参考：[w8a8精度调优策略](w8a8_accuracy_tuning_policy.md) 。

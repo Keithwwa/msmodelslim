@@ -58,7 +58,7 @@ ERROR: Could not find a version that satisfies the requirement puccinialin (from
 
 此时，可尝试升级Python环境至 Python 3.9 及以上版本
 
-如果您的环境已升级至 Python 3.9 或以上版本，但仍然出现报错，可能是由于os版本过低，导致安装 `hugginface_hub` 的子依赖失败，报错信息如下：
+如果您的环境已升级至 Python 3.9 或以上版本，但仍然出现报错，可能是由于os版本过低，导致安装 `huggingface_hub` 的子依赖失败，报错信息如下：
 
 ```text
 error: subprocess-exited-with-error

@@ -337,7 +337,7 @@ DeepSeek-R1模型较大，且存在需要手动适配的点，为了避免浪费
 
 ```shell
 # 使用 disable_anti 参数可以减少量化所需时间
-python3 quant_deepseek_W8A8.py --model_path ${model_path} --save_path ${save_path} --dynamic --disable_anti --trust_remote_code True
+python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_path} --dynamic --disable_anti --trust_remote_code True
 ```
 
 #### <span id="deepseek-r1-w4a8-混合量化">DeepSeek-R1 W4A8 混合量化(前三层 mlp：w8a8 dynamic 量化，MLA&共享专家:w8a8量化，路由专家:w4a8 dynamic量化)</span>

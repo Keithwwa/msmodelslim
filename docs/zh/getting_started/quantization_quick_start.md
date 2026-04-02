@@ -293,7 +293,7 @@ A: 可以尝试：
 
 **Q: 如何验证量化效果？**
 
-A: 可以使用推理框架在线/离线推理，在相同输入下对比量化前后的输出差异，以及比较量化前后的[数据集评分](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html#id3)差值。
+A: 可以使用推理框架在线/离线推理，在相同输入下对比量化前后的输出差异，以及比较量化前后的[数据集评分](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/mode.html#id2)差值。
 
 **Q: 如何选择使用哪种量化方式？**
 
