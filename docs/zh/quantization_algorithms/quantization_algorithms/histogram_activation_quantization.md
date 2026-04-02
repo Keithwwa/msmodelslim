@@ -82,7 +82,7 @@ spec:
 | 参数名 | 作用 | 可选值 | 说明 | 默认值 |
 |--------|------|--------|------|--------|
 | scope | 量化范围 | `"per_tensor"` | per_tensor: 整个张量使用相同参数 | `"per_tensor"` |
-| dtype | 量化数据类型 | `"int8"`, `"int4"` | 8位/4位整数量化 | `"int8"` |
+| dtype | 量化数据类型 | `"int8"` | 8位整数量化 | `"int8"` |
 | symmetric | 是否对称量化 | `true`, `false` | true: 对称量化，零点为0<br/>false: 非对称量化，零点可调整 | `false` |
 | method | 量化方法 | `"histogram"` | histogram: 直方图量化 | `"histogram"` |
 
