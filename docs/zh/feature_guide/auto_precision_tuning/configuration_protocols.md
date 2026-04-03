@@ -11,7 +11,7 @@
 
 ### 配置文件位置
 
-用户需要自定义调优配置文件，可以参考 `docs/zh/feature_guide/auto_tuning/example` 目录下的配置文件格式进行自定义。
+用户需要自定义调优配置文件，可以参考 [example](./example/) 目录下的配置文件格式进行自定义。
 
 ## 自动调优基础配置协议
 
@@ -19,31 +19,17 @@
 
 ```yaml
 strategy:
-  type: <strategy_type>  # 调优策略类型，如 standing_high
-  # 策略特有配置，不同策略类型有不同的配置字段
-  # 详细配置请参考对应算法的文档，如 [Standing High 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high.md)
-  template:
-    # 量化基础配置，参考一键量化配置协议
-  metadata:
-    config_id: <config_id>
-    label:
-      w_bit: 8
-      a_bit: 8
-      is_sparse: false
-      kv_cache: false
+  type: <strategy_type>  # 调优策略类型，如 standing_high、standing_high_with_experience
+  # 不同策略有不同的配置字段与语义，详见各策略文档
 
 evaluation:
   type: service_oriented
   demand:
     expectations:
-      - dataset: gsm8k
-        target: 83  # 目标精度，单位为百分比，83 表示 83%
-        tolerance: 2  # 容差，单位为百分比，2 表示 ±2%
+      # 精度期望列表：用于描述“需要在哪些数据集上达到什么精度要求”
   evaluation:
     type: aisbench
-    precheck:  # 可选，正式评估前的预检查配置列表
-      # 预检查配置列表，每个元素包含 type 字段（garbled_text 或 expected_answer）
-    # 其他测评工具配置
+    # 具体字段详见下文 evaluation.evaluation 小节
   inference_engine:
     # 推理引擎配置
 ```
@@ -54,88 +40,20 @@ evaluation:
 
 **作用**: 定义调优策略的类型、参数和量化基础配置。
 
-#### type - 策略类型
+**type - 策略类型**
 
 **作用**: 指定调优算法的类型，不同的策略类型对应不同的调优算法。
 
 **类型**: `string`
 
-**可选值**: 根据已实现的调优策略而定，例如 `standing_high`。详细的算法说明请参考 [Standing High 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high.md)。
+**可选值**: 根据已实现的调优策略而定，例如 `standing_high`。
 
-#### 策略特有配置字段
+**策略特有配置字段**
 
-不同的调优策略类型可能有不同的特有配置字段。例如，`standing_high` 策略包含 `anti_outlier_strategies` 字段用于配置离群值抑制策略。详细的策略特有配置说明请参考对应算法的文档，如 [Standing High 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high.md)。
+不同调优策略的配置字段差异较大，本协议文档不展开具体策略参数。请在选择策略后，直接参考对应策略文档中的“关键参数/配置示例”：
 
-#### template - 量化基础配置
-
-**作用**: 定义量化处理的基础配置，包括量化调度器、处理器、保存器和数据集配置。该配置是开启调优的起点，基础配置的选择一定程度上会影响调优的迭代次数。
-
-**配置协议**: template 字段的配置协议与一键量化配置协议中的 `spec` 字段保持一致，详细配置说明请参考[一键量化配置协议说明](../quick_quantization_v1/usage.md)。
-
-**核心字段**:
-
-- **runner**: 量化调度器类型，定义量化处理的调度方式（auto、layer_wise、dp_layer_wise、model_wise等）
-- **process**: 处理器列表，定义量化处理的处理器配置（linear_quant、Iterative Smooth等）
-- **save**: 保存器列表，定义量化结果的保存方式（ascendv1_saver等）
-- **dataset**: 校准数据集配置，指定校准数据集文件名
-
-**配置示例**:
-
-```yaml
-template:
-  runner: auto
-  process:
-    - type: linear_quant
-      qconfig:
-        act:
-          scope: per_tensor
-          dtype: int8
-          symmetric: false
-          method: minmax
-        weight:
-          scope: per_channel
-          dtype: int8
-          symmetric: true
-          method: minmax
-        include: [ "*" ]
-        exclude: [ ]
-  save:
-    - type: ascendv1_saver
-      part_file_size: 4
-  dataset: mix_calib.jsonl
-```
-
-#### metadata - 策略元数据
-
-**作用**: 定义策略的元数据信息，用于标识和分类量化配置。
-
-**字段说明**:
-
-| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
-|--------|------|------|----------|------|
-| config_id | 配置ID | string | 可选 | 量化配置的标识符。默认值：`"Unknown"` |
-| label | 标签 | object | 可选 | 量化配置的标签信息，包括量化位数、稀疏性等。默认值：`{}` |
-
-**label 字段说明**:
-
-| 字段名 | 作用 | 类型 | 说明 |
-|--------|------|------|------|
-| w_bit | 权重量化位数 | int | 权重量化的位数，如8表示8bit量化 |
-| a_bit | 激活值量化位数 | int | 激活值量化的位数，如8表示8bit量化 |
-| is_sparse | 是否稀疏 | bool | 是否为稀疏量化 |
-| kv_cache | 是否量化KV缓存 | bool | 是否对KV缓存进行量化 |
-
-**配置示例**:
-
-```yaml
-metadata:
-  config_id: standing_high
-  label:
-    w_bit: 8
-    a_bit: 8
-    is_sparse: false
-    kv_cache: false
-```
+- [Standing High 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high.md)
+- [Standing High With Experience 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high_with_experience.md)
 
 ### evaluation - 评估服务配置
 
@@ -217,11 +135,11 @@ demand:
 |--------|------|------|----------|------|
 | type | 测评工具类型 | string | 必选 | 当前支持 `aisbench`。 |
 | precheck | 预检查配置 | list | 可选 | 定义正式评估前的预检查配置，空列表表示跳过预检查。默认值：`[]` |
-| aisbench | AISbench 测评工具配置 | object | 必选 | AISbench 测评工具的详细配置参数。 |
-| datasets | 数据集配置 | dict | 必选 | 数据集配置，定义需要评估的数据集及其配置。必须至少包含 `demand.expectations` 中指定的所有数据集。 |
-| host | 服务主机地址 | string | 可选 | 服务主机地址，支持 localhost、IPv4、IPv6 格式。默认值：`"localhost"` |
-| port | 服务端口 | int | 可选 | 服务端口，范围：1-65535。默认值：`1234` |
-| served_model_name | 服务化模型名称 | string | 可选 | 服务化模型名称，非空字符串。默认值：`"served_model_name"` |
+| aisbench | AISbench 测评工具配置 | object | 必选 | AISbench 测评工具的详细配置参数（如 `timeout`、`batch_size`、`generation_kwargs` 等）。 |
+| datasets | 数据集配置 | dict | 必选 | 定义需要评估的数据集及其配置，必须至少包含 `demand.expectations` 中指定的所有数据集。 |
+| host | 服务主机地址 | string | 可选 | 测评端连接推理服务的地址。**需与推理引擎侧保持一致**。默认值：`"localhost"` |
+| port | 服务端口 | int | 可选 | 测评端连接推理服务的端口。**需与推理引擎侧保持一致**。默认值：`1234` |
+| served_model_name | 服务化模型名称 | string | 可选 | 测评端请求时使用的模型名称标识，**需与推理引擎侧保持一致**。默认值：`"served_model_name"` |
 
 **配置示例**:
 
@@ -268,22 +186,9 @@ evaluation:
   served_model_name: served_model_name
 ```
 
-**datasets 字段说明**:
+##### aisbench - AISBench 测评工具配置
 
-该字段指定了不同的数据集字段对应的 AISbench 拉起测评服务的字段。当前示例中仅支持三个数据集（gsm8k、aime25、bfcl-simple），用户可以参考 [AISbench 文档数据集支持列表](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html)添加更多支持的数据集。
-
-每个数据集的配置字段说明：
-
-| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
-|--------|------|------|----------|------|
-| config_name | 指定 AISbench 中的配置名称 | string | 必选 | 数据集在 AISbench 中的配置名称，非空字符串 |
-| mode | 设置该数据集的评测模式 | string | 可选 | 评测模式，空字符串表示使用全局模式。默认值：`""` |
-| request_rate | 设置该数据集的请求速率 | float | 可选 | 请求速率，0.0 表示使用全局默认值。必须大于等于 0。默认值：`0.0` |
-| max_out_len | 设置该数据集的最大输出长度 | int | 可选 | 最大输出长度，None 表示使用全局默认值。如果指定则必须大于 0。默认值：`None` |
-| returns_tool_calls | 控制是否返回工具调用 | bool | 可选 | 是否返回工具调用，None 表示不写入该字段。默认值：`None` |
-| api_chat_type | 指定该数据集使用的 API Chat 类型 | string | 可选 | API Chat 类型，非空字符串。默认值：`"VLLMCustomAPIChat"` |
-| chat_template_kwargs | 配置 chat_template 的额外参数 | dict | 可选 | chat_template 的额外参数。默认值：`{}` |
-| extra_args | 添加该数据集的额外命令行参数 | list | 可选 | 额外的命令行参数列表。默认值：`[]` |
+**作用**：配置 AISBench 的命令行与测评运行参数（如 `timeout`、`batch_size`、`generation_kwargs` 等）。
 
 **aisbench 字段说明**:
 
@@ -302,22 +207,44 @@ AISbench 测评工具的详细配置参数：
 | batch_size | 设置批处理大小 | int | 可选 | 批处理大小，必须大于 0。默认值：`1` |
 | max_out_len | 设置最大输出长度 | int | 可选 | 最大输出长度，必须大于 0。默认值：`512` |
 | trust_remote_code | 控制是否信任远程代码 | bool | 可选 | 是否信任远程代码。默认值：`false` |
-| generation_kwargs | 配置生成参数 | dict | 可选 | 生成参数配置字典。默认值：`{}` |
+| generation_kwargs | 服务化推理后端配置生成参数 | dict | 可选 | 生成参数配置字典。默认值：`{}` |
 | extra_args | 添加额外命令行参数 | list | 可选 | 额外的命令行参数列表。默认值：`[]` |
 | log_dir | 指定日志目录路径 | string | 可选 | 日志目录路径，空字符串表示使用默认路径。默认值：`""` |
 
 **model_meta 字段说明**:
 
+下面参数主要用于获得服务化推理后端模型配置：
+
 | 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
 |--------|------|------|----------|------|
 | directory | 指定模型配置目录路径 | string | 可选 | 模型配置目录的显式路径，空字符串表示使用默认路径。默认值：`""` |
-| subdir | 指定模型配置子目录 | string | 可选 | 模型配置子目录。默认值：`"vllm_api"` |
-| base_name | 指定模型配置基础名称 | string | 可选 | 模型配置基础名称。默认值：`"vllm_api_general_chat"` |
-| name_suffix | 指定模型配置名称后缀 | string | 可选 | 模型配置名称后缀，'auto'表示自动生成。默认值：`"auto"` |
+| subdir | 指定模型服务化后端配置子目录 | string | 可选 | 模型服务化后端配置子目录。默认值：`"vllm_api"` |
+| base_name | 指定模型服务化后端配置基础名称 | string | 可选 | 模型服务化后端配置基础名称。默认值：`"vllm_api_general_chat"` |
+| name_suffix | 指定模型服务化后端配置名称后缀 | string | 可选 | 模型服务化后端配置名称后缀，'auto'表示自动生成。默认值：`"auto"` |
 | abbr | 指定模型配置缩写 | string | 可选 | 模型配置缩写。默认值：`"vllm-api-general-chat"` |
 | attr | 指定模型配置属性 | string | 可选 | 模型配置属性。默认值：`"service"` |
 
 **注意**: 上面大部分参数来自于 AISBench 命令行参数与服务化推理后端参数，可以参考 [AISBench 详细参数说明](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/index.html) 进行配置。
+
+##### datasets - 数据集配置
+
+**作用**：配置待评估数据集及每个数据集在 AISBench 中的参数；必须至少包含 `demand.expectations` 中出现的所有数据集。
+
+**datasets 字段说明**:
+
+该字段指定了不同的数据集字段对应的 AISbench 拉起测评服务的字段。当前示例中仅支持三个数据集（gsm8k、aime25、bfcl-simple），用户可以参考 [AISbench 文档数据集支持列表](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/get_started/datasets.html)添加更多支持的数据集。
+
+每个数据集的配置字段说明：
+
+| 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
+|--------|------|------|----------|------|
+| config_name | 指定 AISbench 中的配置名称 | string | 必选 | 数据集在 AISbench 中的配置名称，非空字符串 |
+| mode | 设置该数据集的评测模式 | string | 可选 | 评测模式，空字符串表示使用全局模式。默认值：`""` |
+| request_rate | 设置该数据集的请求速率 | float | 可选 | 请求速率，0.0 表示使用全局默认值。必须大于等于 0。默认值：`0.0` |
+| max_out_len | 设置该数据集的最大输出长度 | int | 可选 | 最大输出长度，None 表示使用全局默认值。如果指定则必须大于 0。默认值：`None` |
+| returns_tool_calls | 控制是否返回工具调用 | bool | 可选 | 是否返回工具调用，None 表示不写入该字段。默认值：`None` |
+| api_chat_type | 指定该数据集使用的 API Chat 类型 | string | 可选 | 该字段需与 AISBench 对应数据集配置所要求的 API/请求格式保持一致。默认值：`"VLLMCustomAPIChat"` |
+| extra_args | 添加该数据集的额外命令行参数 | list | 可选 | 额外的命令行参数列表。默认值：`[]` |
 
 ##### precheck - 预检查配置（可选）
 
@@ -327,9 +254,7 @@ AISbench 测评工具的详细配置参数：
 
 **说明**: precheck 是一个列表，每个元素是一个预检查规则配置，包含 `type` 字段用于指定预检查类型。如果配置了 precheck 且不为空列表，系统会在正式评估前执行预检查。
 
-**支持的预检查类型**:
-
-1. **expected_answer** - 期望答案验证
+**支持的预检查类型**: `expected_answer`
 
 **expected_answer - 期望答案验证**
 
@@ -389,12 +314,12 @@ precheck:
 | 字段名 | 作用 | 类型 | 必选/可选 | 说明 |
 |--------|------|------|----------|------|
 | type | 指定推理引擎类型 | string | 必选 | 当前只支持 `vllm-ascend`。 |
-| entrypoint | 指定服务入口点 | string | 可选 | 服务入口点，非空字符串。默认值：`"vllm.entrypoints.openai.api_server"` |
+| entrypoint | 指定服务入口点 | string | 可选 | 服务入口点，非空字符串。默认 `vllm.entrypoints.openai.api_server` 为 vLLM OpenAI 兼容 API 服务入口；若需其他入口，须与当前安装的 vLLM/vLLM-Ascend 中可 `-m` 运行的模块一致。 |
 | env_vars | 配置环境变量 | dict | 可选 | 环境变量配置。默认值：`{}` |
-| served_model_name | 指定服务化模型名称 | string | 可选 | 服务化模型名称，非空字符串。默认值：`"served_model_name"` |
-| host | 指定服务主机地址 | string | 可选 | 服务主机地址，支持 localhost、IPv4、IPv6 格式。默认值：`"localhost"` |
-| port | 指定服务端口 | int | 可选 | 服务端口，范围：1-65535。默认值：`1234` |
-| health_check_endpoint | 指定健康检查端点 | string | 可选 | 健康检查端点，用于检查 vLLM-Ascend 是否能正常拉起模型，必须以 `/` 开头。默认值：`"/v1/models"` |
+| served_model_name | 指定服务化模型名称 | string | 可选 | 推理服务对外使用的模型名称标识，非空字符串。**需与测评端（`evaluation.evaluation`）保持一致**。默认值：`"served_model_name"` |
+| host | 指定服务主机地址 | string | 可选 | 推理服务监听地址，支持 localhost、IPv4、IPv6 格式。**需与测评端保持一致**。默认值：`"localhost"` |
+| port | 指定服务端口 | int | 可选 | 推理服务监听端口，范围：1-65535。**需与测评端保持一致**。默认值：`1234` |
+| health_check_endpoint | 指定健康检查端点 | string | 可选 | 就绪探测时请求的 **HTTP 路径**，须与推理进程实际提供的、可返回成功响应的 URL 一致。默认 `"/v1/models"` 对应常见 OpenAI 兼容服务的模型列表接口。必须以 `/` 开头，其它取值无统一列表，可按部署的 vLLM-Ascend 真实路由自定义。 |
 | startup_timeout | 设置启动超时时间 | int | 可选 | 启动超时时间（秒），必须大于 0。默认值：`600` |
 | args | 配置推理引擎启动参数 | dict | 可选 | 推理引擎启动参数，用于添加其他vllm-ascend参数配置。默认值：`{}` |
 
@@ -437,3 +362,4 @@ inference_engine:
 完整的自动调优配置示例请参考：
 
 - standing_high 调优策略配置：[standing_high.yaml](./example/standing_high.yaml)
+- standing_high_with_experience 调优策略配置：[standing_high_with_experience.yaml](./example/standing_high_with_experience.yaml)

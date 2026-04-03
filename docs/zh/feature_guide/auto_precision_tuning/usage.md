@@ -13,8 +13,9 @@ toc_depth: 3
 
 使用自动调优功能前，需要完成以下工具的安装：
 
-1. **vLLM-Ascend**：用于量化后模型拉起服务化。自动调优功能在评估量化后模型精度时，需要使用 vLLM-Ascend 将量化后的模型以服务化方式启动。建议直接使用官方提供的镜像进行安装，详细安装说明请参考 [vLLM-Ascend 安装文档](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/installation.html)。
-2. **AISbench**：用于量化后模型测试。自动调优功能使用 [AISbench](https://github.com/AISBench/benchmark) 对量化后的模型进行精度评估和测试。完成安装后，还需要参考 AISbench 指南准备对应的数据集。
+1. **msModelSlim**：用于自动调优任务的启动与执行。安装方式请参考[msModelSlim工具安装指南](../../getting_started/install_guide.md)。
+2. **vLLM-Ascend**：用于量化后模型服务化启动。自动调优功能在评估量化后模型精度时，需要使用 vLLM-Ascend 将量化后的模型以服务化方式启动。建议直接使用官方提供的镜像进行安装，详细安装说明请参考 [vLLM-Ascend 安装文档](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/installation.html)。
+3. **AISbench**：用于量化后模型测试。自动调优功能使用 [AISbench](https://github.com/AISBench/benchmark) 对量化后的模型进行精度评估和测试。完成安装后，还需要参考 [AISBench 数据集准备指南](https://yh-ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html) 准备对应的数据集。
 
 请确保上述工具已正确安装并配置，否则自动调优功能将无法正常进行模型评估。
 
@@ -22,14 +23,15 @@ toc_depth: 3
 
 **重要提示**：在使用自动调优功能之前，请确保使用的模型是支持的。需要同时满足以下条件：
 
-1. **量化工具支持**：模型需要在量化工具的支持列表中，可以通过查看 [config/config.ini](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) 中的 `[ModelAdapter]` 确定模型是否支持，其中包含了当前支持的模型适配器及其支持的模型名。如果模型不在支持列表中，需要先进行模型适配，实现相应的模型接口后才能使用自动调优功能。
-2. **vLLM-Ascend 支持**：模型需要被 vLLM-Ascend 支持，能够将量化后的模型以服务化方式启动。请先确定 vLLM-Ascend 是否支持量化后模型服务化拉起。
-3. **transformers 版本兼容**：量化工具与推理引擎（vLLM-Ascend）对 `transformers` 的版本有各自的要求，需确保当前环境中的版本能同时满足二者。若某一模型在使用的过程中，量化工具与推理引擎所需的 `transformers` 版本不一致，且**不存在一个 transformers 版本能同时满足两边要求**，则无法在该环境下启动自动调优服务。使用前，请参照双方依赖说明确认当前环境中的 `transformers` 版本兼容：**量化工具侧**各模型对 transformers 等依赖的版本要求见 [config/config.ini](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) 中的 `[ModelAdapterDependencies]` 配置项；**推理引擎侧**各版本 vLLM-Ascend 的依赖要求见 [vLLM-Ascend 发布说明](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/user_guide/release_notes.html#id5) 中各版本的 Dependencies 小节。
-4. **单机服务化**：当前自动调优服务不支持跨机部署。对于需要跨机才能完成服务化拉起的超大规模模型，暂时无法使用自动调优功能。
+1. **模型类型限制**：当前自动调优服务仅支持**大语言模型（LLM）**，且对 **MoE** 模型支持有限（MoE 通常包含大量专家非共享子层，回退/搜索空间更大，导致迭代优化轮次更多，整体调优耗时更长）。
+2. **量化工具支持**：模型需要在量化工具的支持列表中，可以通过查看 [config/config.ini](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) 中的 `[ModelAdapter]` 确定模型是否支持，其中包含了当前支持的模型适配器及其支持的模型名。如果模型不在支持列表中，需要先进行模型适配，实现相应的模型接口后才能使用自动调优功能。模型适配说明可参考[LLM大模型接入指南](../../developer_guide/integrating_models.md)。
+3. **vLLM-Ascend 支持**：模型需要被 vLLM-Ascend 支持，能够将量化后的模型以服务化方式启动。请先确定 vLLM-Ascend 是否支持量化后模型服务化启动。
+4. **transformers 版本兼容**：量化工具与推理引擎（vLLM-Ascend）对 `transformers` 的版本有各自的要求，需确保当前环境中的版本能同时满足二者。若某一模型在使用的过程中，量化工具与推理引擎所需的 `transformers` 版本不一致，且**不存在一个 transformers 版本能同时满足两边要求**，则无法在该环境下启动自动调优服务。使用前，请参照双方依赖说明确认当前环境中的 `transformers` 版本兼容：**量化工具侧**各模型对 transformers 等依赖的版本要求见 [config/config.ini](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) 中的 `[ModelAdapterDependencies]` 配置项；**推理引擎侧**各版本 vLLM-Ascend 的依赖要求见 [vLLM-Ascend 发布说明](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/user_guide/release_notes.html#id5) 中各版本的 Dependencies 小节。
+5. **单机服务化**：当前自动调优服务不支持跨机部署。对于需要跨机才能完成服务化启动的超大规模模型，暂时无法使用自动调优功能。
 
-### 启动命令
+### 启动示例与参数说明
 
-自动调优功能通过命令行方式启动，正确安装 msModelSlim 工具及上述前置依赖后，可以通过如下命令运行：
+自动调优功能通过命令行方式启动。完成上述前置依赖后，可以通过如下命令运行：
 
 ``` bash
 msmodelslim tune [ARGS]
@@ -41,18 +43,11 @@ msmodelslim tune [ARGS]
 msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${CONFIG} --device npu --model_type Qwen3-32B --trust_remote_code True
 ```
 
-**建议**：为了在精度达标时将最终量化配置Yaml保存到实践库，建议设置环境变量 `MSMODELSLIM_CUSTOM_PRACTICE_REPO`。例如：
-
-``` bash
-export MSMODELSLIM_CUSTOM_PRACTICE_REPO=/path/to/your/practice/repo
-msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${CONFIG} --device npu --model_type Qwen3-32B --trust_remote_code True
-```
-
-**中断恢复**：如果调优过程因为意外中断（如系统故障、手动停止等），系统会自动检测 `save_path/history` 目录中是否存在历史精度缓存。如果检测到精度缓存，系统会在重新启动时从头开始迭代，但会复用精度缓存中已评估过的量化配置的评估结果，避免重复评估相同的配置，只需使用相同的 `save_path` 重新运行调优命令即可。
+**中断恢复**：如果调优过程因为意外中断（如系统故障、手动停止等），系统会自动检测 `${SAVE_PATH}/history` 目录中是否存在历史精度缓存。如果检测到精度缓存，系统会在重新启动时从头开始迭代，但会复用精度缓存中已评估过的量化配置的评估结果，避免重复评估相同的配置，只需使用相同的 `${SAVE_PATH}` 重新运行调优命令即可。
 
 **重要说明**：
 
-- 自动恢复功能要求 `save_path` 与之前中断时的路径一致，且 `save_path/history` 目录中存在有效的历史精度缓存。如果历史精度缓存不存在或无效，系统将从头开始调优。
+- 自动恢复功能要求 `${SAVE_PATH}` 与之前中断时的路径一致，且 `${SAVE_PATH}/history` 目录中存在有效的历史精度缓存。如果历史精度缓存不存在或无效，系统将从头开始调优。
 - **精度缓存复用条件**：系统只有在同时满足以下两个条件时才会复用历史精度缓存中的评估结果：
   1. **评估配置完全一致**：启动调优时调优配置文件中的evaluation字段配置（包括评估数据集、评估任务、评估参数等）与历史记录中的评估配置完全相同。
   2. **量化配置完全一致**：当前迭代生成的量化配置与历史记录中的量化配置完全相同。
@@ -60,36 +55,32 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
 
 用户输入命令后，系统将根据配置文件中指定的精度需求，自动尝试不同的量化配置，并对量化后的模型进行评估，直到找到满足精度要求的量化方案或达到最大迭代次数/超时时间。
 
-## 接口说明
-
 ``` bash
 #全局调用命令行
 msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${CONFIG} --device ${DEVICE} --model_type ${MODEL_TYPE} --timeout ${TIMEOUT} --trust_remote_code ${TRUST_REMOTE_CODE}
 ```
 
+**参数介绍**
+
 | 参数名称              | 解释        | 是否可选              | 范围                                                                                   |
 |-------------------|-----------|-------------------|--------------------------------------------------------------------------------------|
 | model_path        | 模型路径      | 必选                | 类型：Str                                                                               |
 | save_path         | 调优结果保存路径  | 必选                | 类型：Str                                                                               |
-| config            | 调优配置文件路径  | 必选                | 1. 类型：Str <br>2. 配置文件路径，必须为完整的文件路径 <br>3. 配置文件格式为yaml，用户需要自定义配置文件，可以参考 `msmodelslim/lab_practice/auto_tuning` 目录下的配置文件格式进行自定义 |
-| device            | 量化设备      | 可选                | 1. 类型：Str <br>2. 参考值：'npu','npu:0,1,2,3','cpu' <br>3. 默认值为"npu"（单设备）<br>4. 指定多个设备时（如：'npu:0,1,2,3'），系统启动DP逐层量化，请确定配置的算法是否支持分布式执行 |
+| config            | 调优配置文件路径  | 必选                | 1. 类型：Str <br>2. 配置文件路径，必须为完整的文件路径 <br>3. 配置文件格式为yaml，配置协议说明见[自动调优配置协议说明](configuration_protocols.md)，示例配置见 [example](example/) |
+| device            | 量化设备      | 可选                | 1. 类型：Str <br>2. 参考值：'npu','npu:0,1,2,3','cpu' <br>3. 默认值为"npu"（单设备）<br>4. 指定多个设备时（如：'npu:0,1,2,3'），系统可启动分布式逐层量化（DP）。算法支持范围与配置方式详见[逐层量化及分布式逐层量化](../quick_quantization_v1/usage.md#逐层量化及分布式逐层量化) |
 | model_type        | 模型名称      | 可选                | 1. 类型：Str <br>2. 默认值为"default" <br>3. 大小写敏感，请参考[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md) |
 | timeout           | 调优超时时间    | 可选                | 1. 类型：Str <br>2. 格式：`<天数>D`、`<小时数>H` 或 `<天数>D<小时数>H` <br>3. 示例：'1D'、'2H'、'3D4H' <br>4. 默认值：None（无超时限制） |
 | trust_remote_code | 是否信任自定义代码 | 可选                | 1. 类型：Bool，默认值：False <br>2. 请确保加载的自定义代码文件的安全性，设置为True有安全风险。                          |
 | h, help           | 命令行参数帮助信息 | 可选                |               -            |
 
-**注意：**
+**环境变量（可选）**
 
-1. **模型支持**：使用自动调优功能前，请确保模型在支持列表中。可以通过查看 `msmodelslim/config/config.ini` 中的 `ModelAdapter` 确定模型是否支持。如果模型不支持，需要先进行模型适配。
-
-2. **自定义配置文件**：用户需要自定义调优配置文件，配置文件格式为yaml。用户可以参考 `msmodelslim/lab_practice/auto_tuning` 目录下的配置文件格式进行自定义。配置文件的详细说明请参考[自动调优配置协议说明](configuration_protocols.md)。精度目标设置与不同模型的服务化参数配置都需要在配置文件中进行修改。
-
-3. 如果需要打印调优运行日志，可通过以下环境变量进行设置。
+如需控制日志级别或配置“最佳实践库”保存路径，可通过以下环境变量进行设置。
 
     | 环境变量                        | 解释                    | 是否可选 | 范围             |
     |-----------------------------|-----------------------|------|----------------|
     | MSMODELSLIM_LOG_LEVEL       | 打印同级及以上日志            | 可选   | INFO(默认),DEBUG |
-    | MSMODELSLIM_CUSTOM_PRACTICE_REPO | 自定义最佳实践库配置文件保存路径 | 可选   | 类型：Str。设置此环境变量后，当精度达标时会将最终量化配置Yaml保存到指定路径；如果不设置，只能在 `save_path/history` 中找到量化配置 |
+    | MSMODELSLIM_CUSTOM_PRACTICE_REPO | 自定义最佳实践库配置文件保存路径 | 可选   | 类型：Str。设置此环境变量后，当精度达标时会将最终量化配置Yaml保存到指定路径；如果不设置，会保存在用户指定的 `${SAVE_PATH}` 下 |
 
 ## 调优流程说明
 
@@ -99,7 +90,7 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
 
 2. **初始化调优服务**：根据指定的配置文件路径加载调优计划，创建量化配置生成器。
 
-3. **检测历史记录**：自动检测 `save_path/history` 目录中是否存在历史精度缓存。如果检测到精度缓存，系统会在后续迭代中尝试复用历史评估结果。
+3. **检测历史记录**：自动检测 `${SAVE_PATH}/history` 目录中是否存在历史精度缓存。如果检测到精度缓存，系统会在后续迭代中尝试复用历史评估结果。
 
 4. **开始迭代调优**：记录调优开始时间和超时时间，进入迭代循环：
 
@@ -110,34 +101,41 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
    - **量化模型**：如果未从历史恢复，根据生成的量化配置Yaml，对模型进行量化，量化权重临时存入用户指定路径。
    - **评估模型精度**：使用 vLLM-Ascend 将量化后的模型以服务化方式启动，如果配置了 `precheck` 字段且不为空，会在正式评估前进行预检查（发送测试消息检测模型输出是否符合预期，失败则跳过本次评估），然后使用 AISbench 对量化后的模型进行精度评估和测试，产生精度指标。
    - **保存调优历史**：将本次迭代的量化配置Yaml和精度指标保存到调优历史。
-   - **判断是否继续**：将评估得到的精度指标作为下一次迭代的输入。如果策略判断精度已达标，会抛出StopIteration异常，停止迭代；否则继续下一次迭代。
+   - **判断是否继续**：将评估得到的精度指标作为下一次迭代的输入。若策略判断已满足迭代停止条件，则停止迭代；否则继续下一次迭代。
 
 5. **停止条件**：迭代会在满足以下任一条件时停止：
-   - 精度指标达到用户指定的目标精度要求
+   - 调优策略已无搜索空间（无法生成新的可评估量化配置）
    - 达到最大迭代次数
    - 达到最大迭代耗时（由 `--timeout` 参数指定）
 
 6. **保存结果**：
-   - **最终Yaml**：当精度达标时，如果设置了环境变量 `MSMODELSLIM_CUSTOM_PRACTICE_REPO`，会将满足精度要求的最终量化配置Yaml保存到该环境变量指定的路径；如果不设置该环境变量，只能在 `save_path/history` 目录中找到量化配置。如果因达到最大迭代次数或超时而停止，则不会保存到最佳实践库。
+   - **最终Yaml**：当精度达标时，如果设置了环境变量 `MSMODELSLIM_CUSTOM_PRACTICE_REPO`，会将满足精度要求的最终量化配置Yaml保存到该环境变量指定的路径；如果不设置该环境变量，会保存在 `${SAVE_PATH}/history` 中。如果因达到最大迭代次数或超时而停止，则不会保存到最佳实践库。
    - **最终权重**：最后一次迭代生成的量化权重保存在用户指定的路径。
-
-**注意：**
-
-- 每次迭代的量化权重都会保存到 `save_path/quant_model`，会覆盖上一次迭代的权重，最终保留的是最后一次迭代的权重。
-- 所有迭代的历史记录（包括每次的Yaml配置和精度指标）都会保存在 `save_path/history` 目录中，用户可以通过查看历史记录了解整个调优过程。
 
 ## 输出件说明
 
-自动调优功能执行完成后，会在 `save_path` 目录下生成以下输出件：
+自动调优功能执行完成后，会在 `${SAVE_PATH}` 目录下生成以下输出件。目录结构示例如下：
+
+```text
+${SAVE_PATH}/
+├── quant_model/          # 量化模型权重（最终一次迭代）
+├── history/              # 调优历史与精度缓存
+│   ├── history.yaml
+│   ├── accuracy.yaml
+│   └── <config_id>.yaml  # 每次迭代的量化配置（Yaml）
+├── vllm_server.log       # vLLM-Ascend 服务日志（最近一次）
+├── aisbench_logs/        # AISBench 评估日志
+└── aisbench_output/      # AISBench 详细输出
+```
 
 ### 量化模型权重
 
-- **路径**：`save_path/quant_model`
+- **路径**：`${SAVE_PATH}/quant_model`
 - **说明**：保存最后一次迭代生成的量化模型权重文件。根据量化配置中 `save` 字段指定的保存器类型。
 
 ### 调优历史记录
 
-- **路径**：`save_path/history`
+- **路径**：`${SAVE_PATH}/history`
 - **说明**：保存所有迭代的调优历史记录，包括：
   - `history.yaml`：调优历史索引文件，记录每次迭代的基本信息（配置ID、精度指标等）
   - `accuracy.yaml`：精度缓存文件，记录已评估过的评估配置和量化配置的精度结果，用于中断恢复时复用评估结果。
@@ -145,28 +143,29 @@ msmodelslim tune --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --config ${
 
 ### vLLM服务日志
 
-- **路径**：`save_path/vllm_server.log`
+- **路径**：`${SAVE_PATH}/vllm_server.log`
 - **说明**：记录最近一次 vLLM-Ascend 服务启动和运行过程中的日志信息，包括模型加载、服务启动、推理请求处理等日志。
 
 ### AISbench评估日志
 
-- **路径**：`save_path/aisbench_logs`
+- **路径**：`${SAVE_PATH}/aisbench_logs`
 - **说明**：保存每次迭代的 AISbench 评估日志文件，记录每次迭代的评估过程日志。
 
 ### AISbench详细输出
 
-- **路径**：`save_path/aisbench_output`
+- **路径**：`${SAVE_PATH}/aisbench_output`
 - **说明**：保存每次迭代的 AISbench 详细评估输出，包含评估任务配置、推理和评估日志、推理结果、精度评估结果及汇总报告等文件。
 
 ### 最终量化配置Yaml
 
 - **路径**（精度达标时）：
   - 如果设置了环境变量 `MSMODELSLIM_CUSTOM_PRACTICE_REPO`：保存到该环境变量指定的路径
-  - 如果未设置环境变量：保存在 `save_path` 中
+  - 如果未设置环境变量：保存在 `${SAVE_PATH}/history` 中
 - **说明**：当精度达标时，系统会将满足精度要求的最终量化配置Yaml保存到指定路径。该配置文件可以直接用于后续的模型量化任务。如果因达到最大迭代次数或超时而停止，则不会保存最终量化配置Yaml到最佳实践库。
 
 ## 相关资料
 
-- **配置协议**：调优配置文件的详细说明，可以参考[自动调优配置协议说明](configuration_protocols.md)。完整的配置文件示例，可以参考 [`msmodelslim/lab_practice/auto_tuning`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/lab_practice/auto_tuning) 目录下的配置文件。
+- **配置协议**：调优配置文件的详细说明，可以参考[自动调优配置协议说明](configuration_protocols.md)。完整的配置文件示例，可以参考 [example](example/)。
 - **调优算法**：对于自动调优支持的多种策略和算法，可以参考相关文档：
 - [Standing High 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high.md)：基于量化回退层选择和离群值抑制策略的自动调优算法
+- [Standing High With Experience 调优算法](../../quantization_algorithms/auto_tuning_strategies/standing_high_with_experience.md)：基于专家经验的摸高算法策略
