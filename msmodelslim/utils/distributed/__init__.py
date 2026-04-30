@@ -26,8 +26,34 @@ __all__ = [
     "sync_gather_tensors",
     "setup_distributed",
     "is_rank_zero",
+    "DTSMixin",
+    "TaskExecutionRecord",
+    "TaskSyncContext",
+    "set_distributed_task_work_queue",
+    "get_distributed_task_work_queue",
+    "clear_distributed_task_work_queue",
+    "DTSBackend",
+    "DTS_PERF_LOG_RUN_TIME_SUMMARY_PREFIX",
+    "DTS_PERF_LOG_NOT_SUITABLE_FOR_PARALLEL_PREFIX",
+    "DTS_PERF_LOG_SPEEDUP_RATIO_PREFIX",
+    "DTS_PERF_LOG_SPEEDUP_SKIPPED_PREFIX",
 ]
 
 from msmodelslim.utils.distributed.dist_helper import DistHelper, is_rank_zero
 from msmodelslim.utils.distributed.dist_ops import sync_base_operation, sync_gather_tensors
 from msmodelslim.utils.distributed.dist_setup import find_free_port, setup_distributed
+from msmodelslim.utils.distributed.task_scheduler import (
+    DTSBackend,
+    DTSMixin,
+    TaskExecutionRecord,
+    TaskSyncContext,
+    clear_distributed_task_work_queue,
+    get_distributed_task_work_queue,
+    set_distributed_task_work_queue,
+)
+from msmodelslim.utils.distributed.task_scheduler.constants import (
+    DTS_PERF_LOG_NOT_SUITABLE_FOR_PARALLEL_PREFIX,
+    DTS_PERF_LOG_RUN_TIME_SUMMARY_PREFIX,
+    DTS_PERF_LOG_SPEEDUP_RATIO_PREFIX,
+    DTS_PERF_LOG_SPEEDUP_SKIPPED_PREFIX,
+)
