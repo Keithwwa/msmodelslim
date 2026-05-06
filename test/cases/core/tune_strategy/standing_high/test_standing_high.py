@@ -14,6 +14,7 @@ import pytest
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1ServiceConfig
 from msmodelslim.core.quant_service.modelslim_v1.save import AscendV1Config
+from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy.interface import EvaluateResult
 from msmodelslim.core.tune_strategy.standing_high.strategy import (
     StandingHighStrategy,
@@ -26,7 +27,7 @@ from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 
 
-class _MockModel(StandingHighInterface):
+class _MockModel(StandingHighInterface, PipelineInterface):
     """Mock model implementing StandingHighInterface."""
 
     @property
@@ -48,6 +49,23 @@ class _MockModel(StandingHighInterface):
         m = MagicMock()
         m.to = MagicMock(return_value=None)
         return m
+
+    # PipelineInterface minimal implementations (not used in these unit tests).
+    def init_model(self, device: DeviceType = DeviceType.NPU):
+        return MagicMock()
+
+    def generate_model_visit(self, model):
+        if False:  # pragma: no cover
+            yield None
+        return
+
+    def generate_model_forward(self, model, inputs):
+        if False:  # pragma: no cover
+            yield None
+        return
+
+    def enable_kv_cache(self, model, need_kv_cache: bool) -> None:
+        return None
 
 
 def _make_anti_outlier_strategies():
@@ -121,8 +139,7 @@ class TestStandingHighStrategy:
             next(gen)
         assert "StandingHighInterface" in str(exc_info.value)
 
-    @patch("msmodelslim.core.tune_strategy.standing_high.strategy.LayerSelector")
-    def test_generate_practice_yields_zero_practice_then_stops_when_send_is_satisfied_true(self, mock_layer_selector_cls):
+    def test_generate_practice_yields_zero_practice_then_stops_when_send_is_satisfied_true(self):
         """
         场景：调用 generate_practice 后 next 取第一个 practice，再 send(is_satisfied=True)。
         预期：首项为 standing_high_ 前缀的 practice，send 后迭代器结束。
@@ -131,13 +148,10 @@ class TestStandingHighStrategy:
         loader = self._make_dataset_loader()
         strategy = StandingHighStrategy(config=config, dataset_loader=loader)
 
-        mock_selector = MagicMock()
-        mock_selector.run = MagicMock()
-        mock_layer_selector_cls.return_value = mock_selector
-
         model = _MockModel()
-        gen = strategy.generate_practice(model, device=DeviceType.NPU)
-        practice = next(gen)
+        with patch.object(strategy, "_run_sensitive_layer_analysis", return_value=None):
+            gen = strategy.generate_practice(model, device=DeviceType.NPU)
+            practice = next(gen)
         assert practice is not None
         assert practice.spec is not None
         assert practice.metadata.config_id.startswith("standing_high_")
@@ -179,10 +193,10 @@ class TestStandingHighStrategy:
         assert practice.spec is not None
         linear_procs = [p for p in practice.spec.process if getattr(p, "type", None) == "linear_quant"]
         assert len(linear_procs) >= 1
-        assert "layer.0.linear" in (linear_procs[0].exclude or [])
+        excludes = linear_procs[0].exclude or []
+        assert any("layer.0.linear" in pat for pat in excludes)
 
-    @patch("msmodelslim.core.tune_strategy.standing_high.strategy.LayerSelector")
-    def test_generate_practice_yields_multiple_practices_when_send_is_satisfied_false_then_true(self, mock_layer_selector_cls):
+    def test_generate_practice_yields_multiple_practices_when_send_is_satisfied_false_then_true(self):
         """
         场景：generate_practice 后多次 send EvaluateResult（先 is_satisfied=False 再 True），直至 send(None)。
         预期：可依次取到多个 practice，最后 send(None) 触发 StopIteration。
@@ -191,28 +205,49 @@ class TestStandingHighStrategy:
         loader = self._make_dataset_loader()
         strategy = StandingHighStrategy(config=config, dataset_loader=loader)
 
-        mock_selector = MagicMock()
-        mock_selector.run = MagicMock()
-        mock_selector.layer_groups = [["g1"], ["g2"]]
-        mock_selector.select_layers_by_disable_level = MagicMock(side_effect=lambda level: [] if level == 0 else ["g2"])
-        mock_layer_selector_cls.return_value = mock_selector
-
         model = _MockModel()
-        gen = strategy.generate_practice(model, device=DeviceType.NPU)
-        p1 = next(gen)
-        assert p1.metadata.config_id.startswith("standing_high_")
+        # Avoid running real analysis / binary search; focus on generator control flow.
+        with (
+            patch.object(strategy, "_run_sensitive_layer_analysis", return_value=None),
+            patch.object(strategy, "_find_satisfied_disable_level") as mock_find_level,
+            patch.object(strategy, "_stand_high") as mock_stand_high,
+        ):
+            def _fake_find_level():
+                _ = yield strategy._build_practice_config(
+                    config.anti_outlier_strategies[0],
+                    linear_quant_exclude=["g2"],
+                )
+                return 1
 
-        p2 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=False))
-        assert p2 is not None
+            def _fake_stand_high(_init_level: int):
+                _ = yield strategy._build_practice_config(
+                    config.anti_outlier_strategies[0],
+                    linear_quant_exclude=["g2"],
+                )
+                _ = yield strategy._build_practice_config(
+                    config.anti_outlier_strategies[0],
+                    linear_quant_exclude=[],
+                )
+                return
 
-        p3 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=True))
-        assert p3 is not None
+            mock_find_level.side_effect = _fake_find_level
+            mock_stand_high.side_effect = _fake_stand_high
 
-        p4 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=True))
-        assert p4 is not None
+            gen = strategy.generate_practice(model, device=DeviceType.NPU)
+            p1 = next(gen)
+            assert p1.metadata.config_id.startswith("standing_high_")
 
-        with pytest.raises(StopIteration):
-            gen.send(None)
+            p2 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=False))
+            assert p2 is not None
+
+            p3 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=True))
+            assert p3 is not None
+
+            p4 = gen.send(EvaluateResult(accuracies=[], expectations=[], is_satisfied=True))
+            assert p4 is not None
+
+            with pytest.raises(StopIteration):
+                gen.send(None)
 
     def test_get_plugin_returns_config_and_strategy_classes_when_called(self):
         """

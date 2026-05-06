@@ -2,5 +2,5 @@ process:
   - type: binary_analysis
     configs:
       - type: fa3_quant
-    metrics: attention_mse
+    metrics: mse
     patterns: ${patterns}

@@ -20,9 +20,23 @@ See the Mulan PSL v2 for more details.
 """
 __all__ = [
     'LayerAnalysisApplication',
-
+    'AnalysisMetrics',
+    'AnalysisScope',
+    'LinearArgs',
+    'AttnArgs',
+    'LayerArgs',
+    'ScopeAnalysisArgs',
     'AnalysisResultDisplayerInfra',
 ]
 
-from .application import LayerAnalysisApplication 
+from msmodelslim.core.analysis_service import AnalysisScope
+
+from .application import (
+    LayerAnalysisApplication,
+    AnalysisMetrics,
+    LinearArgs,
+    AttnArgs,
+    LayerArgs,
+    ScopeAnalysisArgs,
+)
 from .result_displayer_infra import AnalysisResultDisplayerInfra

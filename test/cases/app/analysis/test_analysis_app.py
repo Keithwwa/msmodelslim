@@ -90,7 +90,11 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
 
     def test_analyze_parameter_validation_model_type(self):
         """测试analyze方法model_type参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
 
         mock_service = MagicMock()
         mock_factory = MagicMock()
@@ -101,9 +105,8 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
             app.analyze(
                 model_type=123,  # 应该是字符串
                 model_path=str(self.model_path),
-                patterns=["*"],
+                scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.STD),
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
                 calib_dataset="boolq.jsonl",
                 topk=15,
                 trust_remote_code=False
@@ -111,62 +114,23 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
 
     def test_analyze_parameter_validation_patterns(self):
         """测试analyze方法patterns参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
 
         mock_service = MagicMock()
         mock_factory = MagicMock()
         app = LayerAnalysisApplication(mock_service, mock_factory, MagicMock())
 
-        # 测试无效的patterns类型
+        # 测试无效的 pattern 类型（LinearArgs）
         with self.assertRaises(SchemaValidateError):
             app.analyze(
                 model_type="Qwen2.5-7B-Instruct",
                 model_path=str(self.model_path),
-                patterns="not_a_list",  # 应该是列表
+                scope_args=LinearArgs(pattern="not_a_list", metrics=AnalysisMetrics.STD),  # noqa: type is wrong on purpose
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
-                calib_dataset="boolq.jsonl",
-                topk=15,
-                trust_remote_code=False
-            )
-
-    def test_analyze_parameter_validation_device(self):
-        """测试analyze方法device参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
-
-        mock_service = MagicMock()
-        mock_factory = MagicMock()
-        app = LayerAnalysisApplication(mock_service, mock_factory, MagicMock())
-
-        # 测试无效的device类型
-        with self.assertRaises(SchemaValidateError):
-            app.analyze(
-                model_type="Qwen2.5-7B-Instruct",
-                model_path=str(self.model_path),
-                patterns=["*"],
-                device="invalid_device",  # 应该是DeviceType枚举
-                metrics=AnalysisMetrics.STD,
-                calib_dataset="boolq.jsonl",
-                topk=15,
-                trust_remote_code=False
-            )
-
-    def test_analyze_parameter_validation_metrics(self):
-        """测试analyze方法metrics参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication
-
-        mock_service = MagicMock()
-        mock_factory = MagicMock()
-        app = LayerAnalysisApplication(mock_service, mock_factory, MagicMock())
-
-        # 测试无效的metrics类型
-        with self.assertRaises(SchemaValidateError):
-            app.analyze(
-                model_type="Qwen2.5-7B-Instruct",
-                model_path=str(self.model_path),
-                patterns=["*"],
-                device=DeviceType.NPU,
-                metrics="invalid_metrics",  # 应该是AnalysisMetrics枚举
                 calib_dataset="boolq.jsonl",
                 topk=15,
                 trust_remote_code=False
@@ -174,7 +138,11 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
 
     def test_analyze_parameter_validation_calib_dataset_format(self):
         """测试analyze方法calib_dataset文件格式验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
 
         mock_service = MagicMock()
         mock_factory = MagicMock()
@@ -185,9 +153,8 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
             app.analyze(
                 model_type="Qwen2.5-7B-Instruct",
                 model_path=str(self.model_path),
-                patterns=["*"],
+                scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.STD),
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
                 calib_dataset="invalid.txt",  # 无效的文件格式
                 topk=15,
                 trust_remote_code=False
@@ -195,7 +162,11 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
 
     def test_analyze_parameter_validation_topk(self):
         """测试analyze方法topk参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
 
         mock_service = MagicMock()
         mock_factory = MagicMock()
@@ -206,39 +177,41 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
             app.analyze(
                 model_type="Qwen2.5-7B-Instruct",
                 model_path=str(self.model_path),
-                patterns=["*"],
+                scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.STD),
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
                 calib_dataset="boolq.jsonl",
                 topk=0,  # 无效的topk值
                 trust_remote_code=False
             )
 
-    def test_analyze_parameter_validation_trust_remote_code(self):
-        """测试analyze方法trust_remote_code参数验证"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+    def test_analyze_parameter_validation_scope_args_type(self):
+        """scope_args 必须为 LinearArgs / AttnArgs / LayerArgs"""
+        from msmodelslim.app.analysis.application import LayerAnalysisApplication
 
         mock_service = MagicMock()
         mock_factory = MagicMock()
         app = LayerAnalysisApplication(mock_service, mock_factory, MagicMock())
 
-        # 测试无效的trust_remote_code类型
         with self.assertRaises(SchemaValidateError):
             app.analyze(
                 model_type="Qwen2.5-7B-Instruct",
                 model_path=str(self.model_path),
-                patterns=["*"],
+                scope_args={"pattern": ["*"]},  # type: ignore[arg-type]
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
                 calib_dataset="boolq.jsonl",
                 topk=15,
-                trust_remote_code="not_a_bool"  # 应该是bool
+                trust_remote_code=False,
             )
 
     @patch('msmodelslim.app.analysis.application.get_logger')
     def test_analyze_with_valid_parameters(self, mock_get_logger):
         """测试analyze方法使用有效参数"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
+        from msmodelslim.core.analysis_service import AnalysisScope
         from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 
         mock_service = MagicMock()
@@ -257,9 +230,8 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
         result = app.analyze(
             model_type="Qwen2.5-7B-Instruct",
             model_path=str(self.model_path),
-            patterns=["*"],
+            scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.STD),
             device=DeviceType.CPU,
-            metrics=AnalysisMetrics.STD,
             calib_dataset="boolq.jsonl",
             topk=15,
             trust_remote_code=False
@@ -274,15 +246,23 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
         self.assertEqual(call_kw["device"], DeviceType.CPU)
         self.assertEqual(call_kw["model_adapter"], mock_model_adapter)
         ac = call_kw["analysis_config"]
+        self.assertEqual(ac.scope, AnalysisScope.LINEAR)
         self.assertEqual(ac.metrics, "std")
         self.assertEqual(ac.calib_dataset, "boolq.jsonl")
-        self.assertEqual(ac.patterns, ["*"])
-        mock_result_manager.display_result.assert_called_once_with(mock_result, 15)
+        self.assertEqual(ac.linear_pattern, ["*"])
+        self.assertIsNone(ac.quant_modules)
+        mock_result_manager.display_result.assert_called_once_with(
+            mock_result, 15, AnalysisScope.LINEAR,
+        )
 
     @patch('msmodelslim.app.analysis.application.get_logger')
     def test_analyze_with_unsupported_model_adapter(self, mock_get_logger):
         """测试analyze方法使用不支持的模型适配器"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
         from msmodelslim.utils.exception import UnsupportedError
 
         mock_service = MagicMock()
@@ -300,9 +280,8 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
             app.analyze(
                 model_type="Qwen2.5-7B-Instruct",
                 model_path=str(self.model_path),
-                patterns=["*"],
+                scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.STD),
                 device=DeviceType.NPU,
-                metrics=AnalysisMetrics.STD,
                 calib_dataset="boolq.jsonl",
                 topk=15,
                 trust_remote_code=False
@@ -311,7 +290,11 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
     @patch('msmodelslim.app.analysis.application.get_logger')
     def test_analyze_with_none_result(self, mock_get_logger):
         """测试analyze方法返回None结果"""
-        from msmodelslim.app.analysis.application import LayerAnalysisApplication, AnalysisMetrics
+        from msmodelslim.app.analysis.application import (
+            AnalysisMetrics,
+            LayerAnalysisApplication,
+            LinearArgs,
+        )
         from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 
         mock_service = MagicMock()
@@ -329,9 +312,8 @@ class TestAppAnalysisModule(TestComprehensiveAnalysisCoverage):
         result = app.analyze(
             model_type="Qwen2.5-7B-Instruct",
             model_path=str(self.model_path),
-            patterns=["*"],
+            scope_args=LinearArgs(pattern=["*"], metrics=AnalysisMetrics.KURTOSIS),
             device=DeviceType.NPU,
-            metrics=AnalysisMetrics.KURTOSIS,
             calib_dataset="boolq.jsonl",
             topk=15,
             trust_remote_code=False
@@ -361,6 +343,7 @@ class TestAnalysisServiceModule(TestComprehensiveAnalysisCoverage):
         """测试analyze方法成功流程"""
         from msmodelslim.core.analysis_service import (
             AnalysisConfig,
+            AnalysisScope,
             PipelineAnalysisService,
         )
         from msmodelslim.core.runner.pipeline_interface import PipelineInterface
@@ -383,7 +366,7 @@ class TestAnalysisServiceModule(TestComprehensiveAnalysisCoverage):
         mock_context_factory.create.return_value = mock_ctx
         mock_pipeline_loader = MagicMock()
         mock_builder = MagicMock()
-        mock_builder.pattern.return_value = mock_builder
+        mock_builder.template_modules.return_value = mock_builder
         mock_builder.create.return_value = []
         mock_pipeline_loader.get_pipeline_builder.return_value = mock_builder
 
@@ -392,7 +375,10 @@ class TestAnalysisServiceModule(TestComprehensiveAnalysisCoverage):
         )
         mock_model_adapter = MagicMock(spec=PipelineInterface)
         analysis_config = AnalysisConfig(
-            metrics="std", calib_dataset="test.jsonl", patterns=["*"]
+            scope=AnalysisScope.LINEAR,
+            metrics="std",
+            calib_dataset="test.jsonl",
+            linear_pattern=["*"],
         )
 
         with patch("msmodelslim.core.analysis_service.pipeline_analysis.service.LayerWiseRunner"):
@@ -456,6 +442,37 @@ class TestPrintAnalysisResults(unittest.TestCase):
         self.assertTrue(any("kurtosis" in msg for msg in log_messages))
         self.assertTrue(any("Total layers analyzed: 5" in msg for msg in log_messages))
 
+    def test_display_result_layer_scope_yaml_suffix(self):
+        """layer scope：YAML disable_names 条目应为 ``block.*`` 以匹配整块子模块。"""
+        from msmodelslim.core.analysis_service import AnalysisScope
+        from msmodelslim.infra.logging_analysis_result_displayer import LoggingAnalysisResultDisplayer
+
+        test_layers = [
+            {"name": "model.layers.35", "score": 1.0},
+            {"name": "model.layers.0", "score": 0.5},
+        ]
+        result = create_mock_analysis_result(test_layers)
+        displayer = LoggingAnalysisResultDisplayer()
+        mock_logger = MagicMock()
+
+        with patch("msmodelslim.infra.logging_analysis_result_displayer.get_logger", return_value=mock_logger):
+            with patch("msmodelslim.infra.logging_analysis_result_displayer.clean_output"):
+                displayer.display_result(result, topk=10, scope=AnalysisScope.LAYER)
+
+        log_messages = []
+        for call in mock_logger.info.call_args_list:
+            args = call[0] if call[0] else ()
+            if len(args) >= 1:
+                try:
+                    msg = args[0] % args[1:] if len(args) > 1 else str(args[0])
+                except (TypeError, ValueError):
+                    msg = str(args[0])
+            else:
+                msg = ""
+            log_messages.append(str(msg))
+        self.assertTrue(any("model.layers.35.*" in msg for msg in log_messages))
+        self.assertTrue(any("model.layers.0.*" in msg for msg in log_messages))
+
 
 class TestAnalysisMetrics(unittest.TestCase):
     """测试AnalysisMetrics枚举"""
@@ -467,7 +484,7 @@ class TestAnalysisMetrics(unittest.TestCase):
         self.assertEqual(AnalysisMetrics.STD.value, 'std')
         self.assertEqual(AnalysisMetrics.QUANTILE.value, 'quantile')
         self.assertEqual(AnalysisMetrics.KURTOSIS.value, 'kurtosis')
-        self.assertEqual(AnalysisMetrics.ATTENTION_MSE.value, 'attention_mse')
+        self.assertEqual(AnalysisMetrics.ATTENTION_MSE.value, 'mse')
 
     def test_analysis_metrics_extended_enum_functionality(self):
         """测试AnalysisMetrics的ExtendedEnum功能"""

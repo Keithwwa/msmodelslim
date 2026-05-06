@@ -30,8 +30,8 @@ class PipelineBuilderInfra(ABC):
     """建造者接口：链式设置模板参数，create() 渲染并返回 Processor 配置列表。"""
 
     @abstractmethod
-    def pattern(self, patterns: List[str]) -> Self:
-        """设置 patterns 占位符，返回 self 以链式调用。"""
+    def template_modules(self, modules: List[str]) -> Self:
+        """设置模板占位符 ``patterns`` / ``quant_modules`` 共用的模块列表，返回 self 以链式调用。"""
         ...
 
     @abstractmethod
@@ -47,6 +47,6 @@ class AnalysisPipelineLoaderInfra(ABC):
     def get_pipeline_builder(self, metrics: str) -> PipelineBuilderInfra:
         """
         返回用于构建该 metrics 对应流水线配置的建造者。
-        建造者已绑定对应模板，调用 pattern() 后 create() 得到配置列表。
+        建造者已绑定对应模板，调用 template_modules() 后 create() 得到配置列表。
         """
         ...

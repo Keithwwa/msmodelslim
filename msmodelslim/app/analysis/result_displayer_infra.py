@@ -19,12 +19,18 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
+from typing import Optional
 
-from msmodelslim.core.analysis_service.interface import AnalysisResult
+from msmodelslim.core.analysis_service.interface import AnalysisResult, AnalysisScope
 
 
 class AnalysisResultDisplayerInfra(ABC):
     @abstractmethod
-    def display_result(self, result: AnalysisResult, topk: int) -> None:
+    def display_result(
+        self,
+        result: AnalysisResult,
+        topk: int,
+        scope: Optional[AnalysisScope] = None,
+    ) -> None:
         ...
         

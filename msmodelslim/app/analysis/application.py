@@ -18,11 +18,12 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
-from msmodelslim.core.analysis_service import IAnalysisService, AnalysisConfig
+from msmodelslim.core.analysis_service import IAnalysisService, AnalysisConfig, AnalysisScope
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.const import DeviceType
 from msmodelslim.model import IModelFactory
@@ -41,9 +42,62 @@ class AnalysisMetrics(str, Enum):
     STD = 'std'
     QUANTILE = 'quantile'
     KURTOSIS = 'kurtosis'
-    ATTENTION_MSE = 'attention_mse'
+    ATTENTION_MSE = 'mse'
     MSE_LAYER_WISE = 'mse_layer_wise'
     MSE_MODEL_WISE = 'mse_model_wise'
+
+
+@dataclass
+class LinearArgs:
+    pattern: List[str] = field(default_factory=lambda: ['*'])
+    metrics: AnalysisMetrics = AnalysisMetrics.KURTOSIS
+
+
+@dataclass
+class AttnArgs:
+    metrics: AnalysisMetrics = AnalysisMetrics.ATTENTION_MSE
+
+
+@dataclass
+class LayerArgs:
+    quant_modules: List[str] = field(default_factory=lambda: ['*'])
+    metrics: AnalysisMetrics = AnalysisMetrics.MSE_LAYER_WISE
+
+
+ScopeAnalysisArgs = Union[LinearArgs, AttnArgs, LayerArgs]
+
+
+def _analysis_config_from_scope_args(scope_args: ScopeAnalysisArgs, calib_dataset: str) -> AnalysisConfig:
+    """由 CLI/App 的 scope_args 构造带区分字段的 ``AnalysisConfig``。"""
+    if isinstance(scope_args, LinearArgs):
+        pat = scope_args.pattern
+        if not isinstance(pat, list):
+            raise SchemaValidateError(f'pattern must be a list, got {type(pat)}')
+        return AnalysisConfig(
+            scope=AnalysisScope.LINEAR,
+            metrics=scope_args.metrics.value,
+            calib_dataset=calib_dataset,
+            linear_pattern=list(pat),
+        )
+    if isinstance(scope_args, AttnArgs):
+        return AnalysisConfig(
+            scope=AnalysisScope.ATTN,
+            metrics=scope_args.metrics.value,
+            calib_dataset=calib_dataset,
+        )
+    if isinstance(scope_args, LayerArgs):
+        qm = scope_args.quant_modules
+        if not isinstance(qm, list):
+            raise SchemaValidateError(f'quant_modules must be a list, got {type(qm)}')
+        return AnalysisConfig(
+            scope=AnalysisScope.LAYER,
+            metrics=scope_args.metrics.value,
+            calib_dataset=calib_dataset,
+            quant_modules=list(qm),
+        )
+    raise SchemaValidateError(
+        f'scope_args must be LinearArgs, AttnArgs, or LayerArgs, got {type(scope_args)!r}',
+    )
 
 
 @logger_setter('msmodelslim.app.analysis.application')
@@ -64,21 +118,20 @@ class LayerAnalysisApplication:
     def analyze(self,
                 model_type: str,
                 model_path: str,
-                patterns: List[str],
+                scope_args: ScopeAnalysisArgs,
                 device: DeviceType = DeviceType.NPU,
-                metrics: AnalysisMetrics = AnalysisMetrics.KURTOSIS,
-                calib_dataset: str = 'boolq.jsonl',
+                calib_dataset: str = 'mix_calib.jsonl',
                 topk: int = 15,
                 trust_remote_code: bool = False):
         """
         Run layer analysis on a model
-        
+
         Args:
             model_type: Type of the model (e.g., 'Qwen2.5-7B-Instruct')
             model_path: Path to the model
-            patterns: List of layer name patterns to analyze (e.g., ['*linear*', 'attention.*'])
+            scope_args: Scope-specific options: ``LinearArgs``, ``AttnArgs``, or ``LayerArgs``.
+                Each scope uses its own default ``AnalysisMetrics`` when omitted on the dataclass.
             device: Device to run analysis on
-            metrics: Analysis metrics ('quantile', 'std', 'kurtosis', 'attention_mse', 'mse_layer_wise')
             calib_dataset: Dataset path for calibration
             topk: Number of top layers to output for disable_names
             trust_remote_code: Whether to trust remote code
@@ -94,16 +147,12 @@ class LayerAnalysisApplication:
                 raise SchemaValidateError(f"{param_name} must be a string, but got {type(value)}")
             validate_str_length(input_str=value, str_name=param_name)
 
-        # Validate inputs
+        analysis_config = _analysis_config_from_scope_args(scope_args, calib_dataset)
         model_path = convert_to_readable_dir(model_path)
         if not isinstance(model_path, Path):
             raise SchemaValidateError(f"model_path must be a Path, but got {type(model_path)}")
-        if not isinstance(patterns, list):
-            raise SchemaValidateError(f"pattern must be a list, but got {type(patterns)}")
         if not isinstance(device, DeviceType):
             raise SchemaValidateError(f"device must be a DeviceType")
-        if not isinstance(metrics, AnalysisMetrics):
-            raise SchemaValidateError(f"metrics must be a AnalysisMetrics")
         if not isinstance(calib_dataset, str):
             raise SchemaValidateError(f"calib_dataset must be a string, but got {type(calib_dataset)}")
         # Validate file format - only support .json and .jsonl
@@ -118,40 +167,37 @@ class LayerAnalysisApplication:
         if not isinstance(trust_remote_code, bool):
             raise SchemaValidateError(f"trust_remote_code must be a bool")
 
-        # Log parameters
-        get_logger().info(f'Layer analysis with following parameters:')
-        get_logger().info(f"model_type: {model_type}")
-        get_logger().info(f"model_path: {model_path}")
-        get_logger().info(f"pattern: {patterns}")
-        get_logger().info(f"device: {device}")
-        get_logger().info(f"metrics: {metrics}")
-        get_logger().info(f"calib_dataset: {calib_dataset}")
-        get_logger().info(f"topk: {topk}")
-        get_logger().info(f"trust_remote_code: {trust_remote_code}")
+        log = get_logger()
+        log.info('Layer analysis with following parameters:')
+        log.info('model_type: %s', model_type)
+        log.info('model_path: %s', model_path)
+        log.info('analyze_scope: %s', analysis_config.scope.value)
+        if analysis_config.scope == AnalysisScope.LINEAR:
+            log.info('linear_pattern: %s', analysis_config.linear_pattern)
+        elif analysis_config.scope == AnalysisScope.LAYER:
+            log.info('quant_modules: %s', analysis_config.quant_modules)
+        else:
+            log.info('attn: all attention modules')
+        log.info('metrics: %s', analysis_config.metrics)
+        log.info('device: %s', device)
+        log.info('calib_dataset: %s', calib_dataset)
+        log.info('topk: %s', topk)
+        log.info('trust_remote_code: %s', trust_remote_code)
 
         return self._analyze(
-            model_type, model_path, patterns, device,
-            metrics, calib_dataset, topk, trust_remote_code
+            model_type, model_path, analysis_config, device, topk, trust_remote_code
         )
 
     def _analyze(self,
                  model_type: str,
                  model_path: Path,
-                 patterns: List[str],
+                 analysis_config: AnalysisConfig,
                  device: DeviceType,
-                 metrics: AnalysisMetrics,
-                 calib_dataset: str,
                  topk: int,
                  trust_remote_code: bool):
         """Internal analysis implementation"""
         # Run analysis
         get_logger().info(f"===========RUN ANALYSIS===========")
-
-        analysis_config = AnalysisConfig(
-            metrics=metrics.value,
-            calib_dataset=calib_dataset,
-            patterns=patterns,
-        )
 
         get_logger().info(f"===========ANALYSE MODEL===========")
         model_adapter = self.model_factory.create(
@@ -170,7 +216,7 @@ class LayerAnalysisApplication:
 
         # display results using service-specific formatter (only when result is not None)
         if result is not None:
-            self.result_manager.display_result(result, topk)
+            self.result_manager.display_result(result, topk, analysis_config.scope)
 
         get_logger().info(f"===========ANALYSIS COMPLETE===========")
         return result

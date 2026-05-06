@@ -1,5 +1,6 @@
 process:
-  - type: layer_analysis
+  - type: binary_operator_layer_wise
+    quant_modules: ${quant_modules}
     configs:
       - type: linear_quant
         qconfig:
@@ -13,6 +14,5 @@ process:
             dtype: mxfp4
             symmetric: true
             method: minmax
-        include: ${patterns}
+        include: ${quant_modules}
     metrics: mse_layer_wise
-    patterns: ${patterns}

@@ -46,7 +46,7 @@ class AttentionMSEAnalysisMethod(BinaryAnalysisMethod, AnalysisTargetMatcher):
 
     @property
     def name(self) -> str:
-        return "attention_mse"
+        return "mse"
 
     def compute_score(self, layer_data_before: Dict[str, Any], layer_data_after: Dict[str, Any]) -> float:
         # 使用 phase 区分：attn_output["float"] 与 attn_output["quant"] 为等长列表，对应元素同形状 2D tensor，逐对 MSE 取平均

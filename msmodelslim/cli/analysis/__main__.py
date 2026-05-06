@@ -22,6 +22,12 @@ import os
 from pathlib import Path
 
 from msmodelslim.app.analysis import LayerAnalysisApplication
+from msmodelslim.app.analysis.application import (
+    AnalysisMetrics,
+    AttnArgs,
+    LayerArgs,
+    LinearArgs,
+)
 from msmodelslim.core.analysis_service import PipelineAnalysisService
 from msmodelslim.core.context import ContextFactory
 from msmodelslim.infra.file_dataset_loader import FileDatasetLoader
@@ -68,13 +74,26 @@ def main(args):
             result_manager=result_manager,
         )
 
+        metrics = AnalysisMetrics(str(args.metrics).strip().lower())
+
+        if args.scope == 'linear':
+            metrics = AnalysisMetrics(str(args.metrics).strip().lower())
+            scope_args = LinearArgs(pattern=list(args.pattern), metrics=metrics)
+        elif args.scope == 'layer':
+            metrics = AnalysisMetrics(str(args.metrics).strip().lower())
+            scope_args = LayerArgs(quant_modules=list(args.quant_modules), metrics=metrics)
+        elif args.scope == 'attn':
+            
+            scope_args = AttnArgs(metrics=metrics)
+        else:
+            raise ValueError(f"Unsupported analyze scope: {args.scope}")
+
         # Run analysis
         result = analysis_app.analyze(
             model_type=args.model_type,
             model_path=args.model_path,
-            patterns=args.pattern,
+            scope_args=scope_args,
             device=args.device,
-            metrics=args.metrics,
             calib_dataset=args.calib_dataset,
             topk=args.topk,
             trust_remote_code=args.trust_remote_code

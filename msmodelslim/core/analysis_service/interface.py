@@ -19,23 +19,64 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 
 
-class AnalysisConfig(BaseModel):
-    """分析服务入参：指标类型、校准数据集、层匹配模式及方法参数等。"""
+class AnalysisScope(str, Enum):
+    """与 CLI ``linear`` / ``attn`` / ``layer`` 一致；各 scope 使用不同参数字段。"""
 
+    LINEAR = "linear"
+    ATTN = "attn"
+    LAYER = "layer"
+
+
+class AnalysisConfig(BaseModel):
+    """分析服务入参：按 scope 区分 linear_pattern / quant_modules（attn 无用户列表）。"""
+
+    scope: AnalysisScope = Field(..., description="分析范围")
     metrics: str = Field(
         ...,
-        description="分析指标名，如 std / quantile / kurtosis / attention_mse / mse_model_wise",
+        description="分析指标名，如 std / quantile / kurtosis / mse / mse_model_wise",
     )
     calib_dataset: str = Field(..., description="校准数据集名称，用于前向收集激活")
-    patterns: List[str] = Field(default_factory=lambda: ["*"], description="层名匹配模式，支持 fnmatch")
+    linear_pattern: Optional[List[str]] = Field(
+        default=None,
+        description="仅 linear：线性层名匹配（fnmatch），对应 CLI --pattern。",
+    )
+    quant_modules: Optional[List[str]] = Field(
+        default=None,
+        description="仅 layer：块级量化模块范围，对应 CLI --quant_modules。",
+    )
+
+    def template_substitute_list(self) -> List[str]:
+        """供 YAML 模板占位符替换：linear 用 linear_pattern，layer 用 quant_modules，attn 为 ['*']。"""
+        if self.scope == AnalysisScope.LINEAR:
+            return list(self.linear_pattern or ["*"])
+        if self.scope == AnalysisScope.LAYER:
+            return list(self.quant_modules or ["*"])
+        return ["*"]
+
+    @model_validator(mode="after")
+    def _normalize_scope_fields(self) -> "AnalysisConfig":
+        if self.scope == AnalysisScope.LINEAR:
+            if self.quant_modules is not None:
+                raise ValueError("scope=linear 不应设置 quant_modules")
+            lp = self.linear_pattern if self.linear_pattern is not None else ["*"]
+            return self.model_copy(update={"linear_pattern": list(lp), "quant_modules": None})
+        if self.scope == AnalysisScope.LAYER:
+            if self.linear_pattern is not None:
+                raise ValueError("scope=layer 不应设置 linear_pattern")
+            qm = self.quant_modules if self.quant_modules is not None else ["*"]
+            return self.model_copy(update={"quant_modules": list(qm), "linear_pattern": None})
+        if self.linear_pattern is not None or self.quant_modules is not None:
+            raise ValueError("scope=attn 不应设置 linear_pattern 或 quant_modules")
+        return self.model_copy(update={"linear_pattern": None, "quant_modules": None})
 
 
 class AnalysisResult(BaseModel):
@@ -64,7 +105,7 @@ class IAnalysisService(ABC):
 
         Args:
             model_adapter: The model to analyze
-            analysis_config: 分析配置（metrics / calib_dataset / patterns）
+            analysis_config: 分析配置（scope / metrics / calib_dataset / linear_pattern | quant_modules）
             device: 运行设备
         """
         ...

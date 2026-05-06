@@ -34,12 +34,12 @@ from msmodelslim.processor.analysis.binary_operator.metrics.factory import Binar
 
 
 class BinaryAnalysisProcessorConfig(AutoProcessorConfig):
-    """Configuration for binary layer sensitivity analysis (attention_mse)."""
+    """Configuration for binary layer sensitivity analysis (mse)."""
 
     type: Literal["binary_analysis"] = "binary_analysis"
     metrics: str = Field(
-        default="attention_mse",
-        description="Analysis method: attention_mse",
+        default="mse",
+        description="Analysis method: mse",
     )
     patterns: List[str] = Field(
         default_factory=lambda: ["*"],

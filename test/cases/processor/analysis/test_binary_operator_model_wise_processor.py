@@ -40,7 +40,7 @@ class TestBinaryOperatorModelWiseProcessor(unittest.TestCase):
         self.adapter = MagicMock()
         self.config = SimpleNamespace(
             metrics="mse_model_wise",
-            patterns=["*mlp*"],
+            quant_modules=["*mlp*"],
             configs=[MagicMock(name="cfg1")],
         )
 
@@ -194,7 +194,7 @@ class TestBinaryOperatorModelWiseProcessor(unittest.TestCase):
     def test_processor_postRun_shouldWriteContextAndAnnotateNames_whenScoresReady(
         self, mock_create_method, mock_from_config, mock_get_current_context
     ):
-        """测试 Processor.post_run：分数可计算时写入 ctx.debug，并给 name 加 patterns 注解。"""
+        """测试 Processor.post_run：分数可计算时写入 ctx.debug（含 quant_modules）。"""
         from msmodelslim.processor.analysis.binary_operator_model_wise.processor import (
             BinaryOperatorModelWiseProcessor,
         )
@@ -217,11 +217,11 @@ class TestBinaryOperatorModelWiseProcessor(unittest.TestCase):
 
         self.assertIn("layer_scores", ctx["layer_analysis"].debug)
         self.assertEqual(ctx["layer_analysis"].debug["method"], "mse_model_wise")
-        self.assertEqual(ctx["layer_analysis"].debug["patterns"], list(self.config.patterns))
+        self.assertEqual(ctx["layer_analysis"].debug["quant_modules"], list(self.config.quant_modules))
         self.assertEqual(len(ctx["layer_analysis"].debug["layer_scores"]), 1)
         row = ctx["layer_analysis"].debug["layer_scores"][0]
-        self.assertEqual(row["module_name"], "model.layers.0")
-        self.assertIn("(*mlp*)", row["name"])
+        self.assertEqual(row["name"], "model.layers.0")
+        self.assertEqual(row["score"], 0.1)
 
 
 if __name__ == "__main__":

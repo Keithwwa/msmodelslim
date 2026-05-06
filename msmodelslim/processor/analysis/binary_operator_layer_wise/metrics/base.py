@@ -12,7 +12,7 @@ You may obtain a copy of Mulan PSL v2 at:
 
          http://license.coscl.org.cn/MulanPSL2
 
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+THIS SOFTWARE IS PROVIDED ON an "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
@@ -20,35 +20,28 @@ See the Mulan PSL v2 for more details.
 """
 
 from abc import abstractmethod
-from typing import Any, Dict, List
+from typing import Any, List
 
-import torch.nn as nn
-
-from msmodelslim.processor.analysis.methods_base import (
-    AnalysisTargetMatcher,
-    LayerAnalysisMethod,
-)
+from msmodelslim.processor.analysis.methods_base import LayerAnalysisMethod
 
 
-class LayerWiseAnalysisMethod(LayerAnalysisMethod, AnalysisTargetMatcher):
-    """Base class for layer-operator (DecoderLayer-level) analysis methods."""
+class LayerWiseAnalysisMethod(LayerAnalysisMethod):
+    """Model-wise analysis method base.
 
-    @abstractmethod
-    def get_target_decoder_layers(self, model: nn.Module, prefix: str) -> List[str]:
-        """Return names of decoder layers under given prefix."""
-        ...
+    Note: The package name keeps ``binary_operator_layer_wise`` for backward
+    compatibility, but the implementation is model-wise: score is computed from
+    two forward-path outputs (float reference vs quantized candidate).
+    """
 
     @abstractmethod
-    def get_linear_layers_for_decoder(self, model: nn.Module, decoder_layer_name: str) -> List[str]:
-        """Return linear sub-module names inside a given decoder layer."""
-        ...
-
-    @abstractmethod
-    def compute_decoder_layer_scores(
+    def compute_score(
         self,
-        float_stats: Dict[str, Any],
-        quant_stats: Dict[str, Any],
-        target_decoder_layers: List[str],
-    ) -> List[Dict[str, Any]]:
-        """Compute scores at decoder-layer granularity based on per-linear stats."""
-        ...
+        ref_outputs: List[Any],
+        cand_outputs: List[Any],
+    ) -> float:
+        """Compute a scalar score for one block given two output lists."""
+        raise NotImplementedError
+
+    def get_hook(self) -> Any:
+        """Compatibility with LayerAnalysisMethod; model-wise does not use hooks."""
+        return None

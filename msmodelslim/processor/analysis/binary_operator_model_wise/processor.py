@@ -29,6 +29,34 @@ from msmodelslim.utils.exception import UnexpectedError, UnsupportedError
 
 from .metrics.factory import ModelWiseMethodFactory
 
+def _extract_forward_args(obj: Any) -> Tuple[Any, ...]:
+    """Extract layer forward positional args from common layer output shapes.
+    
+    - Qwen/Transformers decoder layers often return a tuple whose first item is hidden_states.
+      For these, we return ``(hidden_states,)``.
+    - DeepSeekV3.2 decoder layers in this project return ``(hidden_states, residual)``.
+      For these, we return both tensors to preserve the required call signature.
+    """
+    if isinstance(obj, torch.Tensor):
+        return (obj,)
+
+    if isinstance(obj, tuple) and obj:
+        # DeepSeek style: (hidden_states, residual)
+        if (
+            len(obj) == 2
+            and isinstance(obj[0], torch.Tensor)
+            and isinstance(obj[1], torch.Tensor)
+        ):
+            return (obj[0], obj[1])
+
+        head = obj[0]
+        if isinstance(head, torch.Tensor):
+            # Transformers style: (hidden_states, *rest)
+            return (head,)
+
+    raise UnexpectedError("Failed to extract forward args from layer output.")
+
+
 def _require_hidden_tensor(
     obj: Any,
 ) -> torch.Tensor:
@@ -57,10 +85,10 @@ class BinaryOperatorModelWiseProcessorConfig(AutoProcessorConfig):
         default="mse_model_wise",
         description="分析方法：mse",
     )
-    patterns: List[str] = Field(
+    quant_modules: List[str] = Field(
         default_factory=lambda: ["*"],
         description=(
-            "与 linear_quant.include 建议一致（如 YAML 同用 ${patterns}）；"
+            "与 linear_quant.include、CLI --quant_modules 一致（YAML 占位 ${quant_modules}）；"
             "用于层敏感结果展示名后缀，如 model.layers.2 (*mlp*)。实际量化范围以 linear_quant 为准。"
         ),
     )
@@ -95,6 +123,9 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         self._float_outputs: List[Any] = []
         self._quant_inputs: List[Any] = []
         self._merged_outputs: List[Any] = []
+        # Skip switch for non-chainable layers. Once enabled, this and all subsequent blocks are skipped.
+        self._skip_remaining_blocks: bool = False
+        self._skipped_request_names: List[str] = []
 
     def pre_run(self) -> None:
         ctx = get_current_context()
@@ -104,8 +135,36 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
             processor.pre_run()
 
     def preprocess(self, request: BatchProcessRequest) -> None:
+        if self._skip_remaining_blocks:
+            self._skipped_request_names.append(request.name)
+            get_logger().warning(
+                "BinaryOperatorModelWiseProcessor: skip layer %s (already in skip mode).",
+                request.name,
+            )
+            # In skip mode, still run forward once to keep the generator chain alive.
+            if request.datas is not None:
+                self._run_forward_if_need(request)
+            return
+
+        # Auto-detect non-chainable layers (e.g. MTP input)
+        # once chaining check fails, warn and skip this and all subsequent layers.
+        try:
+            request.datas = self._replace_request_datas_with_merged_outputs_if_need(request.datas)
+        except UnsupportedError as e:
+            self._skipped_request_names.append(request.name)
+            get_logger().warning(
+                "BinaryOperatorModelWiseProcessor: enter skip mode at %s; "
+                "skip this and subsequent layers. reason=%s",
+                request.name,
+                str(e),
+            )
+            # Keep the forward chain runnable.
+            if request.datas is not None:
+                self._run_forward_if_need(request)
+            self._skip_remaining_blocks = True
+            return
+
         self._block_names.append(request.name)
-        request.datas = self._replace_request_datas_with_merged_outputs_if_need(request.datas)
 
         if self._base_data_count == 0:
             self._base_data_count = len(request.datas)
@@ -118,6 +177,8 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         self._quant_inputs = quant_inputs
 
     def process(self, request: BatchProcessRequest) -> None:
+        if self._skip_remaining_blocks:
+            return
         request.datas = self._quant_inputs
         for qp in self.quant_processors:
             qp.preprocess(request)
@@ -125,6 +186,8 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
             qp.postprocess(request)
 
     def postprocess(self, request: BatchProcessRequest) -> None:
+        if self._skip_remaining_blocks:
+            return
         request.datas = self._quant_inputs
         self._run_forward_if_need(request)
 
@@ -138,15 +201,20 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         self._validate_merged_outputs()
         layer_scores = self._compute_layer_scores()
 
-        self._annotate_layer_scores_with_patterns(layer_scores)
-
         self._write_layer_analysis_debug(layer_scores)
 
+        if self._skipped_request_names:
+            get_logger().warning(
+                "BinaryOperatorModelWiseProcessor: skipped %d layers (ranking excludes them). skipped_layers=%s",
+                len(self._skipped_request_names),
+                ", ".join(self._skipped_request_names),
+            )
+
         get_logger().info(
-            "BinaryOperatorModelWiseProcessor post_run: %d layer scores (%s), patterns=%s",
+            "BinaryOperatorModelWiseProcessor post_run: %d layer scores (%s), quant_modules=%s",
             len(layer_scores),
             self._analysis_method.name,
-            self.config.patterns,
+            self.config.quant_modules,
         )
 
     def _validate_merged_outputs(self) -> None:
@@ -184,7 +252,7 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
             return
         ctx["layer_analysis"].debug["layer_scores"] = layer_scores
         ctx["layer_analysis"].debug["method"] = self._analysis_method.name
-        ctx["layer_analysis"].debug["patterns"] = list(self.config.patterns)
+        ctx["layer_analysis"].debug["quant_modules"] = list(self.config.quant_modules)
 
     def _replace_request_datas_with_merged_outputs_if_need(
         self, datas: Optional[List[Tuple[tuple, dict]]]
@@ -218,17 +286,17 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
                 )
                 if req_hidden.shape != merged_hidden.shape or not torch.allclose(req_hidden, merged_hidden):
                     raise UnsupportedError(
-                        "Current model does not support model-wise sensitive layer analysis: "
-                        "during forward, current layer input hidden_states != previous layer output."
+                        "Model-wise chaining broken: current layer input hidden_states != previous layer output."
                     )
 
         new_rows: List[Tuple[tuple, dict]] = []
         for idx, out in enumerate(merged_outputs):
-            hidden = _require_hidden_tensor(out)
+            # Preserve model-specific forward signature
+            state_args = _extract_forward_args(out)
 
             # 与 layer_wise_forward 的约定一致：args[0] 为 hidden_states。
             _, template_kwargs = old_rows[idx % len(old_rows)]
-            new_rows.append(((hidden,), template_kwargs))
+            new_rows.append((state_args, template_kwargs))
 
         return new_rows
 
@@ -239,12 +307,3 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         """float 用全部行，quant 用前 ``quant_source_count`` 行。"""
         num_datas = self._base_data_count or None
         return list(datas), datas[:num_datas]
-
-    def _annotate_layer_scores_with_patterns(self, layer_scores: List[Dict[str, Any]]) -> None:
-        """写入展示用 ``name``（如 ``model.layers.2 (*mlp*)``），原始 block 路径写入 ``module_name``。"""
-        patterns = self.config.patterns
-        pat = ", ".join(patterns) if patterns else "*"
-        for row in layer_scores:
-            base = row.get("name", "")
-            row["module_name"] = base
-            row["name"] = f"{base} ({pat})"

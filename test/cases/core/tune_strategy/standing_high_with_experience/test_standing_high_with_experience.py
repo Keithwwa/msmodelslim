@@ -12,7 +12,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from msmodelslim.core.const import DeviceType, QuantType
+from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy.common.config_builder.expert_experience import StructureConfig
+from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.core.tune_strategy.standing_high_with_experience.strategy import (
     StandingHighWithExperienceStrategy,
     StandingHighWithExperienceStrategyConfig,
@@ -24,7 +26,7 @@ from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 
 
-class _MockModel(StandingHighWithExperienceInterface):
+class _MockModel(StandingHighWithExperienceInterface, StandingHighInterface, PipelineInterface):
     """Mock model implementing StandingHighWithExperienceInterface."""
 
     @property
@@ -46,6 +48,23 @@ class _MockModel(StandingHighWithExperienceInterface):
         m = MagicMock()
         m.to = MagicMock(return_value=None)
         return m
+
+    # PipelineInterface minimal implementations (not used in these unit tests).
+    def init_model(self, device: DeviceType = DeviceType.NPU):
+        return MagicMock()
+
+    def generate_model_visit(self, model):
+        if False:  # pragma: no cover
+            yield None
+        return
+
+    def generate_model_forward(self, model, inputs):
+        if False:  # pragma: no cover
+            yield None
+        return
+
+    def enable_kv_cache(self, model, need_kv_cache: bool) -> None:
+        return None
 
 
 class TestStandingHighWithExperienceStrategyConfig:

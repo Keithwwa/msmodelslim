@@ -19,11 +19,20 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 from itertools import groupby
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from msmodelslim.app.analysis.result_displayer_infra import AnalysisResultDisplayerInfra
-from msmodelslim.core.analysis_service import AnalysisResult
+from msmodelslim.core.analysis_service import AnalysisResult, AnalysisScope
 from msmodelslim.utils.logging import get_logger, clean_output
+
+
+def _yaml_disable_entry_name(layer_name: str, scope: Optional[AnalysisScope]) -> str:
+    """layer scope 下整块回退需匹配子模块，YAML 中为 ``block.*``；其它 scope 保持原名。"""
+    if scope == AnalysisScope.LAYER:
+        if layer_name.endswith(".*"):
+            return layer_name
+        return f"{layer_name}.*"
+    return layer_name
 
 
 class LoggingAnalysisResultDisplayer(AnalysisResultDisplayerInfra):
@@ -33,7 +42,12 @@ class LoggingAnalysisResultDisplayer(AnalysisResultDisplayerInfra):
         """按分数排序返回层列表。"""
         return sorted(result.layer_scores, key=lambda x: x['score'], reverse=reverse)
 
-    def display_result(self, result: AnalysisResult, topk: int) -> None:
+    def display_result(
+        self,
+        result: AnalysisResult,
+        topk: int,
+        scope: Optional[AnalysisScope] = None,
+    ) -> None:
         """打印/导出层分析结果（分数 + 量化用 YAML）。"""
         sorted_layers = self.get_sorted_layers(result, reverse=True)
         layer_groups = [list(g) for _, g in groupby(sorted_layers, key=lambda x: x['score'])]
@@ -66,7 +80,8 @@ class LoggingAnalysisResultDisplayer(AnalysisResultDisplayerInfra):
         with clean_output():
             get_logger().info("top %d:", len(display_layers))
             for layer_info in display_layers:
-                get_logger().info("  - '%s'", layer_info['name'])
+                yaml_name = _yaml_disable_entry_name(layer_info["name"], scope)
+                get_logger().info("  - '%s'", yaml_name)
 
         get_logger().info("")
         get_logger().info("=== End of YAML Format ===")

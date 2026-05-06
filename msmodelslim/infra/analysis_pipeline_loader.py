@@ -38,7 +38,7 @@ METRIC_TO_YAML: Dict[str, str] = {
     "quantile": "quantile.yaml",
     "std": "std.yaml",
     "kurtosis": "kurtosis.yaml",
-    "attention_mse": "attention_mse.yaml",
+    "mse": "attention_mse.yaml",
     "mse_layer_wise": "mse_layer_wise.yaml",
     "mse_model_wise": "mse_model_wise.yaml",
 }
@@ -63,21 +63,23 @@ class TemplatePipelineBuilder(PipelineBuilderInfra):
     def __init__(self, metrics: str):
         self._template_dir = _get_analysis_pipeline_dir()
         self._metrics = metrics.strip().lower()
-        self._patterns: List[str] = []
+        self._template_modules: List[str] = []
 
-    def pattern(self, patterns: List[str]) -> Self:
-        self._patterns = list(patterns)
+    def template_modules(self, modules: List[str]) -> Self:
+        self._template_modules = list(modules)
         return self
 
     def create(self) -> List[AutoProcessorConfig]:
         template_path = self._get_template_path()
         template_text = Path(template_path).read_text(encoding="utf-8")
+        dumped = yaml.dump(
+            self._template_modules,
+            default_flow_style=True,
+            allow_unicode=True,
+        ).strip()
         substitute_dict: Dict[str, Any] = {
-            "patterns": yaml.dump(
-                self._patterns,
-                default_flow_style=True,
-                allow_unicode=True,
-            ).strip(),
+            "patterns": dumped,
+            "quant_modules": dumped,
         }
         rendered = Template(template_text).safe_substitute(**substitute_dict)
         data = yaml.safe_load(rendered)

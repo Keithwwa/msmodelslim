@@ -25,4 +25,4 @@ from .base import BinaryAnalysisMethod
 from .attention_mse import AttentionMSEAnalysisMethod
 
 BinaryAnalysisMethodFactory = BaseMethodFactory[BinaryAnalysisMethod]()
-BinaryAnalysisMethodFactory.register_method("attention_mse", AttentionMSEAnalysisMethod)
+BinaryAnalysisMethodFactory.register_method("mse", AttentionMSEAnalysisMethod)

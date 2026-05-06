@@ -1,7 +1,7 @@
 process:
   - type: binary_operator_model_wise
     metrics: mse_model_wise
-    patterns: ${patterns}
+    quant_modules: ${quant_modules}
     configs:
       - type: linear_quant
         qconfig:
@@ -15,4 +15,4 @@ process:
             dtype: mxfp4
             symmetric: true
             method: minmax
-        include: ${patterns}
+        include: ${quant_modules}

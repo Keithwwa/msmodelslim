@@ -25,9 +25,10 @@ __all__ = [
     'AnalysisPipelineLoaderInfra',
     'AnalysisConfig',
     'AnalysisResult',
+    'AnalysisScope',
 ]
 
-from .interface import IAnalysisService, AnalysisConfig, AnalysisResult
+from .interface import IAnalysisService, AnalysisConfig, AnalysisResult, AnalysisScope
 from .pipeline_analysis.pipeline_loader_infra import AnalysisPipelineLoaderInfra
 from .pipeline_analysis.service import PipelineAnalysisService
 from ..runner.pipeline_interface import PipelineInterface

@@ -34,6 +34,8 @@ from msmodelslim.core.tune_strategy.standing_high.strategy import (
     StandingHighStrategy,
     StandingHighStrategyConfig
 )
+from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
+from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_with_experience_interface import (
     StandingHighWithExperienceInterface
 )
@@ -102,12 +104,22 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
         在首次调用时，根据原始配置生成完整的 StandingHighStrategyConfig，
         然后创建 StandingHighStrategy 实例并委托其执行摸高算法。
         
-        Note: 模型适配器需要同时实现 StandingHighWithExperienceInterface 和 
-        StandingHighInterface，因为内部委托给 StandingHighStrategy 执行。
+        Note:
+        - 模型适配器需要实现 StandingHighWithExperienceInterface（本策略要求）
+        - 同时需要实现 StandingHighInterface + PipelineInterface（内部委托给 StandingHighStrategy，
+          且 standing_high 会执行敏感层分析 pipeline）
         """
         if not isinstance(model, StandingHighWithExperienceInterface):
             raise UnsupportedError(
                 f"model must be StandingHighWithExperienceInterface, got {type(model)}"
+            )
+        if not isinstance(model, StandingHighInterface):
+            raise UnsupportedError(
+                f"model must be StandingHighInterface (delegated by StandingHighWithExperienceStrategy), got {type(model)}"
+            )
+        if not isinstance(model, PipelineInterface):
+            raise UnsupportedError(
+                f"model must implement PipelineInterface for sensitivity analysis, got {type(model)}"
             )
         # 处理 structure_configs：如果为 None，尝试自动检测
         structure_configs = self.config.structure_configs

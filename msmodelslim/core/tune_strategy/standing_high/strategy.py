@@ -18,26 +18,29 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-from typing import Generator, List, Optional, Literal, Annotated
+from typing import Any, Dict, Generator, List, Optional, Literal, Annotated
 
 from pydantic import Field, model_validator, AfterValidator
 
+from msmodelslim.core.analysis_service import AnalysisConfig, AnalysisScope, PipelineAnalysisService
 from msmodelslim.core.const import DeviceType
-from msmodelslim.core.practice import PracticeConfig, Metadata
+from msmodelslim.core.context import ContextFactory
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1ServiceConfig
 from msmodelslim.core.quant_service.modelslim_v1.save import AscendV1Config
+from msmodelslim.core.practice import PracticeConfig, Metadata
 from msmodelslim.core.quantizer.base import QConfig
 from msmodelslim.core.quantizer.linear import LinearQConfig
+from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy import ITuningStrategy
 from msmodelslim.core.tune_strategy.base import BaseTuningStrategy
 from msmodelslim.core.tune_strategy.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.tune_strategy.interface import StrategyConfig, EvaluateResult
 from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
+from msmodelslim.infra.analysis_pipeline_loader import YamlAnalysisPipelineLoader
 from msmodelslim.ir.qal import QScope, QDType
 from msmodelslim.model import IModel
 from msmodelslim.processor.base import AutoProcessorConfigList
 from msmodelslim.processor.quant.linear import LinearProcessorConfig
-from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.layer_select import LayerSelector
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.validation.pydantic import at_least_one_element
@@ -111,6 +114,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
     def __init__(self, config: StandingHighStrategyConfig, dataset_loader: DatasetLoaderInfra, **kwargs):
         self.config = config
         self.__counter = 0
+        self._analysis_layer_scores: List[Dict[str, Any]] = []
         super().__init__(config, dataset_loader, **kwargs)
 
     def generate_practice(self,
@@ -120,16 +124,17 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         """生成实践配置（V1框架）"""
         if not isinstance(model, StandingHighInterface):
             raise UnsupportedError(f"model must be StandingHighInterface, got {type(model)}")
+        if not isinstance(model, PipelineInterface):
+            raise UnsupportedError(
+                f"model must implement PipelineInterface for sensitivity analysis, got {type(model)}"
+            )
 
         # 每次生成时重置计数器
         self.__counter = 0
 
         loaded_model = model.load_model(device=device)
-        layer_selector = LayerSelector(model=loaded_model)
 
-        dataset = self.dataset_loader.get_dataset_by_name(self.config.template.dataset)
-        calib_tokens = model.handle_dataset(dataset, device=device)
-        layer_selector.run(calib_tokens)
+        self._run_sensitive_layer_analysis(model=model, device=device)
 
         # 释放显存
         loaded_model.to('meta')
@@ -140,8 +145,46 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
             get_logger().info("Practice without disable layers satisfies demand.")
             return
 
-        init_disable_level = yield from self._find_satisfied_disable_level(layer_selector)
-        yield from self._stand_high(init_disable_level, layer_selector)
+        init_disable_level = yield from self._find_satisfied_disable_level()
+        yield from self._stand_high(init_disable_level)
+
+    def _run_sensitive_layer_analysis(self, model: PipelineInterface, device: DeviceType) -> None:
+        """Run sensitivity analysis and cache sorted layer scores for selection."""
+        include_patterns: List[str] = []
+        for proc in self.config.template.process:
+            if isinstance(proc, LinearProcessorConfig):
+                include_patterns.extend(proc.include or ["*"])
+        include_patterns = list(dict.fromkeys(include_patterns)) or ["*"]
+
+        analysis_service = PipelineAnalysisService(
+            dataset_loader=self.dataset_loader,
+            context_factory=ContextFactory(enable_debug=True),
+            pipeline_loader=YamlAnalysisPipelineLoader(),
+        )
+        result = analysis_service.analyze(
+            model_adapter=model,
+            analysis_config=AnalysisConfig(
+                scope=AnalysisScope.LAYER,
+                metrics="mse_layer_wise",
+                calib_dataset=self.config.template.dataset,
+                quant_modules=include_patterns,
+            ),
+            device=device,
+        )
+
+        layer_scores = list((result.layer_scores if result is not None else []) or [])
+        self._analysis_layer_scores = sorted(
+            layer_scores,
+            key=lambda x: x.get("score", 0.0),
+            reverse=True,
+        )
+
+    def select_layers_by_disable_level(self, disable_level: int) -> List[str]:
+        """Select top-k fallback layers by disable_level."""
+        if disable_level <= 0 or not self._analysis_layer_scores:
+            return []
+        topk = self._analysis_layer_scores[:disable_level]
+        return [row["name"] for row in topk if "name" in row]
 
     def _build_practice_config(
             self,
@@ -150,41 +193,26 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
     ) -> PracticeConfig:
         """构建PracticeConfig：离群值抑制processors放在最前面，然后拼接模板中的所有processors
         
-        针对每个 linear_quant 的 include 模式分别分配回退层，只回退匹配该 linear_quant include 模式的层。
+        将回退层写入所有 linear_quant 的 exclude。
         """
         process: AutoProcessorConfigList = list(anti_outlier_processors)
         template = self.config.template
+
+        # 回退层名改为通配符形式，敏感层分析结果："model.layers.2" 改为 "*model.layers.2.*"，
+        wildcard_excludes = [f"*{name}.*" for name in linear_quant_exclude]
+        wildcard_excludes = list(dict.fromkeys(wildcard_excludes))
         
-        # 为每个 linear_quant 分配对应的回退层
+        # 为每个 linear_quant 分配回退层
         for proc in template.process:
             if isinstance(proc, LinearProcessorConfig):
-                # 根据 include 模式过滤回退层
-                include_patterns = proc.include or ["*"]
-                include_set = ConfigSet(include_patterns)
-                
-                # 过滤出匹配 include 模式的回退层，并去重
-                filtered_exclude = list(set([
-                    layer 
-                    for layer in linear_quant_exclude 
-                    if layer in include_set
-                ]))
-                
-                # 合并原始的 exclude 模式（去重）
+                # 合并原始 exclude（去重，保持顺序）
                 exclude_list = list(dict.fromkeys(proc.exclude or []))
-                
-                # 如果原始 exclude 中有模式，需要检查 filtered_exclude 中的具体层名是否已被模式匹配
                 if exclude_list:
                     exclude_set = ConfigSet(exclude_list)
-                    # 过滤掉已被模式匹配的具体层名
-                    filtered_exclude = [
-                        layer 
-                        for layer in filtered_exclude 
-                        if layer not in exclude_set
-                    ]
-                    # 合并模式和剩余的具体层名（保持顺序：模式在前，具体层名在后）
-                    exclude_list.extend(filtered_exclude)
+                    to_add = [pat for pat in wildcard_excludes if pat not in exclude_set]
                 else:
-                    exclude_list = filtered_exclude
+                    to_add = wildcard_excludes
+                exclude_list.extend(to_add)
                 
                 process.append(LinearProcessorConfig(
                     type="linear_quant",
@@ -215,14 +243,13 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
 
     def _find_satisfied_disable_level(
             self,
-            layer_selector: LayerSelector,
     ) -> Generator[PracticeConfig, Optional[EvaluateResult], int]:
         """二分搜索找到满足需求的最小disable level（zero_evaluation一定不满足，所以从level 1开始）"""
-        min_level, max_level = 1, len(layer_selector.layer_groups)
+        min_level, max_level = 1, len(self._analysis_layer_scores)
 
         while min_level < max_level:
             mid = (min_level + max_level) // 2
-            exclude_names = layer_selector.select_layers_by_disable_level(mid)
+            exclude_names = self.select_layers_by_disable_level(mid)
             get_logger().debug("Trying disable level: %r, exclude: %r", mid, exclude_names)
 
             evaluation: EvaluateResult = yield self._build_practice_config(
@@ -250,12 +277,11 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
     def _stand_high(
             self,
             init_disable_level: int,
-            layer_selector: LayerSelector
     ) -> Generator[PracticeConfig, Optional[EvaluateResult], None]:
         """执行摸高算法：逐步减少disable level，尝试不同的离群值抑制策略"""
         # 获得最小回退层级的量化配置
         anti_outlier_processors = self.config.anti_outlier_strategies[0]
-        exclude_names = layer_selector.select_layers_by_disable_level(init_disable_level)
+        exclude_names = self.select_layers_by_disable_level(init_disable_level)
         best_practice_config = self._build_practice_config(anti_outlier_processors, exclude_names)
 
         # 初始化步长和当前回退级别
@@ -263,7 +289,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         current_disable_level = init_disable_level
 
         while current_disable_level - reduce_level >= 0:
-            exclude_names = layer_selector.select_layers_by_disable_level(current_disable_level - reduce_level)
+            exclude_names = self.select_layers_by_disable_level(current_disable_level - reduce_level)
             get_logger().info("Current disable level: %r, try to reduce: %r",
                               current_disable_level, reduce_level)
 

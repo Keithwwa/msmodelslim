@@ -552,7 +552,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
         method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
 
-        self.assertEqual(method.name, 'attention_mse')
+        self.assertEqual(method.name, 'mse')
         self.assertEqual(method.adapter.get_attention_module_cls(), 'FakeAttention')
         hook = method.get_hook()
         self.assertTrue(callable(hook))

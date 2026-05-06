@@ -19,16 +19,80 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 import argparse
+import sys
+from typing import List
 
 import msmodelslim # do NOT remove, to trigger the patches
-from msmodelslim.app.analysis.application import AnalysisMetrics
 from msmodelslim.core.const import DeviceType, QuantType
 from msmodelslim.utils.config import msmodelslim_config
-from msmodelslim.utils.logging import set_logger_level
+from msmodelslim.utils.logging import get_logger, set_logger_level
 from msmodelslim.utils.validation.conversion import convert_to_bool
 
 FAQ_HOME = "gitcode repo: Ascend/msmodelslim, wiki"
 MIND_STUDIO_LOGO = "[Powered by MindStudio]"
+
+
+def _normalize_analyze_argv(argv: List[str]) -> List[str]:
+    """
+    Backward-compatible argv normalization for `msmodelslim analyze`:
+      - If user does not specify scope, default to `linear`.
+      - Special-case compatibility: when scope is omitted and `--metrics attention_mse` is used,
+        run under `attn` scope and treat it as `--metrics mse`, with a warning.
+
+    We intentionally do NOT inject when user asks for help:
+      - `msmodelslim analyze -h/--help` should show scopes help, not scope-specific help.
+    """
+    if not argv or 'analyze' not in argv:
+        return argv
+
+    idx = argv.index('analyze')
+    tail = argv[idx + 1:]
+
+    # Any help request should keep `analyze` help clean (do not auto-inject scope).
+    if '-h' in tail or '--help' in tail:
+        return argv
+
+    # If user already provided a scope, do nothing.
+    if tail and tail[0] in ['linear', 'layer', 'attn']:
+        return argv
+
+    if not tail or tail[0].startswith('-'):
+        # Legacy compatibility: `--metrics attention_mse` was renamed to `attn --metrics mse`.
+        if '--metrics' in tail:
+            try:
+                metrics_idx = tail.index('--metrics')
+                metrics_val = tail[metrics_idx + 1].strip().lower()
+            except Exception:
+                metrics_val = None
+            if metrics_val == 'attention_mse':
+                # `attn` scope does not accept `--pattern`; drop it when converting legacy usage.
+                if '--pattern' in tail:
+                    pat_idx = tail.index('--pattern')
+                    drop_end = pat_idx + 1
+                    while drop_end < len(tail) and not tail[drop_end].startswith('-'):
+                        drop_end += 1
+                    dropped = tail[pat_idx:drop_end]
+                    get_logger().warning(
+                        "Legacy argument %r is ignored when converting to scope 'attn'. "
+                        "Attention analysis runs on all attention modules by default.",
+                        dropped,
+                    )
+                    tail = tail[:pat_idx] + tail[drop_end:]
+                    argv = argv[:idx + 1] + tail
+
+                get_logger().warning(
+                    "Analyze metric 'attention_mse' is deprecated. "
+                    "It has been renamed to scope 'attn' with metric 'mse'. "
+                    "Please use: `msmodelslim analyze attn --metrics mse ...`"
+                )
+                new_argv = argv[:]
+                # Replace attention_mse -> mse to satisfy argparse choices of `attn`.
+                new_argv[idx + 1 + metrics_idx + 1] = 'mse'
+                return new_argv[:idx + 1] + ['attn'] + new_argv[idx + 1:]
+
+        return argv[:idx + 1] + ['linear'] + argv[idx + 1:]
+
+    return argv
 
 
 def main():
@@ -71,33 +135,73 @@ def main():
                               help="Optional tag to match configs with verified scenario tags (e.g. mindie Atlas_A2_Inference, vllm cpu). "
                                    "User can add multiple tags; matching requires all tags to appear in the same scenario."
                                    "If user specifies this parameter but does not provide a hardware type tag, the current device type will be matched automatically.")
-
+    
     # Analyze command
-    analysis_parser = subparsers.add_parser('analyze', help='Model quantization sensitivity analyze tool')
-    analysis_parser.add_argument('--model_type', required=True,
-                                 help="Type of model to quantize (e.g. 'Qwen2.5-7B-Instruct', 'Qwen-QwQ-32B')")
-    analysis_parser.add_argument('--model_path', required=True, type=str,
-                                 help="Path to the original model")
-    analysis_parser.add_argument('--device', type=DeviceType, default=DeviceType.NPU, choices=DeviceType,
-                                 help="Target device type for Analysis")
-    analysis_parser.add_argument('--pattern',
-                                 nargs='*',
-                                 default=['*'],
-                                 help='Pattern list to analyze (default is ["*"], means all match)')
-    analysis_parser.add_argument('--metrics',
-                                 type=AnalysisMetrics,
-                                 default=AnalysisMetrics.KURTOSIS,
-                                 choices=AnalysisMetrics,
-                                 help='Analysis metrics to use: std, quantile, kurtosis, attention_mse, mse_model_wise (default: kurtosis)')
-    analysis_parser.add_argument('--calib_dataset', type=str, default='boolq.jsonl',
-                                 help='Calibration dataset file path or filename in lab_calib directory. '
-                                      'Supports .json and .jsonl formats (default: boolq.jsonl)')
-    analysis_parser.add_argument('--topk', type=int, default=15,
-                                 help='Number of top layers to output for disable_names '
-                                      '(default: 15, empirical value, for reference only)')
-    analysis_parser.add_argument('--trust_remote_code', type=convert_to_bool, default=False,
-                                 help="Trust custom code (bool type, must be True or False). "
-                                      "Please ensure the security of the loaded custom code file.")
+    analysis_parser = subparsers.add_parser(
+        'analyze',
+        help='Model quantization sensitivity analyze tool'
+    )
+
+    analyze_common_parser = argparse.ArgumentParser(add_help=False)
+    analyze_common_parser.add_argument('--model_type', required=True,
+                                       help="Type of model to analyze (e.g. 'Qwen2.5-7B-Instruct', 'Qwen-QwQ-32B')")
+    analyze_common_parser.add_argument('--model_path', required=True, type=str,
+                                       help="Path to the original model")
+    analyze_common_parser.add_argument('--device', type=DeviceType, default=DeviceType.NPU, choices=DeviceType,
+                                       help="Target device type for Analysis")
+    analyze_common_parser.add_argument('--calib_dataset', type=str, default='mix_calib.jsonl',
+                                       help='Calibration dataset file path or filename in lab_calib directory. '
+                                            'Supports .json and .jsonl formats (default: mix_calib.jsonl)')
+    analyze_common_parser.add_argument('--topk', type=int, default=15,
+                                       help='Number of top layers to output for disable_names '
+                                            '(default: 15, empirical value, for reference only)')
+    analyze_common_parser.add_argument('--trust_remote_code', type=convert_to_bool, default=False,
+                                       help="Trust custom code (bool type, must be True or False). "
+                                            "Please ensure the security of the loaded custom code file.")
+
+    analysis_subparsers = analysis_parser.add_subparsers(dest='scope', help='Analyze scopes')
+    analysis_subparsers.required = True
+
+    analysis_linear_parser = analysis_subparsers.add_parser(
+        'linear',
+        parents=[analyze_common_parser],
+        help='Analyze individual linear layers; use --pattern to filter what gets listed'
+    )
+    analysis_linear_parser.add_argument('--metrics',
+                                        type=str,
+                                        choices=['std', 'quantile', 'kurtosis'],
+                                        default='kurtosis',
+                                        help='Analysis metrics: std, quantile, kurtosis (default: kurtosis)')
+    analysis_linear_parser.add_argument('--pattern',
+                                        nargs='*',
+                                        default=['*'],
+                                        help='Pattern list to filter displayed linear layers (default: ["*"])')
+
+    analysis_layer_parser = analysis_subparsers.add_parser(
+        'layer',
+        parents=[analyze_common_parser],
+        help='Analyze layer/block as a group; --quant_modules selects modules to include in pipeline config'
+    )
+    analysis_layer_parser.add_argument('--metrics',
+                                       type=str,
+                                       choices=['mse_model_wise', 'mse_layer_wise'],
+                                       default='mse_layer_wise',
+                                       help='Analysis metrics: mse_model_wise, mse_layer_wise (default: mse_layer_wise)')
+    analysis_layer_parser.add_argument('--quant_modules',
+                                       nargs='*',
+                                       default=['*'],
+                                       help='Quant modules list that maps to pipeline scope (default: ["*"])')
+
+    analysis_attn_parser = analysis_subparsers.add_parser(
+        'attn',
+        parents=[analyze_common_parser],
+        help='Analyze attention modules with mse metric (scope defaults to all attention modules)'
+    )
+    analysis_attn_parser.add_argument('--metrics',
+                                      type=str,
+                                      choices=['mse'],
+                                      default='mse',
+                                      help='Analysis metrics: mse (default: mse)')
 
     # auto tuning command
     tuning_parser = subparsers.add_parser('tune', help='Model quantization auto tuning tool')
@@ -122,7 +226,10 @@ def main():
                                  help="Trust custom code (bool type, must be True or False). "
                                       "Please ensure the security of the loaded custom code file.")
 
-    args = parser.parse_args()
+    argv = sys.argv[1:]
+    if argv[:1] == ['analyze']:
+        argv = _normalize_analyze_argv(argv)
+    args = parser.parse_args(argv)
     if args.command == 'quant':
         from msmodelslim.cli.naive_quantization.__main__ import main as quant_main
         quant_main(args)

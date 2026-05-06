@@ -30,7 +30,12 @@ from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import logger_setter, get_logger
 
 from .pipeline_loader_infra import AnalysisPipelineLoaderInfra
-from ..interface import IAnalysisService, AnalysisConfig, AnalysisResult
+from ..interface import (
+    AnalysisConfig,
+    AnalysisResult,
+    AnalysisScope,
+    IAnalysisService,
+)
 
 
 @logger_setter()
@@ -55,8 +60,14 @@ class PipelineAnalysisService(IAnalysisService):
         Analyze layer sensitivity based on configuration.
         """
         get_logger().info("==========ANALYSIS: Starting Layer Analysis==========")
+        get_logger().info("Analysis scope: %s", analysis_config.scope.value)
         get_logger().info("Analysis metrics: %s", analysis_config.metrics)
-        get_logger().info("Layer patterns: %s", analysis_config.patterns)
+        if analysis_config.scope == AnalysisScope.LINEAR:
+            get_logger().info("linear_pattern: %s", analysis_config.linear_pattern)
+        elif analysis_config.scope == AnalysisScope.LAYER:
+            get_logger().info("quant_modules: %s", analysis_config.quant_modules)
+        else:
+            get_logger().info("attn: all attention modules")
 
         if device is DeviceType.NPU:
             torch.npu.set_compile_mode(jit_compile=False)
@@ -72,7 +83,7 @@ class PipelineAnalysisService(IAnalysisService):
         with ContextManager(ctx=ctx):
             builder = self.pipeline_loader.get_pipeline_builder(analysis_config.metrics)
             processor_configs = (
-                builder.pattern(analysis_config.patterns)
+                builder.template_modules(analysis_config.template_substitute_list())
                 .create()
             )
             for cfg in processor_configs:
@@ -83,9 +94,15 @@ class PipelineAnalysisService(IAnalysisService):
         # Get layer scores from context
         layer_scores = ctx['layer_analysis'].debug['layer_scores']
         method = ctx['layer_analysis'].debug['method']
-        patterns = ctx['layer_analysis'].debug['patterns']
+        dbg = ctx['layer_analysis'].debug
+        if 'quant_modules' in dbg:
+            result_patterns = list(dbg['quant_modules'])
+        elif 'patterns' in dbg:
+            result_patterns = list(dbg['patterns'])
+        else:
+            result_patterns = analysis_config.template_substitute_list()
 
         # Create result
-        result = AnalysisResult(layer_scores=layer_scores, method=method, patterns=patterns)
+        result = AnalysisResult(layer_scores=layer_scores, method=method, patterns=result_patterns)
 
         return result
