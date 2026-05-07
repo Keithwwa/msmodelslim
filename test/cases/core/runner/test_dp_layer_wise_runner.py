@@ -62,6 +62,9 @@ class WorkerParams:
     calib_data: Optional[List[Any]]
     device: DeviceType
     master_port: int = 29500
+    # ContextManager 要求非 None；生产路径由 get_current_context() 提供
+    shared_ctx: Any = None
+    work_queue: Any = None
 
 
 class MockPipelineInterface(PipelineInterface):
@@ -352,7 +355,8 @@ class TestDistributedWorker(unittest.TestCase):
             model=self.model,
             calib_data=None,
             device=DeviceType.NPU,
-            master_port=29500
+            master_port=29500,
+            shared_ctx=MagicMock(),
         )
 
     def test_distributed_worker_execution(self):
