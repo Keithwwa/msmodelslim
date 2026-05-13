@@ -29,7 +29,7 @@ QatConfig(w_bit=8, a_bit=8, a_sym=False, amp_num=0, steps=1, ema=0.99, is_forwar
 |compressed_model_checkpoint|输入|导出ONNX模型时，保存的伪量化模型权重文件及所在路径。| 可选。<br>数据类型：string。<br>默认为None。                 |
 |opset_version|输入|导出ONNX模型时版本号。需提前安装对应的ONNX版本| 可选。<br>数据类型：int。<br>可选值为11和13，默认为11。      |
 |save_params|输入|导出时是否将量化相关参数保存为npy文件。| 可选。<br>数据类型：bool。<br>默认为False。                  |
-|input_names|输入ONNX的输入名称。| 可选。<br>数据类型：list[str]<br>默认为None。               |
+|input_names|输入|ONNX的输入名称。| 可选。<br>数据类型：list[str]<br>默认为None。               |
 |output_names|输入|ONNX的输出名称。| 可选。<br>数据类型：list[str]<br>默认为None。               |
 |save_onnx_name|输入|伪量化模型权重。| 可选。<br>数据类型：str。<br>默认为None。                    |
 
