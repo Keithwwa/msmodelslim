@@ -18,12 +18,25 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-"""
-Qwen3-VL-MoE V1 Framework Adapter
+from abc import ABC, abstractmethod
+from pathlib import Path
+from msmodelslim.model.interface import IModel
 
-This module provides v1 framework support for Qwen3-VL-MoE models with:
-- Layer-wise loading and quantization
-- Automatic MoE fusion layer conversion
-- Multimodal calibration dataset handling
-- Memory-efficient processing
-"""
+
+class AdapterLoaderInterface(ABC):
+    @abstractmethod
+    def precheck(
+            self,
+            model_type: str,
+            model_path: Path,
+    ) -> None:
+        ...
+
+    @abstractmethod
+    def load(
+            self,
+            model_type: str,
+            model_path: Path,
+            trust_remote_code: bool = False,
+    ) -> IModel:
+        ...

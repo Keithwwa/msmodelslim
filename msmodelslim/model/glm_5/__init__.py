@@ -18,6 +18,3 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-__all__ = ['GLM5ModelAdapter']
-
-from .model_adapter import GLM5ModelAdapter

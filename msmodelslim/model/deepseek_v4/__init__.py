@@ -18,6 +18,3 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-__all__ = ['DeepSeekV4ModelAdapter']
-
-from .model_adapter import DeepSeekV4ModelAdapter

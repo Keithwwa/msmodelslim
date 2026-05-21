@@ -113,11 +113,11 @@ def invoke_test(config_name: str, model_save_path: str, device: str = 'cpu', off
 
         # 使用patch来模拟copy_files调用并拦截model_adapter
         with (patch(
-                "msmodelslim.model.plugin_factory.entry_points"
+                "msmodelslim.model.plugin_factory.plugin_model_factory.entry_points"
         ) as mock_entry_points, patch(
                 "msmodelslim.core.quant_service.modelslim_v1.save.ascendv1.copy_files"
         ) as mock_copy_files, patch(
-                "msmodelslim.model.plugin_factory.DependencyChecker.check_plugin"
+                "msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin"
         ) as mock_check_plugin):
 
             mock_entry_points.return_value.select.return_value = [fake_ep]

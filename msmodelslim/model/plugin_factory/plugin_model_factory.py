@@ -23,10 +23,11 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 from msmodelslim.model.interface import IModel, IModelFactory
+from msmodelslim.model.plugin_factory.loader_interface import AdapterLoaderInterface
 from msmodelslim.utils.config import msmodelslim_config
+from msmodelslim.utils.dependency_check import DependencyChecker, get_require_packages
 from msmodelslim.utils.exception import UnsupportedError
 from msmodelslim.utils.logging import get_logger
-from msmodelslim.utils.dependency_check import DependencyChecker, get_require_packages
 
 MODEL_ADAPTER_ENTRY_POINTS = "msmodelslim.model_adapter.plugins"
 
@@ -50,15 +51,9 @@ class PluginModelFactory(IModelFactory):
             )
         return cls._model_map
 
-    @classmethod
-    def _check_plugin_require_packages(cls, model_type: str, adapter_class: type):
-        plugin_name = f"{MODEL_ADAPTER_ENTRY_POINTS}:{model_type}"
-
-        if plugin_name in msmodelslim_config.model_adapter_dependencies:
-            DependencyChecker.set_plugin(plugin_name,
-                                         msmodelslim_config.model_adapter_dependencies[plugin_name])
-        DependencyChecker.set_plugin(plugin_name, get_require_packages(adapter_class))
-        DependencyChecker.check_plugin(plugin_name)
+    @staticmethod
+    def _plugin_name(model_type: str) -> str:
+        return f"{MODEL_ADAPTER_ENTRY_POINTS}:{model_type}"
 
     def create(
             self,
@@ -80,10 +75,36 @@ class PluginModelFactory(IModelFactory):
                     f"No adapter found for '{model_type}' and no default adapter registered. "
                     f"Registered adapters: {list(model_map.keys())}"
                 )
+        adapter_entry_point = model_map[model_type]
 
-        adapter_class = model_map[model_type].load()
+        loaded_obj = adapter_entry_point.load()
+        if isinstance(loaded_obj, type) and issubclass(loaded_obj, AdapterLoaderInterface):
+            loaded_obj = loaded_obj()
 
-        self._check_plugin_require_packages(model_type, adapter_class)
+        if isinstance(loaded_obj, AdapterLoaderInterface):
+            loader = loaded_obj
+            loader.precheck(model_type=model_type, model_path=model_path)
+            return loader.load(
+                model_type=model_name,
+                model_path=model_path,
+                trust_remote_code=trust_remote_code,
+            )
+        elif isinstance(loaded_obj, type):
+            adapter_class = loaded_obj
+            plugin_name = self._plugin_name(model_type)
+            if plugin_name in msmodelslim_config.model_adapter_dependencies:
+                DependencyChecker.set_plugin(
+                    plugin_name,
+                    msmodelslim_config.model_adapter_dependencies[plugin_name]
+                )
+            DependencyChecker.set_plugin(plugin_name, get_require_packages(adapter_class))
+            DependencyChecker.check_plugin(plugin_name)
+        else:
+            raise UnsupportedError(
+                f"Entry point '{model_type}' must resolve to AdapterLoaderInterface "
+                f"or adapter class, "
+                f"but got {type(loaded_obj)}."
+            )
 
         adapter_instance = adapter_class(
             model_type=model_name,

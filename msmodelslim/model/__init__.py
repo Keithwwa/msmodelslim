@@ -18,7 +18,15 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-__all__ = ["PluginModelFactory", "IModel", "IModelFactory"]
+__all__ = [
+    "PluginModelFactory",
+    "IModel",
+    "IModelFactory",
+    "AdapterLoaderInterface",
+    "BaseModelAdapterLoader",
+]
 
 from .plugin_factory import PluginModelFactory
 from .interface import IModel, IModelFactory
+from .plugin_factory.loader_interface import AdapterLoaderInterface
+from .plugin_factory.base_loader import BaseModelAdapterLoader

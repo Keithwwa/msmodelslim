@@ -18,6 +18,3 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-__all__ = ['KimiK2ModelAdapter']
-
-from .model_adapter import KimiK2ModelAdapter

@@ -22,7 +22,6 @@ See the Mulan PSL v2 for more details.
 import json
 import os
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 from msmodelslim.utils.exception import InvalidModelError, InvalidDatasetError
 from msmodelslim.utils.exception_decorator import exception_handler
@@ -46,6 +45,7 @@ class SafeGenerator:
                                       f"Otherwise, the transformers version is not compatible with the model."
                                       f"Before using msModelSlim, please make sure the model load and infer properly.",
                                ):
+            from transformers import AutoConfig
             config = AutoConfig.from_pretrained(model_path, local_files_only=True, **kwargs)
             return config
 
@@ -59,6 +59,7 @@ class SafeGenerator:
                                       f"Otherwise, the transformers version is not compatible with the model."
                                       f"Before using msModelSlim, please make sure the model load and infer properly.",
                                ):
+            from transformers import AutoModelForCausalLM
             model = AutoModelForCausalLM.from_pretrained(model_path, local_files_only=True, **kwargs)
             return model
 
@@ -72,6 +73,7 @@ class SafeGenerator:
                                       f"Otherwise, the transformers version is not compatible with the model."
                                       f"Before using msModelSlim, please make sure the model load and infer properly.",
                                ):
+            from transformers import AutoTokenizer
             tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True, **kwargs)
             return tokenizer
 

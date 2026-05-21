@@ -94,7 +94,7 @@ class DependencyChecker:
                 installed_version = getattr(mod, "__version__", None)
             except ImportError:
                 raise VersionError(
-                    f"Required package '{pkg_name}' is not installed."
+                    f"Required package '{pkg_name}{constraint}' is not installed."
                 ) from None
 
         if installed_version is None:

@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details.
 
 from pathlib import Path
 
-from .interface_hub import IModel
+from .interface import IModel
 
 
 class BaseModelAdapter(IModel):
@@ -54,3 +54,4 @@ class BaseModelAdapter(IModel):
     @trust_remote_code.setter
     def trust_remote_code(self, trust_remote_code: bool):
         self._trust_remote_code = trust_remote_code
+
