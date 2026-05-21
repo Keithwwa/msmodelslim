@@ -233,8 +233,13 @@ metadata:
     kv_cache: false
 spec: {}
 """
-        config_file = Path(self.temp_dir) / "config.yaml"        
-        config_file.write_text(config_yaml, encoding="utf-8")
+        old_umask = os.umask(0)
+        try:
+            os.umask(0o077)
+            config_file = Path(self.temp_dir) / "config.yaml"        
+            config_file.write_text(config_yaml, encoding="utf-8")
+        finally:
+            os.umask(old_umask)
 
         mock_practice_manager = MagicMock()
         mock_quant_service = MagicMock()
@@ -315,8 +320,13 @@ class TestQuantParameterValidation(TestNaiveQuantizationAppBase):
     def test_quant_quant_type_and_config_path_mutual_exclusion(self):
         """测试 quant_type 与 config_path 互斥"""
         app = self._make_app()
-        config_file = Path(self.temp_dir) / "config.yaml"
-        config_file.write_text("apiversion: modelslim_v1\nmetadata:\n  config_id: x\n  label: {}\nspec: {}", encoding="utf-8")
+        old_umask = os.umask(0)
+        try:
+            os.umask(0o077)
+            config_file = Path(self.temp_dir) / "config.yaml"
+            config_file.write_text("apiversion: modelslim_v1\nmetadata:\n  config_id: x\n  label: {}\nspec: {}", encoding="utf-8")
+        finally:
+            os.umask(old_umask)
 
         with self.assertRaises(SchemaValidateError):
             app.quant(

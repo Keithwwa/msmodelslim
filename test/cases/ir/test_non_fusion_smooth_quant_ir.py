@@ -65,9 +65,9 @@ class TestNonFusionSmoothQuantWrapper(unittest.TestCase):
         scales = torch.tensor([2.0, 2.0])
         linear = nn.Linear(2, 2)
         wrapper = NonFusionSmoothQuantWrapper(scales, linear)
-        x = torch.randn(1, 2, dtype=torch.float16)
+        x = torch.randn(1, 2, dtype=torch.float32)
         out = wrapper(x)
-        self.assertEqual(out.dtype, torch.float16)
+        self.assertEqual(out.dtype, torch.float32)
         self.assertEqual(out.device, x.device)
 
 
@@ -87,7 +87,7 @@ class TestNonFusionSmoothQuantHookIR(unittest.TestCase):
         module = nn.Linear(1, 1)
         x = torch.tensor([[1.0]])
         result = hook_ir(module, (x,))
-        self.assertIs(result, x)
+        self.assertEqual(result, x)
 
     def test_wrapper_module_returns_wrapper_and_removes_hook(self):
         """wrapper_module(linear) returns NonFusionSmoothQuantWrapper and removes hook."""

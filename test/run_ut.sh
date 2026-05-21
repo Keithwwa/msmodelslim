@@ -20,6 +20,36 @@ route=$(dirname "$script")
 rootdir=$(dirname "$route")
 kia_dir=$(dirname "$rootdir")/automl_kia
 
+ALL_CASES="pytorch app core ir mindspore common onnx processor quant utils model infra"
+MODELSlim_V1_CASES="app core ir infra processor utils"
+
+run_tests() {
+    local cases="$1"
+    local oldIFS="$IFS"
+    IFS=' '
+    for case_dir in $cases; do
+        local junitxml="${route}/report/final_${case_dir}.xml"
+        python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/${case_dir} --junitxml="${junitxml}" || ret=1
+    done
+    IFS="$oldIFS"
+}
+
+run_smoke_test() {
+    python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/smoke --junitxml="${route}/report/final_smoke.xml" || ret=1
+}
+
+usage() {
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --modelslim_v1     Run only modelslim_v1 related test cases (app, core, ir, infra, processor, utils)"
+    echo "  --help            Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                Run all test cases (default)"
+    echo "  $0 --modelslim_v1 Run only modelslim_v1 related test cases"
+}
+
 if [ -e $kia_dir ]; then
     mkdir ${rootdir}/msmodelslim/pytorch/quant/ptq_tools/ptq_kia
     mkdir ${rootdir}/msmodelslim/onnx/squant_ptq/onnx_ptq_kia
@@ -45,22 +75,33 @@ code_dir=${rootdir}/msmodelslim,${rootdir}/ascend_utils
 cp ${rootdir}/lab_calib     ${rootdir}/msmodelslim/ -rf
 cp ${rootdir}/lab_practice  ${rootdir}/msmodelslim/ -rf
 cp ${rootdir}/config        ${rootdir}/msmodelslim/ -rf
-# Final output results need a `final.xml`, but merging multi xml requires tools like  `junitparser`. Don't know how...
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/pytorch --junitxml="${route}/report/final.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/app --junitxml="${route}/report/final_app.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/core --junitxml="${route}/report/final_core.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/mindspore --junitxml="${route}/report/final_mindspore.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/common --junitxml="${route}/report/final_common.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/onnx --junitxml="${route}/report/final_onnx.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/processor --junitxml="${route}/report/final_processor.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/quant --junitxml="${route}/report/final_quant.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/utils --junitxml="${route}/report/final_utils.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/model --junitxml="${route}/report/final_model.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/smoke --junitxml="${route}/report/final_smoke.xml" || ret=1
-python3 -m coverage run --branch --source=${code_dir} -p -m pytest ${route}/cases/infra --junitxml="${route}/report/final_infra.xml" || ret=1
+chmod 640 ${rootdir}/msmodelslim/config/config.ini ${rootdir}/msmodelslim/config/__init__.py
 
-python3 -m coverage combine
-python3 -m coverage xml -o ${route}/report/coverage.xml
-cat ${route}/report/coverage.xml | grep line-rate | grep coverage
-
-exit ${ret}
+case "${1:-}" in
+    --modelslim_v1)
+        echo "Running modelslim_v1 related test cases..."
+        run_tests "$MODELSlim_V1_CASES"
+        python3 -m coverage combine
+        python3 -m coverage xml -o ${route}/report/coverage.xml
+        cat ${route}/report/coverage.xml | grep line-rate | grep coverage
+        exit ${ret}
+        ;;
+    --help)
+        usage
+        exit 0
+        ;;
+    "")
+        echo "Running all test cases..."
+        run_tests "$ALL_CASES"
+        run_smoke_test
+        python3 -m coverage combine
+        python3 -m coverage xml -o ${route}/report/coverage.xml
+        cat ${route}/report/coverage.xml | grep line-rate | grep coverage
+        exit ${ret}
+        ;;
+    *)
+        echo "Unknown option: $1"
+        usage
+        exit 1
+        ;;
+esac

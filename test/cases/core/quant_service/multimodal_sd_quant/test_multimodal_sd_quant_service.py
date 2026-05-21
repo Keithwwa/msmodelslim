@@ -54,7 +54,7 @@ class TestQuantProcessComplete:
         # 量化配置核心属性
         self.mock_quant_spec.multimodal_sd_config.model_extra = {"model_config": "test_config"}
         self.mock_quant_spec.multimodal_sd_config.dump_config = MagicMock(
-            capture_mode='args', dump_data_dir="/test/dump", enable_dump=True
+            capture_mode='args', dump_data_dir="/tmp/test_dump", enable_dump=True
         )
         # 处理/保存配置（2个实例，覆盖多配置场景）
         self.mock_quant_spec.process = [Mock(), Mock()]
@@ -86,7 +86,7 @@ class TestQuantProcessComplete:
         self.model_adapter.transformer = Mock()
 
         # 3. 测试固定参数
-        self.save_path = Path("/test/save")
+        self.save_path = Path("/tmp/test_save")
         self.device = DeviceType.NPU
 
     def test_backend_name(self):
@@ -139,8 +139,8 @@ class TestQuantProcessComplete:
         self.model_adapter.init_model.return_value = {'model1': self.mock_model1, 'model2': self.mock_model2}
         self.model_adapter.model_args.task_config = 'mock'
         mock_load_cache.return_value = "raw_calib_data"
-        calib_data = {'model1': '/test/dump/calib_data_mock_model1.pth',
-                      'model2': '/test/dump/calib_data_mock_model2.pth'}
+        calib_data = {'model1': '/tmp/test_dump/calib_data_mock_model1.pth',
+                      'model2': '/tmp/test_dump/calib_data_mock_model2.pth'}
         mock_to_device.return_value = calib_data
         mock_runner = Mock()
         mock_runner_cls.return_value = mock_runner
@@ -153,8 +153,8 @@ class TestQuantProcessComplete:
         self.model_adapter.set_model_args.assert_called_once_with("test_config")
         self.model_adapter.load_pipeline.assert_called_once()
         # 数据加载与设备转换（路径用 Path 规范化，避免 Windows/Unix 分隔符差异）
-        expected_pth_list = {'model1': Path('/test/dump/calib_data_mock_model1.pth'),
-                             'model2': Path('/test/dump/calib_data_mock_model2.pth')}
+        expected_pth_list = {'model1': Path('/tmp/test_dump/calib_data_mock_model1.pth'),
+                             'model2': Path('/tmp/test_dump/calib_data_mock_model2.pth')}
         model = {'model1': self.mock_model1, 'model2': self.mock_model2}
         assert mock_load_cache.call_count == 1
         call_kw = mock_load_cache.call_args[1]
@@ -180,7 +180,7 @@ class TestQuantProcessComplete:
         partial_func = self.model_adapter.apply_quantization.call_args[0][0]
         assert isinstance(partial_func, functools.partial)
         assert partial_func.func == mock_runner.run
-        assert partial_func.keywords == {"calib_data": "/test/dump/calib_data_mock_model2.pth",
+        assert partial_func.keywords == {"calib_data": "/tmp/test_dump/calib_data_mock_model2.pth",
                                          "device": self.device, "model": self.mock_model2}
 
     @patch("msmodelslim.core.quant_service.multimodal_sd_v1.quant_service.load_cached_data_for_models")
@@ -192,7 +192,7 @@ class TestQuantProcessComplete:
         self.model_adapter.init_model.return_value = {'': self.mock_model1}
         self.model_adapter.model_args.task_config = ''
         mock_load_cache.return_value = "raw_calib_data"
-        calib_data = {'': '/test/dump/calib_data__.pth'}
+        calib_data = {'': '/tmp/test_dump/calib_data__.pth'}
         mock_to_device.return_value = calib_data
         mock_runner = Mock()
         mock_runner_cls.return_value = mock_runner
@@ -205,7 +205,7 @@ class TestQuantProcessComplete:
         self.model_adapter.set_model_args.assert_called_once_with("test_config")
         self.model_adapter.load_pipeline.assert_called_once()
         # 数据加载与设备转换（路径用 Path 规范化，避免 Windows/Unix 分隔符差异）
-        expected_pth_list = {'': Path('/test/dump/calib_data__.pth')}
+        expected_pth_list = {'': Path('/tmp/test_dump/calib_data__.pth')}
         model = {'': self.mock_model1}
         assert mock_load_cache.call_count == 1
         call_kw = mock_load_cache.call_args[1]
@@ -230,7 +230,7 @@ class TestQuantProcessComplete:
         partial_func = self.model_adapter.apply_quantization.call_args[0][0]
         assert isinstance(partial_func, functools.partial)
         assert partial_func.func == mock_runner.run
-        assert partial_func.keywords == {"calib_data": "/test/dump/calib_data__.pth",
+        assert partial_func.keywords == {"calib_data": "/tmp/test_dump/calib_data__.pth",
                                          "device": self.device, "model": self.mock_model1}
 
     @patch("msmodelslim.core.quant_service.multimodal_sd_v1.quant_service.load_cached_data_for_models")

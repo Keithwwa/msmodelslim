@@ -83,7 +83,7 @@ class TestMindIEFormatSaver:
     def mock_config(self):
         """创建模拟的配置"""
         config = MindIEFormatConfig()
-        config.save_directory = "/test/save"
+        config.save_directory = "/tmp/test_save"
         config.part_file_size = 4
         return config
 
@@ -340,7 +340,7 @@ class TestMindIEFormatSaverModuleHandlers:
     def mock_config(self):
         """创建模拟的配置"""
         config = MindIEFormatConfig()
-        config.save_directory = "/test/save"
+        config.save_directory = "/tmp/test_save"
         config.part_file_size = 4
         return config
 
