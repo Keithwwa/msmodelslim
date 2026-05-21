@@ -1,18 +1,17 @@
 # 量化配置
 apiversion: multimodal_sd_modelslim_v1
 metadata:
-  config_id: hunyuan_video_w8a8c8_mxfp8
-  score: 0.95
-  verified_model_types:
-    - hunyuan_video
-    - hunyuan-video
-    - HunyuanVideo
-    - hunyuanvideo
+  config_id: hunyuan_video_w8a8f8_mxfp
+  score: 90
+  verified_tags:
+    HunyuanVideo:
+      - - MindIE-SD
+        - Atlas_350
   label:
     w_bit: 8
     a_bit: 8
     is_sparse: False
-    kv_cache: True
+    fa_quant: True
 
 spec:
   process:

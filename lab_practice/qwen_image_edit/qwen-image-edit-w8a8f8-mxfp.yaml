@@ -1,15 +1,17 @@
 apiversion: multimodal_sd_modelslim_v1
 
 metadata:
-  config_id: qwen-image-edit-mxw8a8
+  config_id: qwen-image-edit-w8a8f8-mxfp
   score: 90
-  verified_model_types:
-    - Qwen-Image-Edit-2509
+  verified_tags:
+    Qwen-Image-Edit-2509:
+      - - MindIE-SD
+        - Atlas_350
   label:
     w_bit: 8
     a_bit: 8
     is_sparse: False
-    kv_cache: False
+    fa_quant: True
 
 default_w8a8_dynamic: &default_w8a8_dynamic
   act:
@@ -17,15 +19,11 @@ default_w8a8_dynamic: &default_w8a8_dynamic
     dtype: "mxfp8"
     symmetric: True
     method: "minmax"
-    ext:
-      axes: -1
   weight:
     scope: "per_block"
     dtype: "mxfp8"
     symmetric: True
     method: "minmax"
-    ext:
-      axes: -1
 
 spec:
   process:

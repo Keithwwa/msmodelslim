@@ -1,6 +1,17 @@
 # 量化配置
 apiversion: multimodal_sd_modelslim_v1
-
+metadata:
+  config_id: wan2_2_w8a8f8_mxfp_t2v
+  score: 90
+  verified_tags:
+    Wan2.2-T2V-A14B:
+      - - MindIE-SD
+        - Atlas_350
+  label:
+    w_bit: 8
+    a_bit: 8
+    is_sparse: False
+    fa_quant: True
 spec:
   process:
     - type: "linear_quant"
@@ -18,7 +29,7 @@ spec:
       include:
         - "*"
     - type: "online_quarot"
-      include: 
+      include:
         - "*.self_attn.*"
       exclude:
         - "*blocks.0.self_attn*"

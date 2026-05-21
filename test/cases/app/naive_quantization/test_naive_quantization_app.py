@@ -80,12 +80,18 @@ class TestNaiveQuantizationApplicationInit(TestNaiveQuantizationAppBase):
 class TestCheckConfig(TestNaiveQuantizationAppBase):
     """测试 check_config 静态方法"""
 
-    def _make_config(self, w_bit=8, a_bit=8, is_sparse=False, kv_cache=False,
+    def _make_config(self, w_bit=8, a_bit=8, is_sparse=False, kv_cache=False, fa_quant=False,
                      verified_model_types=None, verified_tags=None):
         metadata = Metadata(
             config_id="test_config",
             score=90,
-            label={"w_bit": w_bit, "a_bit": a_bit, "is_sparse": is_sparse, "kv_cache": kv_cache},
+            label={
+                "w_bit": w_bit,
+                "a_bit": a_bit,
+                "is_sparse": is_sparse,
+                "kv_cache": kv_cache,
+                "fa_quant": fa_quant,
+            },
             verified_model_types=verified_model_types or [],
             verified_tags=verified_tags or {},
         )
@@ -172,6 +178,39 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         result = NaiveQuantizationApplication.check_config(
             config, "Qwen2.5-7B", QuantType.W8A8,
             scenario_tags=None,
+        )
+        self.assertEqual(result, ScenarioTagMatch.MATCH)
+
+    def test_check_config_w8a8f8_matches_fa_quant_label(self):
+        """测试 w8a8f8 与 fa_quant: True 的 label 匹配"""
+        from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
+
+        config = self._make_config(fa_quant=True, verified_model_types=["FLUX.1-dev"])
+        result = NaiveQuantizationApplication.check_config(
+            config, "FLUX.1-dev", QuantType.W8A8F8,
+        )
+        self.assertEqual(result, ScenarioTagMatch.MATCH)
+
+    def test_check_config_w8a8f8_mismatch_without_fa_quant_label(self):
+        """测试 w8a8f8 与未启用 fa_quant 的 label 不匹配"""
+        from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
+
+        config = self._make_config(verified_model_types=["FLUX.1-dev"])
+        result = NaiveQuantizationApplication.check_config(
+            config, "FLUX.1-dev", QuantType.W8A8F8,
+        )
+        self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
+
+    def test_check_config_w8a8c8_matches_kv_cache_label(self):
+        """测试 w8a8c8 与 kv_cache: True 的 label 匹配"""
+        from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
+        from msmodelslim.core.practice.interface import ScenarioTagMatch
+
+        config = self._make_config(kv_cache=True, verified_model_types=["Qwen3-32B"])
+        result = NaiveQuantizationApplication.check_config(
+            config, "Qwen3-32B", QuantType.W8A8C8,
         )
         self.assertEqual(result, ScenarioTagMatch.MATCH)
 

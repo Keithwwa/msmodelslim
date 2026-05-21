@@ -34,6 +34,7 @@ class QuantType(str, Enum):
     W8A8 = "w8a8"  # 权重INT8量化，激活值INT8量化
     W8A8S = "w8a8s"  # 权重INT8稀疏量化，激活值INT8量化
     W8A8C8 = "w8a8c8"  # 权重INT8量化，激活值INT8量化，KVCache INT8量化
+    W8A8F8 = "w8a8f8"  # 权重INT8量化，激活值INT8量化，FA3量化
     W16A16S = "w16a16s"  # 权重浮点稀疏
 
 

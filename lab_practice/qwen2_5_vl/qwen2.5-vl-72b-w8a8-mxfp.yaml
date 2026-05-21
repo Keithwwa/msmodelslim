@@ -2,8 +2,10 @@ apiversion: multimodal_vlm_modelslim_v1
 metadata:
   config_id: qwen2.5-vl-72b-w8a8-mxfp8
   score: 90
-  verified_model_types:
-    - Qwen2.5-VL-72B-Instruct
+  verified_tags:
+    Qwen2.5-VL-72B-Instruct:
+      - - vLLM_Ascend
+        - Atlas_350
   label:
     w_bit: 8
     a_bit: 8
@@ -36,4 +38,3 @@ spec:
       part_file_size: 4
   dataset: "calibImages"  # Short name: auto-searches in lab_calib/
   default_text: "Describe this image in detail."
-

@@ -172,12 +172,14 @@ class NaiveQuantizationApplication:
     ) -> ScenarioTagMatch:
         label = config.metadata.label
         # Parse quant_type parameters
-        match_result = re.match(r'^w(\d+)a(\d+)(c?8?)(s?)$', quant_type.value)
+        match_result = re.match(r'^w(\d+)a(\d+)((?:c8|f8)?)(s?)$', quant_type.value)
         if not match_result:
             raise ValueError(f"Invalid quant_type format: {quant_type.value}")
         w_bit = int(match_result.group(1))
         a_bit = int(match_result.group(2))
-        use_kv_cache = bool(match_result.group(3))
+        suffix = match_result.group(3) or ''
+        use_kv_cache = suffix == 'c8'
+        use_fa_quant = suffix == 'f8'
         is_sparse = bool(match_result.group(4))
 
         """Check if the label matches the quantization parameters"""
@@ -188,6 +190,8 @@ class NaiveQuantizationApplication:
         if is_sparse ^ label.get('is_sparse', False):
             return ScenarioTagMatch.NO_MATCH
         if use_kv_cache ^ label.get('kv_cache', False):
+            return ScenarioTagMatch.NO_MATCH
+        if use_fa_quant ^ label.get('fa_quant', False):
             return ScenarioTagMatch.NO_MATCH
         if is_default:
             return ScenarioTagMatch.MATCH
