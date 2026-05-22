@@ -46,7 +46,7 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
     """
     YAML-based implementation of TuningAccuracyInfra.
     Manages accuracy.yaml (accuracy records).
-    Accuracy records are stored with both evaluation_md5 and practice_md5 as keys.
+    Accuracy records are stored with both evaluation_md5 and quant_config_md5 as keys.
     """
     
     def __init__(self, database: str):
@@ -73,13 +73,13 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
         self._accuracy_file_path = self.history_dir / 'accuracy.yaml'
         
         # Load accuracy cache into memory (for read operations)
-        # Structure: {evaluation_md5-practice_md5: evaluation_dict}
+        # Structure: {evaluation_md5-quant_config_md5: evaluation_dict}
         self._accuracy_cache: Dict[str, Dict] = self._load_accuracy_database()
     
     def _load_accuracy_database(self) -> Dict[str, Dict]:
         """
         Load accuracy data from accuracy database interface.
-        Expected format: {evaluation_md5-practice_md5: evaluation_dict}
+        Expected format: {evaluation_md5-quant_config_md5: evaluation_dict}
         """
         accuracy_database = self._database_accuracy.accuracy_database
         accuracy_key = "accuracy"
@@ -97,7 +97,7 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
                 get_logger().warning("Accuracy database content is not a dict. Starting with empty cache.")
                 return {}
             
-            # Format: {evaluation_md5-practice_md5: evaluation_dict}
+            # Format: {evaluation_md5-quant_config_md5: evaluation_dict}
             validated_content = {}
             for composite_key, evaluation_dict in content.items():
                 if not isinstance(evaluation_dict, dict):
@@ -128,8 +128,8 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
         practice and evaluation_config form a composite key.
         """
         evaluation_md5 = calculate_md5(evaluation_config)
-        practice_md5 = calculate_md5(practice)
-        composite_key = f"{evaluation_md5}-{practice_md5}"
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
+        composite_key = f"{evaluation_md5}-{quant_config_md5}"
         
         if composite_key not in self._accuracy_cache:
             return None
@@ -145,21 +145,21 @@ class YamlTuningAccuracy(TuningAccuracyInfra):
         If the record already exists, it will be overwritten.
         """
         evaluation_md5 = calculate_md5(evaluation_config)
-        practice_md5 = calculate_md5(practice)
-        composite_key = f"{evaluation_md5}-{practice_md5}"
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
+        composite_key = f"{evaluation_md5}-{quant_config_md5}"
         
         with _get_modifiable_accuracy_cache(self._accuracy_file_path) as accuracy_cache:
             if composite_key in accuracy_cache:
                 get_logger().warning(
-                    "Accuracy record already exists for evaluation_md5 %r and practice_md5 %r. Overwriting with new data.",
-                    evaluation_md5, practice_md5
+                    "Accuracy record already exists for evaluation_md5 %r and quant_config_md5 %r. Overwriting with new data.",
+                    evaluation_md5, quant_config_md5
                 )
             
             evaluation_dict = evaluation.model_dump(mode='json')
             accuracy_cache[composite_key] = evaluation_dict
             self._accuracy_cache = accuracy_cache
         
-        get_logger().info("Saved accuracy record for evaluation_md5 %r and practice_md5 %r", evaluation_md5, practice_md5)
+        get_logger().info("Saved accuracy record for evaluation_md5 %r and quant_config_md5 %r", evaluation_md5, quant_config_md5)
     
     def get_accuracy_count(self) -> int:
         """

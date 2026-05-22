@@ -124,8 +124,8 @@ class TestYamlTuningAccuracy:
         assert accuracy.get_accuracy_count() == 1  # 校验新增记录时缓存数量为1
         
         evaluation_md5 = calculate_md5(evaluation_config)
-        practice_md5 = calculate_md5(practice)
-        composite_key = f"{evaluation_md5}-{practice_md5}"
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
+        composite_key = f"{evaluation_md5}-{quant_config_md5}"
         assert composite_key in accuracy._accuracy_cache  # 校验复合键存在
         
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result2)
@@ -146,7 +146,7 @@ class TestYamlTuningAccuracy:
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result)
         assert accuracy.get_accuracy_count() == 1  # 校验添加记录后返回1
     
-    def test_composite_key_format_evaluation_md5_practice_md5_when_append_accuracy(self, tmp_path: Path):
+    def test_composite_key_format_evaluation_md5_quant_config_md5_when_append_accuracy(self, tmp_path: Path):
         """测试添加精度记录后验证复合键格式和持久化功能"""
         accuracy_dir = tmp_path / "accuracy"
         accuracy_dir.mkdir()
@@ -159,8 +159,8 @@ class TestYamlTuningAccuracy:
         accuracy.append_accuracy(practice, evaluation_config, evaluate_result)
         
         evaluation_md5 = calculate_md5(evaluation_config)
-        practice_md5 = calculate_md5(practice)
-        composite_key = f"{evaluation_md5}-{practice_md5}"
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
+        composite_key = f"{evaluation_md5}-{quant_config_md5}"
         assert composite_key in accuracy._accuracy_cache  # 校验复合键存在于缓存
         assert len(composite_key.split("-")) == 2  # 校验复合键格式包含两部分
         

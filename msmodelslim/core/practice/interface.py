@@ -60,7 +60,8 @@ class PracticeConfig(BaseQuantConfig):
     metadata: Metadata = Field(default_factory=Metadata) # metadata of the quantization config
 
     def extract_quant_config(self) -> BaseQuantConfig:
-        return self
+        """提取量化任务配置（apiversion + spec，不含 metadata）。"""
+        return BaseQuantConfig(apiversion=self.apiversion, spec=self.spec)
 
     def matches_scenario_tags(self, model_type: str, scenario_tags: Optional[List[str]]) -> ScenarioTagMatch:
         """

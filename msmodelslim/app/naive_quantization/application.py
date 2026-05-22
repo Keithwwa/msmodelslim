@@ -453,7 +453,7 @@ class NaiveQuantizationApplication:
         )
         # 使用量化配置导出基础设施导出配置
         self.quant_config_export_infra.export_quant_config(
-            practice_config.extract_quant_config(),
+            practice_config,
             model_type,
             save_path
         )

@@ -54,6 +54,14 @@ def _mock_yaml_safe_load(path, *args, **kwargs):
         return yaml.safe_load(file)
 
 
+def _mock_yaml_safe_dump(obj, path, extensions=("yml", "yaml"), check_user_stat=True):
+    """Mock yaml_safe_dump that persists YAML for infra unit tests."""
+    write_path = _mock_get_valid_write_path(path, extensions, check_user_stat)
+    default_mode = stat.S_IWUSR | stat.S_IRUSR  # 600
+    with os.fdopen(os.open(write_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode=default_mode), "w") as yaml_file:
+        yaml.safe_dump(obj, yaml_file, sort_keys=False)
+
+
 def _mock_json_safe_load(path, *args, **kwargs):
     """Mock json_safe_load function that reads json file from path and converts to dict"""
     with open(path, 'r', encoding='utf-8') as file:
@@ -74,6 +82,7 @@ def mock_security_library():
     sys.modules['msmodelslim.utils.security.path'].json_safe_dump = _mock_json_safe_dump
     sys.modules['msmodelslim.utils.security.path'].json_safe_load = _mock_json_safe_load
     sys.modules['msmodelslim.utils.security.path'].yaml_safe_load = _mock_yaml_safe_load
+    sys.modules['msmodelslim.utils.security.path'].yaml_safe_dump = _mock_yaml_safe_dump
     sys.modules['msmodelslim.utils.security.path'].get_valid_write_path = _mock_get_valid_write_path
     sys.modules['msmodelslim.utils.security.path'].get_valid_path = _mock_get_valid_write_path
     sys.modules['msmodelslim.utils.security.path'].get_valid_read_path = _mock_get_valid_write_path

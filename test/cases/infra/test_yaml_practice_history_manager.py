@@ -75,12 +75,13 @@ class TestYamlTuningHistory:
         
         assert len(history._history_index.records) == 1  # 校验历史索引记录数为1
         assert history._history_index.records[0].practice_id == "test_config"  # 校验practice_id正确
-        practice_md5 = calculate_md5(practice)
-        assert history._history_index.records[0].md5 == practice_md5  # 校验md5正确
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
+        assert history._history_index.records[0].quant_config_md5 == quant_config_md5  # 校验量化配置 md5 正确
     
     def test_append_history_accumulate_records_when_same_practice_id(self, tmp_path: Path):
         """测试相同practice_id追加多条历史记录"""
         history_dir = tmp_path / "history"
+        history_dir.mkdir()
         history = YamlTuningHistory(str(history_dir))
         
         practice = create_test_practice_config("test_config")
@@ -91,17 +92,23 @@ class TestYamlTuningHistory:
         assert len(history._history_index.records) == 1  # 校验第一次追加成功
         
         history.append_history(practice, evaluate_result2)
-        
-        assert len(history._history_index.records) >= 1  # 校验历史索引记录数递增
+
+        assert len(history._history_index.records) == 2  # 校验相同 practice_id 可累积两条记录
         last_record = history._history_index.records[-1]
-        assert last_record.practice_id == "test_config"  # 校验最后一条记录的practice_id
-        assert last_record.evaluation.accuracies[0].accuracy == Decimal('0.95')  # 校验最后一条记录正确
-        
+        assert last_record.practice_id == "test_config"
+        assert last_record.evaluation.accuracies[0].accuracy == Decimal('0.95')
+        expected_md5 = calculate_md5(practice.extract_quant_config())
+        for record in history._history_index.records:
+            assert record.quant_config_md5 == expected_md5
+
         from msmodelslim.utils.security import yaml_safe_load
         history_file = history_dir / "history.yaml"
-        if history_file.exists():
-            file_content = yaml_safe_load(str(history_file))
-            assert len(file_content.get("records", [])) == 2  # 校验文件中的历史索引包含两条记录
+        assert history_file.exists()
+        file_content = yaml_safe_load(str(history_file))
+        assert len(file_content.get("records", [])) == 2
+        for record in file_content["records"]:
+            assert record["quant_config_md5"] == expected_md5
+            assert "md5" not in record
     
     def test_clear_records_clear_index_when_call(self, tmp_path: Path):
         """测试清除历史记录"""
@@ -157,25 +164,24 @@ class TestYamlTuningHistoryManager:
         assert isinstance(history, YamlTuningHistory)  # 校验不抛出异常时返回实例
 
 
-class TestCalculateMd5:
-    """测试calculate_md5函数（用于计算practice的MD5）"""
-    
-    def test_calculate_md5_return_same_when_same_config_and_different_when_different(self):
-        """测试计算相同和不同配置的MD5值"""
+class TestQuantConfigMd5:
+    """测试 extract_quant_config 与 quant_config_md5 索引逻辑"""
+
+    def test_quant_config_md5_same_when_spec_same_and_ignore_config_id(self):
+        """相同 spec 的 MD5 相同；仅 metadata.config_id 不同不影响 MD5"""
         practice1 = create_test_practice_config("test_config")
         practice2 = create_test_practice_config("test_config")
-        md5_1 = calculate_md5(practice1)
-        md5_2 = calculate_md5(practice2)
-        assert md5_1 == md5_2  # 校验相同配置MD5值相同
-        
+        quant_md5_1 = calculate_md5(practice1.extract_quant_config())
+        quant_md5_2 = calculate_md5(practice2.extract_quant_config())
+        assert quant_md5_1 == quant_md5_2
+
         practice3 = create_test_practice_config("config1")
         practice4 = create_test_practice_config("config2")
-        md5_3 = calculate_md5(practice3)
-        md5_4 = calculate_md5(practice4)
-        assert md5_3 != md5_4  # 校验不同配置MD5值不同
-        
-        md5_5 = calculate_md5(practice1)
-        assert md5_1 == md5_5  # 校验MD5计算是确定性的
+        assert calculate_md5(practice3.extract_quant_config()) == calculate_md5(
+            practice4.extract_quant_config()
+        )
+
+        assert calculate_md5(practice1.extract_quant_config()) == quant_md5_1
 
 
 class TestResumeIntegration:
@@ -205,4 +211,6 @@ class TestResumeIntegration:
         history2.append_history(practice2, evaluate_result2)
         
         assert len(history2._history_index.records) == 1  # 校验添加新记录后历史索引包含新记录
-        assert history2._history_index.records[0].practice_id == "config2"  # 校验新记录的practice_id正确
+        record = history2._history_index.records[0]
+        assert record.practice_id == "config2"
+        assert record.quant_config_md5 == calculate_md5(practice2.extract_quant_config())

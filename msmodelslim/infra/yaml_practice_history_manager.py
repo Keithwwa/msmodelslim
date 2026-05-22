@@ -49,7 +49,7 @@ class YamlDatabaseHistory(BaseModel):
 class TuningHistoryIndexUnit(BaseModel):
     practice_id: str
     evaluation: EvaluateResult
-    md5: str
+    quant_config_md5: str
     time: str = Field(default_factory=lambda: str(datetime.datetime.now()))
 
 
@@ -116,14 +116,14 @@ class YamlTuningHistory(TuningHistoryInfra):
         Append a history record to the database.
         """
         practice_id = practice.metadata.config_id
-        practice_md5 = calculate_md5(practice)
+        quant_config_md5 = calculate_md5(practice.extract_quant_config())
         
         # Append to history index
         with _get_modifiable_history_index(self._database_history.history_index_file_path) as history_index:
             history_index.records.append(TuningHistoryIndexUnit(
                 practice_id=practice_id,
                 evaluation=evaluation,
-                md5=practice_md5,
+                quant_config_md5=quant_config_md5,
             ))
             self._history_index = history_index
         
