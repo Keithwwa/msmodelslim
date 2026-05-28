@@ -165,9 +165,10 @@ class TestDistributedAscendV1ExportFormat:
             "msmodelslim.core.quant_service.modelslim_v1.save.ascendv1.safe_copy_file",
             side_effect=lambda src_path, dest_path: shutil.copy(src_path, dest_path),
         ), patch("msmodelslim.core.quant_service.modelslim_v1.save.ascendv1_distributed.dist.all_gather_object") as m_gather,          patch("msmodelslim.core.quant_service.modelslim_v1.save.ascendv1_distributed.dist.barrier"):
-            def _fill_counts(out, local_count):
-                out[:] = [local_count, 1]
-            m_gather.side_effect = _fill_counts
+            def _gather_all(out, obj):
+                for i in range(len(out)):
+                    out[i] = obj
+            m_gather.side_effect = _gather_all
             saver.post_run()
 
         desc_path = save_dir / "quant_model_description.json"

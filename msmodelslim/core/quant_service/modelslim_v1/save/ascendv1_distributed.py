@@ -35,7 +35,7 @@ from msmodelslim import logger
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoSessionProcessor
-from msmodelslim.utils.distributed import DistHelper
+from msmodelslim.utils.distributed import DistHelper, get_distributed_task_work_queue
 from msmodelslim.utils.logging import logger_setter, get_logger
 from .ascendv1 import AscendV1Saver, AscendV1Config, ASCENDV1_DESC_JSON_NAME, copy_files, remove_quantization_config
 from .interface import AscendV1SaveInterface
@@ -146,9 +146,27 @@ def decorate_on_methods(cls):
     return wrapper_class()
 
 
+class _DistIterCtx:
+    """_iter_tasks 内部使用的轻量分布上下文。step 1 构造，step 5 销毁。"""
+
+    def __init__(self, prefix: str, module: nn.Module):
+        self.prefix = prefix
+        self.module = module
+        self.world_size = dist.get_world_size()
+        self.rank = dist.get_rank()
+
+        self.queue = get_distributed_task_work_queue()
+
+        # 构造 DistHelper，通过 all_gather_object 识别本 rank 的 local_only 模块
+        self._dist_helper = DistHelper(module, prefix=prefix)
+        self.local_only_names = self._dist_helper._local_only_modules
+
+    def destroy(self):
+        self._dist_helper = None
+
+
 @QABCRegistry.register(dispatch_key=DistributedAscendV1Config, abc_class=AutoSessionProcessor)
 @logger_setter(prefix='msmodelslim.saver.ascend_v1_distributed')  # 4-level: msmodelslim.core.quant_service.modelslim_v1
-@decorate_on_methods  # 自动装饰所有 on_xxx 方法
 class DistributedAscendV1Saver(AscendV1Saver):
     """
     支持分布式保存的 ascendV1 量化模型保存器。
@@ -158,51 +176,79 @@ class DistributedAscendV1Saver(AscendV1Saver):
     """
 
     def __init__(self, model: nn.Module, config: AscendV1Config, adapter: object, **kwargs: Dict[str, Any]):
-        # 先调用父类初始化，但需要覆盖save_directory
         super().__init__(model, config, adapter, **kwargs)
-        
-        # 覆盖父类的save_directory，使用rank特定的目录
+
         self.save_directory = self.get_rank_save_directory() if dist.is_initialized() else config.save_directory
-        
-        # 重新初始化writers，使用新的save_directory
+
         self.json_writer = JsonWriter(self.save_directory, ASCENDV1_DESC_JSON_NAME)
         self.safetensors_writer = self.get_safetensors_writer(config)
-        
-        # 分布式相关属性
-        self.dist_helper: Optional[DistHelper] = None
-        self.shared_modules_slice: Optional[List[str]] = None
-        # 初始化每个rank的文件映射列表
+
         if dist.is_initialized():
             self.file_mappings = [{} for _ in range(dist.get_world_size())]
         else:
             self.file_mappings = [{}]
 
+
     def support_distributed(self) -> bool:
         return True
 
-    def preprocess(self, request: BatchProcessRequest) -> None:
-        if dist.is_initialized():
-            self.prepare_for_distributed(request)
+    def _iter_tasks(self, prefix: str, module: nn.Module, memo=None):
+        """生成本 rank 应处理的 (全名, 子模块) 序列。"""
+        # 1. 根据输入构造Helper
+        if not dist.is_initialized() or dist.get_world_size() == 1:
+            yield from module.named_modules(prefix=prefix, memo=memo)
+            return
+
+        ctx = _DistIterCtx(prefix, module)
+
+        # 2. 获取全部未处理模块
+        all_modules = list(module.named_modules(prefix=prefix, memo=memo))
+
+        # 3. 过滤出未处理模块中的 local_only 模块并遍历（EP 场景下本 rank 独占的模块）
+        for name, sub in all_modules:
+            if name in ctx.local_only_names:
+                yield name, sub
+
+        # 4. 过滤出未处理模块中的 shared 模块并分发
+        shared_items = [(n, s) for n, s in all_modules if n not in ctx.local_only_names]
+        if ctx.queue is not None:
+            # 动态分发（默认）：通过 queue 抢任务
+            shared_map = dict(shared_items)
+            if ctx.rank == 0:
+                for name, _ in shared_items:
+                    ctx.queue.put(name)
+                for _ in range(ctx.world_size):
+                    ctx.queue.put(None)
+            while True:
+                try:
+                    name = ctx.queue.get(timeout=300)
+                except Exception:
+                    break
+                if name is None:
+                    break
+                yield name, shared_map[name]
+        else:
+            # 静态轮询（无共享 queue 时的 fallback）
+            for idx, (name, sub) in enumerate(shared_items):
+                if idx % ctx.world_size == ctx.rank:
+                    yield name, sub
+
+        # 5. 销毁Helper
+        ctx.destroy()
 
     def postprocess(self, request: BatchProcessRequest) -> None:
-        super().postprocess(request)
-        self.cleanup_for_distributed()
-
-    def prepare_for_distributed(self, request: BatchProcessRequest) -> None:
-        self.dist_helper = DistHelper(request.module, prefix=request.name)
-        self.shared_modules_slice = self.dist_helper.get_shared_modules_slice()
-
-    def cleanup_for_distributed(self) -> None:
-        self.dist_helper = None
+        prefix, module = request.name, request.module
+        _convert_hookir_to_wrapper(module)
+        for name, sub in self._iter_tasks(prefix, module, memo=self.processed_modules):
+            self._process_module_maybe_wrapper_ir(name, sub)
 
     def get_rank_save_directory(self) -> str:
         return os.path.join(self.config.save_directory, f"rank_{dist.get_rank()}")
 
     def post_run(self) -> None:
-
         _convert_hookir_to_wrapper(self.model)
-        for name, sub_module in self.model.named_modules(memo=self.processed_modules):
-            self._process_module_maybe_wrapper_ir(name, sub_module)
+        for name, sub in self._iter_tasks('', self.model, memo=self.processed_modules):
+            self._process_module_maybe_wrapper_ir(name, sub)
 
         for key, val in self.json_append.items():
             self.json_writer.write(key, val)
@@ -224,7 +270,7 @@ class DistributedAscendV1Saver(AscendV1Saver):
 
         if self.support_distributed() and dist.is_initialized():
             self.merge_ranks()
-        
+
         if dist.get_rank() != 0:
             return
 
@@ -272,7 +318,7 @@ class DistributedAscendV1Saver(AscendV1Saver):
                     dst = os.path.join(self.config.save_directory, self.safetensors_writer.save_prefix)
                 else:
                     file_name_prefix = self.safetensors_writer.save_prefix
-                    dst = os.path.join(self.config.save_directory, 
+                    dst = os.path.join(self.config.save_directory,
                                        f"{file_name_prefix}-{offset + i + 1:05d}-of-{sum(file_counts):05d}.safetensors")
                 # 记录文件映射关系
                 self.file_mappings[rank][file] = os.path.basename(dst)

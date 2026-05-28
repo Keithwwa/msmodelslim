@@ -30,6 +30,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import torch.multiprocessing as mp
+import torch.distributed as dist
+
 import pytest
 from torch import nn
 
@@ -44,7 +47,30 @@ from msmodelslim.core.quant_service.modelslim_v1.save.ascendv1_distributed impor
     save_this_rank_only,
     decorate_on_methods,
 )
-from msmodelslim.core.base.protocol import BatchProcessRequest
+def _iter_tasks_mp_worker(rank, world_size, temp_dir, queue, results):
+    """Worker for multi-process _iter_tasks test."""
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = str(29500)
+
+    dist.init_process_group(backend='gloo', world_size=world_size, rank=rank)
+    try:
+        from unittest.mock import patch, MagicMock
+
+        adapter = MagicMock()
+        adapter.model_path = temp_dir
+
+        config = DistributedAscendV1Config(save_directory=temp_dir, part_file_size=4)
+        model = SimpleModel()
+
+        with patch('msmodelslim.core.quant_service.modelslim_v1.save.'
+                   'ascendv1_distributed.get_distributed_task_work_queue',
+                   return_value=queue):
+            saver = DistributedAscendV1Saver(model, config, adapter)
+            saver.safetensors_writer = MagicMock()
+            saver.json_writer = MagicMock()
+            results[rank] = [n for n, _ in saver._iter_tasks("", model)]
+    finally:
+        dist.destroy_process_group()
 
 
 class SimpleModel(nn.Module):
@@ -505,30 +531,31 @@ class TestDistributedAscendV1Saver:
             'msmodelslim.core.quant_service.modelslim_v1.save.'
             'ascendv1_distributed'
         )
+        # merge_ranks 会调 all_gather_object，
+        # 用 gather_all 把 obj 抄到 output_list 各位置。
+        def gather_all(output_list, obj):
+            for i in range(len(output_list)):
+                output_list[i] = obj
+
         with patch(f'{dist_path}.copy_files') as mock_copy_files, \
              patch(f'{dist_path}.remove_quantization_config'), \
              patch(f'{dist_path}.dist.barrier') as mock_barrier, \
-             patch(f'{dist_path}.dist.all_gather_object') as mock_all_gather:
+             patch(f'{dist_path}.dist.all_gather_object', side_effect=gather_all) as mock_all_gather:
             # Set up rank directories
             TestDistributedAscendV1Saver.setup_rank_directories(temp_dir)
-            
-            def set_file_counts(output_list, local_count):
-                output_list[0] = 1
-                output_list[1] = 1
-            mock_all_gather.side_effect = set_file_counts
-            
+
             saver = TestDistributedAscendV1Saver.create_saver_with_rank_dir(
                 temp_dir, mock_model, mock_adapter_with_interface
             )
-            
+
             # Mock writers
             saver.json_writer = MagicMock()
             saver.json_writer.file_name = "quant_model_description.json"
             saver.safetensors_writer = MagicMock()
             saver.safetensors_writer.save_prefix = "quant_model_weights"
-            
+
             saver.post_run()
-            
+
             # Verify merge_ranks was called (barrier is called inside merge_ranks)
             mock_barrier.assert_called()
             # Verify copy_files was mocked (not actually called to copy files)
@@ -543,14 +570,15 @@ class TestDistributedAscendV1Saver:
             'msmodelslim.core.quant_service.modelslim_v1.save.'
             'ascendv1_distributed'
         )
+
+        def gather_all(output_list, obj):
+            for i in range(len(output_list)):
+                output_list[i] = obj
+
         with patch(f'{dist_path}.copy_files'), \
              patch(f'{dist_path}.remove_quantization_config'), \
              patch(f'{dist_path}.dist.barrier'), \
-             patch(f'{dist_path}.dist.all_gather_object') as mock_all_gather:
-            def set_file_counts(output_list, local_count):
-                output_list[0] = 1
-                output_list[1] = 1
-            mock_all_gather.side_effect = set_file_counts
+             patch(f'{dist_path}.dist.all_gather_object', side_effect=gather_all) as mock_all_gather:
 
             TestDistributedAscendV1Saver.setup_rank_directories(temp_dir)
             saver = TestDistributedAscendV1Saver.create_saver_with_rank_dir(
@@ -572,57 +600,38 @@ class TestDistributedAscendV1Saver:
 
             saver.json_writer.write.assert_any_call("optional", expected_optional)
 
-    @patch(
-        'msmodelslim.core.quant_service.modelslim_v1.save.'
-        'ascendv1_distributed.DistHelper'
-    )
-    def test_prepare_for_distributed(
-        self, mock_dist_helper_class, temp_dir, mock_model, mock_adapter
-    ):
-        """Test prepare_for_distributed method."""
-        dist_path = (
-            'msmodelslim.core.quant_service.modelslim_v1.save.'
-            'ascendv1_distributed.dist'
-        )
-        # 修改特定参数：未初始化状态
-        with patch('torch.distributed.is_initialized', return_value=False), \
-             patch(f'{dist_path}.is_initialized', return_value=False):
-            mock_dist_helper = MagicMock()
-            mock_dist_helper.get_shared_modules_slice.return_value = [
-                "module1", "module2"
-            ]
-            mock_dist_helper_class.return_value = mock_dist_helper
-            
-            saver = TestDistributedAscendV1Saver.create_saver(
-                temp_dir, mock_model, mock_adapter
+    def test_iter_tasks_multiprocess(self, temp_dir):
+        """Real multi-process test: _iter_tasks distributes modules via queue across ranks."""
+        world_size = 2
+        ctx = mp.get_context("spawn")
+        queue = ctx.Queue()
+        manager = ctx.Manager()
+        results = manager.dict()
+
+        model = SimpleModel()
+        all_module_names = set(n for n, _ in model.named_modules())
+
+        processes = []
+        for rank in range(world_size):
+            p = ctx.Process(
+                target=_iter_tasks_mp_worker,
+                args=(rank, world_size, temp_dir, queue, results)
             )
-            
-            request = BatchProcessRequest(name="test", module=mock_model)
-            saver.prepare_for_distributed(request)
-            
-            assert saver.dist_helper is mock_dist_helper
-            assert saver.shared_modules_slice == ["module1", "module2"]
-    
-    @patch(
-        'msmodelslim.core.quant_service.modelslim_v1.save.'
-        'ascendv1_distributed.DistHelper'
-    )
-    def test_preprocess_and_postprocess(
-        self, mock_dist_helper_class, temp_dir, mock_model, mock_adapter
-    ):
-        """Test preprocess and postprocess methods."""
-        mock_dist_helper = MagicMock()
-        mock_dist_helper.get_shared_modules_slice.return_value = []
-        mock_dist_helper_class.return_value = mock_dist_helper
-        
-        saver = TestDistributedAscendV1Saver.create_saver(
-            temp_dir, mock_model, mock_adapter
-        )
-        
-        request = BatchProcessRequest(name="test", module=mock_model)
-        saver.preprocess(request)
-        assert saver.dist_helper is mock_dist_helper
-        
-        # Test postprocess cleanup
-        saver.postprocess(request)
-        assert saver.dist_helper is None
+            p.start()
+            processes.append(p)
+
+        for p in processes:
+            p.join(timeout=30)
+            assert p.exitcode == 0, f"Process {p.pid} failed with exitcode {p.exitcode}"
+
+        covered = set()
+        for rank in range(world_size):
+            rank_modules = set(results[rank])
+            assert len(rank_modules) > 0, f"Rank {rank} got no modules"
+            assert rank_modules.isdisjoint(covered), \
+                f"Rank {rank} got modules already assigned: {rank_modules & covered}"
+            covered |= rank_modules
+
+        assert covered == all_module_names, \
+            f"Missing modules: {all_module_names - covered}"
+
