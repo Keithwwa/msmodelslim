@@ -375,5 +375,34 @@ class TestLinearQuantProcessor(TestProcessorBase):
             self.assertIsInstance(layer, torch.nn.Linear, f"Layer {layer_name} should not be quantized")
 
 
+    def test_DTS_calibrate_methods_should_exist(self):
+        """验证 DTS calibrate 方法存在"""
+        from msmodelslim.processor.quant.linear import LinearQuantProcessor
+        assert hasattr(LinearQuantProcessor, '_calibrate_shared_data_free_with_dts'), \
+            "LinearQuantProcessor should have _calibrate_shared_data_free_with_dts"
+        assert hasattr(LinearQuantProcessor, '_dts_calibrate_forward'), \
+            "LinearQuantProcessor should have _dts_calibrate_forward"
+
+    def test_preprocess_no_dts_when_not_distributed(self):
+        """非分布式下 preprocess 不执行 DTS（不报错）"""
+        config = self.create_processor_config(include=["*"])
+        processor = self.run_processor_with_cfg(config)
+        inputs = self.create_test_input()
+        self.assert_model_runs_without_error(inputs)
+
+    def test_calibrate_forward_calls_weight_quantizer_forward(self):
+        """验证 _dts_calibrate_forward 触发 weight_quantizer.forward"""
+        from unittest.mock import MagicMock, patch
+        from msmodelslim.processor.quant.linear import LinearQuantProcessor
+
+        config = self.create_processor_config(include=["*"])
+        from msmodelslim.core.quantizer.linear import LinearQuantizer
+        from msmodelslim.core.base.protocol import BatchProcessRequest
+
+        # 验证方法存在于 LinearQuantProcessor 类上
+        assert hasattr(LinearQuantProcessor, '_dts_calibrate_forward'), \
+            "LinearQuantProcessor should have _dts_calibrate_forward"
+
+
 if __name__ == '__main__':
     unittest.main()

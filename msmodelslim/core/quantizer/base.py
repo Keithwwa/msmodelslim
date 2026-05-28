@@ -27,7 +27,10 @@ from pydantic import validate_call
 from torch import nn
 from typing_extensions import Self, Optional, Dict, Any, Tuple
 
+from msmodelslim.utils.exception import SpecError
 from msmodelslim.ir.qal.qbase import QStorage, QParam, QScheme, QScope, QDType
+from msmodelslim.utils.distributed.task_scheduler import DTSMixin
+from msmodelslim.utils.distributed.task_scheduler.types import TaskExecutionRecord, TaskSyncContext
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 
 
@@ -104,11 +107,23 @@ class AutoActQuantizer(nn.Module):
 
 
 @QABCRegistry.register_abc(dispatch_key=Tuple[QScheme, str])
-class AutoWeightQuantizer(nn.Module):
+class AutoWeightQuantizer(nn.Module, DTSMixin):
 
     def __init__(self):
         super().__init__()
         self.sync = False  # 默认不启用同步操作
+
+    def distributed_sync(self, record: TaskExecutionRecord, sync_ctx: TaskSyncContext) -> None:
+        """默认分布式同步：触发 forward 在各 rank 独立重算（仅 data-free 量化器适用）。"""
+        if not self.is_data_free():
+            raise SpecError(
+                "distributed_sync with None input requires a data-free weight quantizer. "
+                "Non-data-free quantizers require calibration data.",
+                action="distributed_sync with None is only supported for data-free quantizers. "
+                        "Non-data-free quantizers must provide calibration data via the normal forward path.",
+            )
+        with torch.no_grad():
+            _ = self.forward(None)
 
     @classmethod
     @validate_call(config=dict(arbitrary_types_allowed=True))

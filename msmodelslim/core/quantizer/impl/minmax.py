@@ -254,7 +254,7 @@ class WeightPerChannelMinmax(AutoWeightQuantizer):
     def forward(self, x: Optional[torch.Tensor] = None) -> torch.Tensor:
         if self.weight is None:
             raise SpecError("No weight was set", action="please call init_weight first")
-        self.minmax_observer.update(self.weight.T.value, self.sync)
+        self.minmax_observer.update(self.weight.T.value)
         min_val, max_val = self.minmax_observer.get_min_max()
         self.w_q_param = calculate_qparam(
             min_val=min_val,

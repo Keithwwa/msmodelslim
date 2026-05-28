@@ -23,11 +23,14 @@ from typing import Optional
 
 import torch
 from pydantic import validate_call
+from torch import distributed as dist
 
 import msmodelslim.ir as qir
 from msmodelslim.ir.api import fake_quantize, quantize, dequantize, calculate_qparam
-from msmodelslim.ir.qal import QABCRegistry, QDType, QStorage, QParam, QScope
+from msmodelslim.ir.qal import QABCRegistry, QDType, QStorage, QParam, QScope, QScheme
 from msmodelslim.core.observer import MsMinMaxObserver, MinMaxObserverConfig
+from msmodelslim.utils.distributed.task_scheduler.sync import broadcast_tensor_process_group_safe
+from msmodelslim.utils.distributed.task_scheduler.types import TaskExecutionRecord, TaskSyncContext
 from msmodelslim.utils.exception import SpecError
 from msmodelslim.utils.logging import logger_setter
 from ..base import AutoWeightQuantizer, QConfig
@@ -303,3 +306,76 @@ class WeightPerChannelSsz(AutoWeightQuantizer):
         if self.w_q_param is None:
             _ = self.forward(None)
         return self.w_q_param
+
+    # ── DTSMixin: distributed_sync ──────────────────────────────────────
+
+    def distributed_sync(self, record: TaskExecutionRecord, sync_ctx: TaskSyncContext) -> None:
+        """分布式同步：owner rank broadcast 量化状态到所有 rank。"""
+        if not dist.is_initialized() or sync_ctx.world_size <= 1:
+            return
+        _broadcast_quantizer_state(self, record.executor_rank)
+
+    def load_quantized_from_broadcast_tensors(
+            self,
+            scale: torch.Tensor,
+            offset: torch.Tensor,
+            w_q_storage_value: torch.Tensor,
+            q_storage_dtype: QDType,
+    ) -> None:
+        """在非 owner rank 上重建量化状态（与 forward 首次量化后一致）。"""
+        scheme = QScheme(
+            scope=QScope(self.config.scope),
+            dtype=QDType(self.config.dtype),
+            symmetric=self.config.symmetric,
+        )
+        q_param = QParam(scheme=scheme, ext={})
+        q_param = set_ext_scale(q_param, scale)
+        q_param = set_ext_offset(q_param, offset)
+        self.w_q_param = q_param
+        self.w_q_storage = QStorage(dtype=q_storage_dtype, value=w_q_storage_value)
+        self.is_quantized = True
+        if self.weight is not None:
+            del self.weight
+            self.weight = None
+
+
+def _broadcast_quantizer_state(wq, owner_rank: int) -> None:
+    """
+    Broadcast 权重量化器状态（scale、offset、量化权重）从 owner rank 到所有 rank。
+    使用 broadcast_object_list 传元数据，broadcast_tensor_process_group_safe 传张量。
+    """
+    rank = dist.get_rank()
+
+    meta = [None]
+    if rank == owner_rank:
+        if not wq.is_quantized:
+            raise SpecError("Cannot broadcast quantizer state: weight quantizer has not been initialized. "
+                            "Call forward() first to trigger quantization.")
+        meta[0] = {
+            "scale_shape": list(get_ext_scale(wq.w_q_param).shape),
+            "scale_dtype": str(get_ext_scale(wq.w_q_param).dtype),
+            "offset_shape": list(get_ext_offset(wq.w_q_param).shape),
+            "offset_dtype": str(get_ext_offset(wq.w_q_param).dtype),
+            "storage_shape": list(wq.w_q_storage.value.shape),
+            "storage_dtype": str(wq.w_q_storage.value.dtype),
+            "storage_qdtype": wq.w_q_storage.dtype.name,
+        }
+    dist.broadcast_object_list(meta, src=owner_rank)
+
+    if rank == owner_rank:
+        scale = get_ext_scale(wq.w_q_param).contiguous()
+        offset = get_ext_offset(wq.w_q_param).contiguous()
+        storage = wq.w_q_storage.value.contiguous()
+    else:
+        m = meta[0]
+        scale = torch.empty(m["scale_shape"], dtype=getattr(torch, m["scale_dtype"].split(".")[-1]))
+        offset = torch.empty(m["offset_shape"], dtype=getattr(torch, m["offset_dtype"].split(".")[-1]))
+        storage = torch.empty(m["storage_shape"], dtype=getattr(torch, m["storage_dtype"].split(".")[-1]))
+
+    broadcast_tensor_process_group_safe(scale, src=owner_rank)
+    broadcast_tensor_process_group_safe(offset, src=owner_rank)
+    broadcast_tensor_process_group_safe(storage, src=owner_rank)
+
+    if rank != owner_rank:
+        qdt = getattr(QDType, m["storage_qdtype"], QDType.INT8)
+        wq.load_quantized_from_broadcast_tensors(scale, offset, storage, qdt)

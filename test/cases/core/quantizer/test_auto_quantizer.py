@@ -79,6 +79,20 @@ class TestAutoWeightQuantizerFactory:
             def __init__(self, config: QConfig):
                 super().__init__()
 
+            def init_weight(self, weight, bias=None):
+                pass
+
+            def forward(self, x=None):
+                return x
+
+            def get_q_storage(self):
+                from msmodelslim.core.quantizer.base import QStorage
+                return QStorage()
+
+            def get_q_param(self):
+                from msmodelslim.core.quantizer.base import QParam
+                return QParam()
+
         config = QConfig(dtype="int8", scope="per_channel", method="test", symmetric=True)
         quantizer = AutoWeightQuantizer.from_config(config)
         assert isinstance(quantizer, MyWeightQuantizer)

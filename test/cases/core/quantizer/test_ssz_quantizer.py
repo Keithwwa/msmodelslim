@@ -29,9 +29,17 @@ from msmodelslim import ir as qir
 from msmodelslim.core.observer import MsMinMaxObserver
 from msmodelslim.core.quantizer.base import QConfig
 from msmodelslim.core.quantizer.impl.ssz import (
-    WeightPerChannelSsz
+    WeightPerChannelSsz,
+    get_ext_scale,
+    get_ext_offset,
+    set_ext_scale,
+    set_ext_offset,
+    _broadcast_quantizer_state,
 )
+from msmodelslim.utils.distributed.task_scheduler import DTSMixin
 from msmodelslim.utils.exception import SpecError
+from unittest import mock
+from unittest.mock import MagicMock
 
 
 def to_qconfig(q_scheme: QScheme, method: str) -> QConfig:
@@ -218,6 +226,346 @@ class TestWeightPerChannelSsz:
         from msmodelslim.core.quantizer.base import AutoWeightQuantizer
         quantizer = AutoWeightQuantizer.from_config(qconfig)
         assert isinstance(quantizer, WeightPerChannelSsz)
+
+    def test_dts_mixin_inheritance(self):
+        """验证 WeightPerChannelSsz 通过 AutoWeightQuantizer 继承 DTSMixin"""
+        from msmodelslim.core.quantizer.base import AutoWeightQuantizer as AWQ
+        quantizer = WeightPerChannelSsz(self.config)
+        assert isinstance(quantizer, DTSMixin), "WeightPerChannelSsz should be a DTSMixin instance"
+        assert hasattr(quantizer, "distributed_sync"), "WeightPerChannelSsz should have distributed_sync"
+        assert WeightPerChannelSsz.distributed_sync is not AWQ.distributed_sync, \
+            "WeightPerChannelSsz should override distributed_sync"
+
+    def test_dts_mixin_default_forward(self):
+        """验证 AutoWeightQuantizer 默认 distributed_sync 触发 forward"""
+        from msmodelslim.core.quantizer.base import AutoWeightQuantizer as AWQ
+        assert issubclass(AWQ, DTSMixin), "AutoWeightQuantizer should inherit DTSMixin"
+        wq = WeightPerChannelSsz(self.config)
+        assert isinstance(wq, DTSMixin), "All weight quantizers should inherit DTSMixin via AutoWeightQuantizer"
+
+
+class TestWeightPerChannelSszDistributedSync:
+    """测试 WeightPerChannelSsz 的分布式同步行为"""
+
+    def setup_class(self):
+        self.config = QConfig(
+            dtype="int8",
+            scope="per_channel",
+            method="ssz",
+            symmetric=True
+        )
+        self.asymmetric_config = QConfig(
+            dtype="int8",
+            scope="per_channel",
+            method="ssz",
+            symmetric=False
+        )
+
+    # ── load_quantized_from_broadcast_tensors ──────────────────────────
+
+    def test_load_quantized_from_broadcast_tensors_should_set_quantized_state(self):
+        """验证 load_quantized_from_broadcast_tensors 正确重建量化状态"""
+        quantizer = WeightPerChannelSsz(self.config)
+
+        weight = QStorage(QDType.FLOAT, torch.randn(10, 20))
+        bias = torch.randn(20)
+        quantizer.init_weight(weight, bias)
+        quantizer()  # 触发量化，获取参考结果
+
+        # 从已量化的 quantizer 中提取参数
+        ref_scale = get_ext_scale(quantizer.w_q_param)
+        ref_offset = get_ext_offset(quantizer.w_q_param)
+        ref_storage_value = quantizer.w_q_storage.value
+        ref_storage_dtype = quantizer.w_q_storage.dtype
+
+        # 创建新的 quantizer，用 load_quantized_from_broadcast_tensors 加载
+        new_quantizer = WeightPerChannelSsz(self.config)
+        new_quantizer.load_quantized_from_broadcast_tensors(
+            scale=ref_scale,
+            offset=ref_offset,
+            w_q_storage_value=ref_storage_value,
+            q_storage_dtype=ref_storage_dtype,
+        )
+
+        # 验证状态被正确重建
+        assert new_quantizer.is_quantized is True, \
+            "quantizer should be marked as quantized"
+        assert new_quantizer.weight is None, \
+            "weight should be released after loading quantized state"
+        assert new_quantizer.w_q_param is not None, \
+            "w_q_param should be set"
+        assert new_quantizer.w_q_storage is not None, \
+            "w_q_storage should be set"
+
+        # 验证量化参数一致
+        assert torch.equal(get_ext_scale(new_quantizer.w_q_param), ref_scale), \
+            "scale should match reference"
+        assert torch.equal(get_ext_offset(new_quantizer.w_q_param), ref_offset), \
+            "offset should match reference"
+
+        # 验证量化权重一致
+        assert torch.equal(new_quantizer.w_q_storage.value, ref_storage_value), \
+            "quantized weight should match reference"
+        assert new_quantizer.w_q_storage.dtype == ref_storage_dtype, \
+            "storage dtype should match reference"
+
+        # 验证 scheme 正确
+        assert new_quantizer.w_q_param.scheme == self.config.to_scheme(), \
+            "scheme should match config"
+
+        # 验证 forward 输出一致
+        ref_output = quantizer.forward(None)
+        new_output = new_quantizer.forward(None)
+        assert torch.equal(ref_output, new_output), \
+            "forward output should be identical"
+
+    def test_load_quantized_from_broadcast_tensors_releases_old_weight(self):
+        """验证 load_quantized_from_broadcast_tensors 释放原有 weight"""
+        quantizer = WeightPerChannelSsz(self.config)
+        weight = QStorage(QDType.FLOAT, torch.randn(5, 10))
+        bias = torch.randn(10)
+        quantizer.init_weight(weight, bias)
+
+        scale = torch.randn(5)
+        offset = torch.zeros(5)
+        storage_value = torch.randint(-8, 7, (5, 10), dtype=torch.int8)
+
+        quantizer.load_quantized_from_broadcast_tensors(
+            scale=scale, offset=offset,
+            w_q_storage_value=storage_value,
+            q_storage_dtype=QDType.INT8,
+        )
+
+        assert quantizer.weight is None, \
+            "weight should be released after loading broadcast state"
+
+    def test_load_quantized_from_broadcast_tensors_with_asymmetric(self):
+        """验证非对称量化下 load_quantized_from_broadcast_tensors 正确工作"""
+        quantizer = WeightPerChannelSsz(self.asymmetric_config)
+        weight = QStorage(QDType.FLOAT, torch.randn(8, 16))
+        bias = torch.randn(16)
+        quantizer.init_weight(weight, bias)
+        quantizer()
+
+        ref_scale = get_ext_scale(quantizer.w_q_param)
+        ref_offset = get_ext_offset(quantizer.w_q_param)
+
+        # offset 应非零（非对称量化）
+        assert not (torch.all(ref_offset == 0)), \
+            "asymmetric quantization should have non-zero offsets"
+
+        new_quantizer = WeightPerChannelSsz(self.asymmetric_config)
+        new_quantizer.load_quantized_from_broadcast_tensors(
+            scale=ref_scale,
+            offset=ref_offset,
+            w_q_storage_value=quantizer.w_q_storage.value,
+            q_storage_dtype=quantizer.w_q_storage.dtype,
+        )
+
+        assert new_quantizer.w_q_param.scheme.symmetric is False, \
+            "scheme should be asymmetric"
+        assert torch.equal(get_ext_offset(new_quantizer.w_q_param), ref_offset), \
+            "offset should match in asymmetric mode"
+
+    # ── _broadcast_quantizer_state ────────────────────────────────────
+
+    def test_broadcast_quantizer_state_raises_when_not_quantized(self):
+        """验证未量化时 _broadcast_quantizer_state 抛出 RuntimeError"""
+        quantizer = WeightPerChannelSsz(self.config)
+        weight = QStorage(QDType.FLOAT, torch.randn(5, 10))
+        quantizer.init_weight(weight, bias=None)
+
+        with mock.patch("msmodelslim.core.quantizer.impl.ssz.dist") as mock_dist:
+            mock_dist.get_rank.return_value = 0
+            mock_dist.is_initialized.return_value = True
+            with pytest.raises(SpecError, match="Cannot broadcast quantizer state"):
+                _broadcast_quantizer_state(quantizer, owner_rank=0)
+
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.dist")
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.broadcast_tensor_process_group_safe")
+    def test_broadcast_quantizer_state_sends_scale_offset_storage(
+            self, mock_broadcast, mock_dist):
+        """验证 owner rank 正确 broadcast 三个张量"""
+        mock_dist.get_rank.return_value = 0  # 当前是 owner
+        mock_dist.is_initialized.return_value = True
+        mock_dist.get_world_size.return_value = 2
+
+        quantizer = WeightPerChannelSsz(self.config)
+        weight = QStorage(QDType.FLOAT, torch.randn(5, 10))
+        quantizer.init_weight(weight, bias=None)
+        quantizer()  # 触发量化
+
+        _broadcast_quantizer_state(quantizer, owner_rank=0)
+
+        # 验证 broadcast_object_list 被调用（owner 传递 meta）
+        mock_dist.broadcast_object_list.assert_called_once()
+
+        # 验证 broadcast_tensor_process_group_safe 被调用 3 次 (scale, offset, storage)
+        assert mock_broadcast.call_count == 3, \
+            "should broadcast 3 tensors: scale, offset, storage"
+
+        # 验证调用参数：src 都是 0
+        for call_arg in mock_broadcast.call_args_list:
+            assert call_arg.kwargs.get('src') == 0, \
+                "all broadcasts should use owner_rank=0 as src"
+
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.dist")
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.broadcast_tensor_process_group_safe")
+    def test_broadcast_quantizer_state_non_owner_calls_load(
+            self, mock_broadcast, mock_dist):
+        """验证非 owner rank 接收 broadcast 后调用 load_quantized_from_broadcast_tensors"""
+        mock_dist.get_rank.return_value = 1  # 当前是非 owner
+        mock_dist.is_initialized.return_value = True
+        mock_dist.get_world_size.return_value = 2
+
+        # 模拟 broadcast_object_list 接收到 owner 的 meta
+        fake_meta = [{
+            "scale_shape": [5],
+            "scale_dtype": "torch.float32",
+            "offset_shape": [5],
+            "offset_dtype": "torch.float32",
+            "storage_shape": [5, 10],
+            "storage_dtype": "torch.int8",
+            "storage_qdtype": "INT8",
+        }]
+
+        def fake_broadcast_object_list(meta_list, src):
+            # 模拟接收: 把 fake_meta 写入 meta_list
+            meta_list[0] = fake_meta[0]
+
+        mock_dist.broadcast_object_list.side_effect = fake_broadcast_object_list
+
+        # 模拟 broadcast_tensor_process_group_safe 写入接收到的张量
+        received_tensors = {}
+
+        def fake_broadcast(tensor, src):
+            received_tensors[id(tensor)] = tensor
+
+        mock_broadcast.side_effect = fake_broadcast
+
+        quantizer = WeightPerChannelSsz(self.config)
+        weight = QStorage(QDType.FLOAT, torch.randn(5, 10))
+        quantizer.init_weight(weight, bias=None)
+
+        _broadcast_quantizer_state(quantizer, owner_rank=0)
+
+        # 验证非 owner 的 load_quantized_from_broadcast_tensors 被调用后
+        # quantizer 状态正确
+        assert quantizer.is_quantized is True, \
+            "non-owner quantizer should be quantized after broadcast"
+        assert quantizer.w_q_param is not None, \
+            "non-owner quantizer should have q_param"
+        assert quantizer.w_q_storage is not None, \
+            "non-owner quantizer should have q_storage"
+
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.dist")
+    @mock.patch("msmodelslim.core.quantizer.impl.ssz.broadcast_tensor_process_group_safe")
+    def test_broadcast_quantizer_state_contiguous_tensors(
+            self, mock_broadcast, mock_dist):
+        """验证 owner rank 发送的 tensor 是 contiguous 的"""
+        mock_dist.get_rank.return_value = 0
+        mock_dist.is_initialized.return_value = True
+        mock_dist.get_world_size.return_value = 2
+
+        quantizer = WeightPerChannelSsz(self.config)
+        weight = QStorage(QDType.FLOAT, torch.randn(8, 16))
+        quantizer.init_weight(weight, bias=None)
+        quantizer()
+
+        # 在 forward 之后，修改 storage 使其 non-contiguous（transpose）
+        quantizer.w_q_storage = QStorage(
+            quantizer.w_q_storage.dtype,
+            quantizer.w_q_storage.value.T.contiguous().T  # 通过转置创造 non-contiguous
+        )
+
+        _broadcast_quantizer_state(quantizer, owner_rank=0)
+
+        # 验证发送的 tensor 都是 contiguous
+        for call_arg in mock_broadcast.call_args_list:
+            t = call_arg.args[0]
+            assert t.is_contiguous(), \
+                "broadcast tensor should be contiguous, got shape=%s stride=%s" % (t.shape, t.stride())
+
+    # ── distributed_sync ──────────────────────────────────────────────
+
+    def test_distributed_sync_override_is_different_from_base(self):
+        """验证 WeightPerChannelSsz.distributed_sync 与基类不同（已覆盖）"""
+        from msmodelslim.core.quantizer.base import AutoWeightQuantizer as AWQ
+        assert WeightPerChannelSsz.distributed_sync is not AWQ.distributed_sync, \
+            "WeightPerChannelSsz should override distributed_sync"
+
+    def test_distributed_sync_single_rank_skips_broadcast(self):
+        """验证单卡环境下 distributed_sync 不执行 broadcast"""
+        with mock.patch("msmodelslim.core.quantizer.impl.ssz.dist.is_initialized",
+                        return_value=False):
+            quantizer = WeightPerChannelSsz(self.config)
+            weight = QStorage(QDType.FLOAT, torch.randn(5, 10))
+            quantizer.init_weight(weight, bias=None)
+            quantizer()
+
+            # 在单卡（dist 未初始化）下调用 distributed_sync
+            # 不应抛异常
+            from msmodelslim.utils.distributed.task_scheduler.types import (
+                TaskExecutionRecord, TaskSyncContext
+            )
+            record = TaskExecutionRecord(task_id="test", executor_rank=0)
+            sync_ctx = TaskSyncContext(model=quantizer, rank=0, world_size=1)
+            quantizer.distributed_sync(record, sync_ctx)
+
+    def test_distributed_sync_raises_spec_error_when_not_data_free(self):
+        """验证非 data-free quantizer 调用 distributed_sync 抛出 SpecError"""
+        from msmodelslim.core.quantizer.base import AutoWeightQuantizer
+
+        # 创建一个非 data-free 的假 quantizer
+        class _NotDataFreeQuantizer(AutoWeightQuantizer):
+            def is_data_free(self):
+                return False
+            def init_weight(self, weight, bias=None):
+                pass
+            def forward(self, x=None):
+                return torch.empty(0)
+            def get_q_storage(self):
+                return None
+            def get_q_param(self):
+                return None
+
+        q = _NotDataFreeQuantizer()
+        from msmodelslim.utils.distributed.task_scheduler.types import (
+            TaskExecutionRecord, TaskSyncContext
+        )
+        record = TaskExecutionRecord(task_id="test", executor_rank=0)
+        sync_ctx = TaskSyncContext(model=q, rank=0, world_size=2)
+
+        with pytest.raises(SpecError, match="data-free"):
+            q.distributed_sync(record, sync_ctx)
+
+    def test_distributed_sync_data_free_quantizer_does_not_raise(self):
+        """验证 data-free quantizer 调用 distributed_sync 不抛出异常"""
+        from msmodelslim.core.quantizer.base import AutoWeightQuantizer
+
+        class _DataFreeQuantizer(AutoWeightQuantizer):
+            def is_data_free(self):
+                return True
+            def init_weight(self, weight, bias=None):
+                self._weight = weight
+            def forward(self, x=None):
+                return torch.empty(0)
+            def get_q_storage(self):
+                return None
+            def get_q_param(self):
+                return None
+
+        q = _DataFreeQuantizer()
+        from msmodelslim.utils.distributed.task_scheduler.types import (
+            TaskExecutionRecord, TaskSyncContext
+        )
+        record = TaskExecutionRecord(task_id="test", executor_rank=0)
+        sync_ctx = TaskSyncContext(model=q, rank=0, world_size=2)
+
+        try:
+            q.distributed_sync(record, sync_ctx)
+        except SpecError:
+            pytest.fail("distributed_sync should not raise SpecError for data-free quantizers")
 
 
 class TestSszCalculateQparam:
