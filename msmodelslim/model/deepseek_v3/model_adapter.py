@@ -23,6 +23,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -------------------------------------------------------------------------
 """
+
 import os.path
 from collections import defaultdict
 from contextlib import contextmanager
@@ -32,17 +33,17 @@ from typing import Any, List, Optional, Tuple, Generator, Dict, Union, Callable
 from unittest.mock import patch
 
 import torch
-import torch.nn as nn
-from safetensors import safe_open
+from torch import nn
 from torch import distributed as dist
+from safetensors import safe_open
 from tqdm import tqdm
 
 from msmodelslim import ir as qir
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.graph import AdapterConfig, MappingConfig, FusionConfig
-from msmodelslim.model.common.layer_wise_forward import generated_decoder_layer_visit_func, \
-    TransformersForwardBreak
+from msmodelslim.model.common.layer_wise_forward import generated_decoder_layer_visit_func, TransformersForwardBreak
+from msmodelslim.model.common.utils import _get_expert_range
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import json_safe_load, json_safe_dump, get_valid_read_path, MAX_READ_FILE_SIZE_32G
@@ -51,9 +52,17 @@ from .convert_fp8_to_bf16 import auto_convert_module_fp8_to_bf16
 from .mtp_quant_module import remove_zero_and_shift, get_mtp_layer, wrap_mtp_decoder
 from .quarot import get_ln_fuse_map, get_rotate_map
 from ..default.model_adapter import DefaultModelAdapter
-from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV1, IterSmoothInterface, \
-    FlexSmoothQuantInterface, FA3QuantAdapterInterface, FA3QuantPlaceHolder, QuaRotInterface, AscendV1SaveInterface, \
-    AttentionAnalysisInterface
+from ..interface_hub import (
+    ModelInfoInterface,
+    ModelSlimPipelineInterfaceV1,
+    IterSmoothInterface,
+    FlexSmoothQuantInterface,
+    FA3QuantAdapterInterface,
+    FA3QuantPlaceHolder,
+    QuaRotInterface,
+    AscendV1SaveInterface,
+    AttentionAnalysisInterface,
+)
 
 
 @contextmanager
@@ -68,16 +77,18 @@ def default_dtype(dtype):
 
 
 @logger_setter("msmodelslim.model.deepseek_v3")
-class DeepSeekV3ModelAdapter(DefaultModelAdapter,
-                             AttentionAnalysisInterface,
-                             ModelInfoInterface,  # support naive quantization
-                             ModelSlimPipelineInterfaceV1,  # support modelslim v1
-                             IterSmoothInterface,  # support iter smooth
-                             FlexSmoothQuantInterface,  # support flex smooth quant
-                             FA3QuantAdapterInterface,  # support FA3 activation quant placeholders
-                             QuaRotInterface,
-                             AscendV1SaveInterface,
-                             ):
+# pylint: disable=too-many-ancestors
+class DeepSeekV3ModelAdapter(
+    DefaultModelAdapter,
+    AttentionAnalysisInterface,
+    ModelInfoInterface,  # support naive quantization
+    ModelSlimPipelineInterfaceV1,  # support modelslim v1
+    IterSmoothInterface,  # support iter smooth
+    FlexSmoothQuantInterface,  # support flex smooth quant
+    FA3QuantAdapterInterface,  # support FA3 activation quant placeholders
+    QuaRotInterface,
+    AscendV1SaveInterface,
+):
     def get_model_type(self) -> str:
         return self.model_type
 
@@ -89,7 +100,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             # 保存原始层数
             self.config.num_hidden_layers += 1
             origin_layers = self.config.num_hidden_layers
-            get_logger().info(f"Model with {origin_layers} layers totally")
+            get_logger().info("Model with %s layers totally", origin_layers)
 
             if dist.is_initialized():
                 self.config.ep_size = dist.get_world_size()
@@ -98,24 +109,27 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             self.config.num_hidden_layers = 1
 
             # 加载只有一层的模型
-            model = SafeGenerator.get_model_from_pretrained(model_path=str(self.model_path),
-                                                            config=self.config,
-                                                            trust_remote_code=self.trust_remote_code,
-                                                            device_map="cpu",
-                                                            torch_dtype="auto",
-                                                            attn_implementation='eager')
+            model = SafeGenerator.get_model_from_pretrained(
+                model_path=str(self.model_path),
+                config=self.config,
+                trust_remote_code=self.trust_remote_code,
+                device_map="cpu",
+                torch_dtype="auto",
+                attn_implementation='eager',
+            )
 
             # 恢复原始层数
             self.config.num_hidden_layers = origin_layers
 
             # 加载权重
+            # pylint: disable=duplicate-code
             state_dict = self.get_state_dict(model)
             model.load_state_dict(state_dict)
 
             # auto convert fp8 to bf16
             auto_convert_module_fp8_to_bf16("", model, str(self.model_path))
             model.eval()
-            get_logger().info(f"Create model with {self.config.num_hidden_layers} layers successfully at first")
+            get_logger().info("Create model with %s layers successfully at first", self.config.num_hidden_layers)
             return model
 
     def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> List[Any]:
@@ -124,21 +138,29 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
     def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
         return generated_decoder_layer_visit_func(model, transformer_blocks=self.generate_decoder_layer(model))
 
-    def generate_model_forward(self, model: nn.Module, inputs: Any,
-                               ) -> Generator[ProcessRequest, Any, None]:
+    # pylint: disable=duplicate-code
+    def generate_model_forward(
+        self,
+        model: nn.Module,
+        inputs: Any,
+    ) -> Generator[ProcessRequest, Any, None]:
         # 存储第一个transformer block的输入
         first_block_input: Optional[Tuple] = None
 
         def break_hook(module: nn.Module, hook_args: Tuple[Any, ...], hook_kwargs: Dict[str, Any]):
             nonlocal first_block_input
-            first_block_input = (hook_args, hook_kwargs,)
+            first_block_input = (
+                hook_args,
+                hook_kwargs,
+            )
             raise TransformersForwardBreak()
 
         remove_handler = model.model.layers[0].register_forward_pre_hook(break_hook, with_kwargs=True, prepend=True)
 
         # 执行一次前向传播以获取输入
+        # pylint: disable=duplicate-code
         try:
-            if isinstance(inputs, list) or isinstance(inputs, tuple):
+            if isinstance(inputs, (list, tuple)):
                 model(inputs[0])
             elif isinstance(inputs, dict):
                 model(**inputs)
@@ -168,13 +190,16 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             hidden_states = outputs[0]
             current_inputs = ((hidden_states,), current_inputs[1])
 
-    def mtp_preprocess(self,
-                       model: nn.Module,
-                       mtp_decoder: nn.Module,
-                       inputs: Union[List[Any], Dict[str, Any]],
-                       args: Tuple[Any, Any],
-                       kwargs: Dict[str, Any]) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
+    def mtp_preprocess(
+        self,
+        model: nn.Module,
+        mtp_decoder: nn.Module,
+        inputs: Union[List[Any], Dict[str, Any]],
+        args: Tuple[Any, Any],
+        kwargs: Dict[str, Any],
+    ) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
         def wrap_device(module: nn.Module):
+            # pylint: disable=duplicate-code
             def auto_module(arg):
                 module.to('npu')
                 result = module(arg.to('npu'))
@@ -190,13 +215,17 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
 
         ####################### MTP LAYER ######################
         input_ids = inputs['input_ids'] if isinstance(inputs, dict) else inputs[0]
+        # pylint: disable=duplicate-code
         input_ids_mtp = remove_zero_and_shift(input_ids)
-        position_ids = torch.arange(
-            0,
-            input_ids_mtp.shape[-1],
-            dtype=torch.long,
-            device=input_ids.device,
-        ) + 1
+        position_ids = (
+            torch.arange(
+                0,
+                input_ids_mtp.shape[-1],
+                dtype=torch.long,
+                device=input_ids.device,
+            )
+            + 1
+        )
         position_ids = position_ids.unsqueeze(0)
         logits[:, -1, :].argmax(dim=1)
         input_ids_mtp[:, -1] = logits[:, -1, :].argmax(dim=1)
@@ -219,13 +248,16 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             0,
         )
 
-        return ((hidden_states_mtp,), {
-            "attention_mask": attention_mask_mtp,
-            "position_ids": position_ids,
-            "past_key_value": None,
-            "output_attentions": False,
-            "use_cache": False,
-        })
+        return (
+            (hidden_states_mtp,),
+            {
+                "attention_mask": attention_mask_mtp,
+                "position_ids": position_ids,
+                "past_key_value": None,
+                "output_attentions": False,
+                "use_cache": False,
+            },
+        )
 
     def enable_kv_cache(self, model: nn.Module, need_kv_cache: bool) -> None:
         def pre_forward_hook(module, args, kwargs):
@@ -236,58 +268,52 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
+
         # mtp layer does not apply smooth due to the compatible with pre-refactor
         for layer_idx in range(self.config.num_hidden_layers - 1):
             # OKV_b融合的映射配置：o_proj -> kv_b_proj
             okv_b_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.kv_b_proj",  # KV_b投影层
-                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"]  # 输出投影层
+                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"],  # 输出投影层
             )
 
             # Norm-Linear融合的映射配置1：q_a_proj, kv_a_proj_with_mqa -> input_layernorm
             norm_linear_mapping_config1 = MappingConfig(
                 source=f"model.layers.{layer_idx}.input_layernorm",  # 第一个LayerNorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_a_proj",
-                         f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa"]  # 注意力层的Q_a,KV_a投影
+                targets=[
+                    f"model.layers.{layer_idx}.self_attn.q_a_proj",
+                    f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa",
+                ],  # 注意力层的Q_a,KV_a投影
             )
 
             # Norm-Linear融合的映射配置2：q_b_proj -> q_a_layernorm
             norm_linear_mapping_config2 = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.q_a_layernorm",  # q_a_layernorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_b_proj"]  # q_b投影
+                targets=[f"model.layers.{layer_idx}.self_attn.q_b_proj"],  # q_b投影
             )
-
+            # pylint: disable=duplicate-code
             # 为当前layer添加4个配置
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="ov",
-                    mapping=okv_b_mapping_config,
-                    extra_config={
-                        'group_method': 'max'
-                    },
-                    fusion=FusionConfig(
-                        fusion_type="kv",
-                        num_attention_heads=self.config.num_attention_heads,
-                        num_key_value_heads=self.config.num_key_value_heads,
-                        custom_config={
-                            'qk_nope_head_dim': self.config.qk_nope_head_dim,
-                            'v_head_dim': self.config.v_head_dim,
-                        }
+            adapter_config.extend(
+                [
+                    AdapterConfig(
+                        subgraph_type="ov",
+                        mapping=okv_b_mapping_config,
+                        extra_config={'group_method': 'max'},
+                        fusion=FusionConfig(
+                            fusion_type="kv",
+                            num_attention_heads=self.config.num_attention_heads,
+                            num_key_value_heads=self.config.num_key_value_heads,
+                            custom_config={
+                                'qk_nope_head_dim': self.config.qk_nope_head_dim,
+                                'v_head_dim': self.config.v_head_dim,
+                            },
+                        ),
                     ),
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=norm_linear_mapping_config1
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=norm_linear_mapping_config2
-                ),
-            ])
+                    AdapterConfig(subgraph_type="norm-linear", mapping=norm_linear_mapping_config1),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=norm_linear_mapping_config2),
+                ]
+            )
 
             # 添加up-down的FFN配置
             if layer_idx < self.config.first_k_dense_replace:
@@ -296,43 +322,28 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                 down_proj = 'model.layers.' + str(layer_idx) + '.mlp.down_proj'
                 up_down_mapping_config = MappingConfig(
                     source=up_proj,  # 上投影层
-                    targets=[down_proj]  # 下投影层
+                    targets=[down_proj],  # 下投影层
                 )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config
-                    ),
-                ])
+                adapter_config.extend(
+                    [
+                        AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config),
+                    ]
+                )
             else:
                 # MOE FFN 层：Shared Experts
                 expert_up_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.up_proj'
                 expert_down_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.down_proj'
-                up_down_mapping_config_shared = MappingConfig(
-                    source=expert_up_proj,
-                    targets=[expert_down_proj]
-                )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config_shared
-                    )
-                ])
+                up_down_mapping_config_shared = MappingConfig(source=expert_up_proj, targets=[expert_down_proj])
+                adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_shared)])
 
                 # MOE FFN 层：Routed Experts
-                for expert in range(expert_num):
+                for expert in range(expert_start, expert_end):
                     up_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.up_proj'
                     down_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.down_proj'
-                    up_down_mapping_config_expert = MappingConfig(
-                        source=up_proj,
-                        targets=[down_proj]
+                    up_down_mapping_config_expert = MappingConfig(source=up_proj, targets=[down_proj])
+                    adapter_config.extend(
+                        [AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_expert)]
                     )
-                    adapter_config.extend([
-                        AdapterConfig(
-                            subgraph_type="up-down",
-                            mapping=up_down_mapping_config_expert
-                        )
-                    ])
 
         return adapter_config
 
@@ -353,14 +364,14 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             apply_rotary_pos_emb = deepseek_module.apply_rotary_pos_emb
 
             def new_forward(
-                    self,
-                    hidden_states: torch.Tensor,
-                    attention_mask: Optional[torch.Tensor] = None,
-                    position_ids: Optional[torch.LongTensor] = None,
-                    past_key_value: Optional[Any] = None,
-                    output_attentions: bool = False,
-                    use_cache: bool = False,
-                    **kwargs,
+                self,
+                hidden_states: torch.Tensor,
+                attention_mask: Optional[torch.Tensor] = None,
+                position_ids: Optional[torch.LongTensor] = None,
+                past_key_value: Optional[Any] = None,
+                output_attentions: bool = False,
+                use_cache: bool = False,
+                **kwargs,
             ):
                 # 参考默认适配器 deepseek mla 前向的关键路径（保留原计算流，仅插入占位调用）
                 bsz, q_len, _ = hidden_states.size()
@@ -373,9 +384,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                 q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
 
                 compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
-                compressed_kv, k_pe = torch.split(
-                    compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1
-                )
+                compressed_kv, k_pe = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
                 compressed_kv = self.kv_a_layernorm(compressed_kv)
                 k_pe = k_pe.view(bsz, q_len, 1, self.qk_rope_head_dim).transpose(1, 2)
                 kv_seq_len = k_pe.shape[-2]
@@ -402,8 +411,8 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
 
                 kv_b_proj = self.kv_b_proj.weight.view(self.num_heads, -1, self.kv_lora_rank)
 
-                q_absorb = kv_b_proj[:, :self.qk_nope_head_dim, :]
-                out_absorb = kv_b_proj[:, self.qk_nope_head_dim:, :]
+                q_absorb = kv_b_proj[:, : self.qk_nope_head_dim, :]
+                out_absorb = kv_b_proj[:, self.qk_nope_head_dim :, :]
 
                 q_nope = torch.matmul(q_nope, q_absorb)
 
@@ -416,7 +425,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                     _ = self.fa_v(compressed_kv.unsqueeze(1)).squeeze(1)
                 # ========================
 
-                attn_weights = (torch.matmul(q_pe, k_pe.mT) + torch.matmul(q_nope, compressed_kv.unsqueeze(-3).mT))
+                attn_weights = torch.matmul(q_pe, k_pe.mT) + torch.matmul(q_nope, compressed_kv.unsqueeze(-3).mT)
                 attn_weights = attn_weights * self.softmax_scale
 
                 if attention_mask is None:
@@ -424,8 +433,9 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                 attn_weights = attn_weights + attention_mask
 
                 attn_weights = torch.nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(q_pe.dtype)
-                attn_weights = torch.nn.functional.dropout(attn_weights, p=self.attention_dropout,
-                                                           training=self.training)
+                attn_weights = torch.nn.functional.dropout(
+                    attn_weights, p=self.attention_dropout, training=self.training
+                )
                 attn_output = torch.einsum('bhql,blc->bhqc', attn_weights, compressed_kv)
                 attn_output = torch.matmul(attn_output, out_absorb.mT)
                 attn_output = attn_output.transpose(1, 2).contiguous()
@@ -437,6 +447,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                     attn_weights_out = attn_weights
                 return attn_output, attn_weights_out, past_key_value
 
+            # pylint: disable=no-value-for-parameter
             attn_mod.forward = new_forward.__get__(attn_mod, attn_mod.__class__)
 
         # 遍历并注入
@@ -455,13 +466,12 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
         return [], []
 
     def get_rotate_map(self, block_size):
-        pre_run, rot_pairs, _ = get_rotate_map(self.config,
-                                               block_size,
-                                               num_hidden_layers=self.config.num_hidden_layers)
-        return [pre_run], [pair for pair in rot_pairs.values()]
+        pre_run, rot_pairs, _ = get_rotate_map(self.config, block_size, num_hidden_layers=self.config.num_hidden_layers)
+        return [pre_run], list(rot_pairs.values())
 
     @lru_cache(maxsize=1)
     def get_weight_map(self):
+        # pylint: disable=duplicate-code
         model_index_path = os.path.join(self.model_path, "model.safetensors.index.json")
         model_index = json_safe_load(model_index_path)
         weight_map = model_index['weight_map']
@@ -473,6 +483,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
 
         groups = defaultdict(list)
         for name in names:
+            # pylint: disable=duplicate-code
             file_name = weight_map[f'{prefix}.{name}' if prefix else name]
             groups[file_name].append(name)
 
@@ -493,20 +504,21 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             # these initializations is not necessary because we will load it from the state_dict
             # and these initializations will cost too much time because the DeepSeekV3's decoder layer is too large
             with patch.object(nn.Linear, 'reset_parameters', lambda _self: None), default_dtype(torch.bfloat16):
-                get_logger().info(f'Creating decoder layer {idx}')
+                get_logger().info("Creating decoder layer %s", idx)
                 module_list: nn.ModuleList = model.model.layers
                 template_module = module_list[0]
                 decoder = template_module.__class__(layer_idx=idx, config=self.config)
-
+                # pylint: disable=duplicate-code
                 state_dict = self.get_state_dict(decoder, prefix=name)
                 decoder.load_state_dict(state_dict)
                 auto_convert_module_fp8_to_bf16(name, decoder, str(self.model_path))
                 decoder.eval()
                 module_list.append(decoder)
-                get_logger().info(f'Create decoder layer {idx} successfully')
+                get_logger().info("Create decoder layer %s successfully", idx)
         return decoder
 
     def load_mtp_if_not_load(self, mtp_decoder: nn.Module):
+        # pylint: disable=duplicate-code
         try:
             mtp_decoder.get_submodule('shared_head')
         except AttributeError:
@@ -515,6 +527,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
             wrap_mtp_decoder(mtp_decoder=mtp_decoder, mtp_layer=mtp_layer)
             get_logger().info('Create MTP successfully')
 
+    # pylint: disable=duplicate-code
     def generate_decoder_layer(self, model: nn.Module):
         for idx in range(self.config.num_hidden_layers):
             name = f"model.layers.{idx}"
@@ -523,6 +536,7 @@ class DeepSeekV3ModelAdapter(DefaultModelAdapter,
                 self.load_mtp_if_not_load(decoder)
             yield name, decoder
 
+    # pylint: disable=useless-return
     def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
         """
         根据 MideIE 要求在deepseek w4a8和w4a8c8场景下，config.json 中添加以下字段

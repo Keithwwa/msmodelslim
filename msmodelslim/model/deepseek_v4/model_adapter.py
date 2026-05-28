@@ -18,10 +18,11 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import os.path
 from collections import defaultdict
 from functools import lru_cache
-from typing import List, Any, Generator, Optional, Tuple, Dict, Union
+from typing import List, Any, Generator, Optional, Tuple, Dict
 from unittest.mock import patch
 
 import torch
@@ -33,8 +34,7 @@ from tqdm import tqdm
 from msmodelslim.app.naive_quantization.model_info_interface import ModelInfoInterface
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
-from msmodelslim.core.graph import AdapterConfig, MappingConfig, FusionConfig
-from msmodelslim.model.deepseek_v3.quarot import get_ln_fuse_map, get_rotate_map
+from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.processor.quarot import QuaRotInterface
 from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
@@ -44,18 +44,26 @@ from .model import Transformer, ModelArgs
 from .mtp_quant_module import get_mtp_layer, wrap_mtp_decoder, remove_zero_and_shift
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, TransformersForwardBreak
 from ..common.transformers import TransformersModel
-from ..interface_hub import ModelSlimPipelineInterfaceV1, FlexSmoothQuantInterface, IterSmoothInterface, AscendV1SaveInterface
+from ..interface_hub import (
+    ModelSlimPipelineInterfaceV1,
+    FlexSmoothQuantInterface,
+    IterSmoothInterface,
+    AscendV1SaveInterface,
+)
+from msmodelslim.model.common.utils import _get_expert_range
 
 
+# pylint: disable=too-many-ancestors
 @logger_setter("msmodelslim.model.deepseek_v4")
-class DeepSeekV4ModelAdapter(TransformersModel,
-                              ModelInfoInterface,
-                              ModelSlimPipelineInterfaceV1,
-                              IterSmoothInterface,
-                              FlexSmoothQuantInterface,
-                              QuaRotInterface,
-                              AscendV1SaveInterface
-                              ):
+class DeepSeekV4ModelAdapter(
+    TransformersModel,
+    ModelInfoInterface,
+    ModelSlimPipelineInterfaceV1,
+    IterSmoothInterface,
+    FlexSmoothQuantInterface,
+    QuaRotInterface,
+    AscendV1SaveInterface,
+):
     def get_model_pedigree(self) -> str:
         return 'deepseek_v4'
 
@@ -69,7 +77,8 @@ class DeepSeekV4ModelAdapter(TransformersModel,
         torch.set_default_dtype(torch.bfloat16)
         # 如果存在MTP，层数需要+1
         self.config.num_hidden_layers = self.config.num_hidden_layers + 1
-        get_logger().info(f"Model with {self.config.num_hidden_layers} layers totally")
+        # pylint: disable=duplicate-code
+        get_logger().info("Model with %s layers totally", self.config.num_hidden_layers)
 
         origin = self.config.num_hidden_layers
 
@@ -80,29 +89,37 @@ class DeepSeekV4ModelAdapter(TransformersModel,
         self.config.num_hidden_layers = origin
 
         state_dict = self.get_state_dict(model)
-        auto_dequant_state_dict("", state_dict, str(self.model_path), mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}.")
+        auto_dequant_state_dict(
+            "", state_dict, str(self.model_path), mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}."
+        )
         model.load_state_dict(state_dict)
         model.eval()
-        get_logger().info(f"Create model with {self.config.num_hidden_layers} layers successfully at first")
+        get_logger().info("Create model with %s layers successfully at first", self.config.num_hidden_layers)
         return model
 
     def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
+        # pylint: disable=duplicate-code
         return generated_decoder_layer_visit_func(model, transformer_blocks=self.generate_decoder_layer(model))
 
+    # pylint: disable=duplicate-code
     def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[ProcessRequest, Any, None]:
         # 存储第一个transformer block的输入
         first_block_input: Optional[Tuple] = None
 
         def break_hook(module: nn.Module, hook_args: Tuple[Any, ...], hook_kwargs: Dict[str, Any]):
             nonlocal first_block_input
-            first_block_input = (hook_args, hook_kwargs,)
+            first_block_input = (
+                hook_args,
+                hook_kwargs,
+            )
             raise TransformersForwardBreak()
 
         remove_handler = model.layers[0].register_forward_pre_hook(break_hook, with_kwargs=True, prepend=True)
 
         # 执行一次前向传播以获取输入
+        # pylint: disable=duplicate-code
         try:
-            if isinstance(inputs, list) or isinstance(inputs, tuple):
+            if isinstance(inputs, (list, tuple)):
                 model(inputs[0])
             elif isinstance(inputs, dict):
                 model(**inputs)
@@ -132,12 +149,11 @@ class DeepSeekV4ModelAdapter(TransformersModel,
             h = yield ProcessRequest(name, block, args, kwargs)
             args = (h, start_pos, input_ids)
 
-    def mtp_preprocess(self,
-                       model: nn.Module,
-                       mtp_decoder: nn.Module,
-                       args: Tuple[Any, Any],
-                       kwargs: Dict[str, Any]) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
+    def mtp_preprocess(
+        self, model: nn.Module, mtp_decoder: nn.Module, args: Tuple[Any, Any], kwargs: Dict[str, Any]
+    ) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
         def wrap_device(module: nn.Module):
+            # pylint: disable=duplicate-code
             def auto_module(arg):
                 module.to('npu')
                 result = module(arg.to('npu'))
@@ -155,13 +171,17 @@ class DeepSeekV4ModelAdapter(TransformersModel,
 
         ####################### MTP LAYER ######################
         # input_ids = inputs['input_ids'] if isinstance(inputs, dict) else inputs[0]
+        # pylint: disable=duplicate-code
         input_ids_mtp = remove_zero_and_shift(input_ids)
-        position_ids = torch.arange(
-            0,
-            input_ids_mtp.shape[-1],
-            dtype=torch.long,
-            device=input_ids.device,
-        ) + 1
+        position_ids = (
+            torch.arange(
+                0,
+                input_ids_mtp.shape[-1],
+                dtype=torch.long,
+                device=input_ids.device,
+            )
+            + 1
+        )
         position_ids = position_ids.unsqueeze(0)
         input_ids_mtp[:, -1] = logits.argmax(dim=1)
 
@@ -177,128 +197,107 @@ class DeepSeekV4ModelAdapter(TransformersModel,
         hidden_states_mtp = torch.add(input_embeds_mtp, hidden_states_mtp)
         # hidden_states_mtp = wrap_device(mtp_decoder.norm)(hidden_states_mtp)
         hc_mult = mtp_decoder.hc_head_base.shape[0]
-        hidden_states_mtp = hidden_states_mtp.unsqueeze(2).repeat(1, 1, hc_mult, 1) # [b, s, hc_mult, d]
+        hidden_states_mtp = hidden_states_mtp.unsqueeze(2).repeat(1, 1, hc_mult, 1)  # [b, s, hc_mult, d]
 
-        return (hidden_states_mtp, start_pos+1, input_ids), kwargs
+        return (hidden_states_mtp, start_pos + 1, input_ids), kwargs
 
     def enable_kv_cache(self, model: nn.Module, need_kv_cache: bool) -> None:
         pass
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
 
         for layer_idx in range(self.config.num_hidden_layers):
-            #============================ MOE =========================
+            # ============================ MOE =========================
             # MOE FFN 层： Shared Experts
             expert_up_proj = 'layers.' + str(layer_idx) + '.ffn.shared_experts.w3'
             expert_down_proj = 'layers.' + str(layer_idx) + '.ffn.shared_experts.w2'
-            up_down_mapping_config_shared = MappingConfig(
-                source=expert_up_proj,
-                targets=[expert_down_proj]
-            )
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="up-down",
-                    mapping=up_down_mapping_config_shared
-                )
-            ])
+            up_down_mapping_config_shared = MappingConfig(source=expert_up_proj, targets=[expert_down_proj])
+            adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_shared)])
 
             # MOE FFN 层：Routed Experts
-            for expert in range(expert_num):
+            for expert in range(expert_start, expert_end):
                 up_proj = 'layers.' + str(layer_idx) + '.ffn.experts.' + str(expert) + '.w3'
                 down_proj = 'layers.' + str(layer_idx) + '.ffn.experts.' + str(expert) + '.w2'
-                up_down_mapping_config_expert = MappingConfig(
-                    source=up_proj,
-                    targets=[down_proj]
-                )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config_expert
-                    )
-                ])
+                up_down_mapping_config_expert = MappingConfig(source=up_proj, targets=[down_proj])
+                adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_expert)])
 
             # ======================== Attention ========================
             # Linear-Linear映射配置
             linear1 = f"layers.{layer_idx}.attn.wo_a"
             linear2 = f"layers.{layer_idx}.attn.wo_b"
-            wo_mapping_config = MappingConfig(
-                source=linear1,
-                targets=[linear2]
-            )
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="linear-linear",
-                    mapping=wo_mapping_config
-                )
-            ])
+            wo_mapping_config = MappingConfig(source=linear1, targets=[linear2])
+            adapter_config.extend([AdapterConfig(subgraph_type="linear-linear", mapping=wo_mapping_config)])
 
             # 根据层类型添加不同的Attention配置
             if layer_idx < 2 or (layer_idx == self.config.num_hidden_layers - 1):
                 # Norm-Linear的映射配置1
                 input_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_a",
-                            f"layers.{layer_idx}.attn.wkv",]
+                    targets=[
+                        f"layers.{layer_idx}.attn.wq_a",
+                        f"layers.{layer_idx}.attn.wkv",
+                    ],
                 )
 
                 # Norm-Linear的映射配置2：
                 qa_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn.q_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_b",]
+                    targets=[
+                        f"layers.{layer_idx}.attn.wq_b",
+                    ],
                 )
             elif layer_idx % 2 == 0:
                 # Norm-Linear的映射配置1
                 input_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_a",
-                            f"layers.{layer_idx}.attn.wkv",
-                            f"layers.{layer_idx}.attn.compressor.wgate", # 2,3,...
-                            f"layers.{layer_idx}.attn.compressor.wkv", # 2,3,...
-                            f"layers.{layer_idx}.attn.indexer.weights_proj", # 2,4,...
-                            f"layers.{layer_idx}.attn.indexer.compressor.wgate", # 2,4,...
-                            f"layers.{layer_idx}.attn.indexer.compressor.wkv"] # 2,4,...
+                    targets=[
+                        f"layers.{layer_idx}.attn.wq_a",
+                        f"layers.{layer_idx}.attn.wkv",
+                        f"layers.{layer_idx}.attn.compressor.wgate",  # 2,3,...
+                        f"layers.{layer_idx}.attn.compressor.wkv",  # 2,3,...
+                        f"layers.{layer_idx}.attn.indexer.weights_proj",  # 2,4,...
+                        f"layers.{layer_idx}.attn.indexer.compressor.wgate",  # 2,4,...
+                        f"layers.{layer_idx}.attn.indexer.compressor.wkv",
+                    ],  # 2,4,...
                 )
 
                 # Norm-Linear的映射配置2：
                 qa_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn.q_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_b",
-                            f"layers.{layer_idx}.attn.indexer.wq_b"] # 2,4,...
+                    targets=[f"layers.{layer_idx}.attn.wq_b", f"layers.{layer_idx}.attn.indexer.wq_b"],  # 2,4,...
                 )
             else:
                 # Norm-Linear的映射配置1
                 input_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_a",
-                            f"layers.{layer_idx}.attn.wkv",
-                            f"layers.{layer_idx}.attn.compressor.wgate", # 2,3,...
-                            f"layers.{layer_idx}.attn.compressor.wkv"] # 2,3,...
+                    targets=[
+                        f"layers.{layer_idx}.attn.wq_a",
+                        f"layers.{layer_idx}.attn.wkv",
+                        f"layers.{layer_idx}.attn.compressor.wgate",  # 2,3,...
+                        f"layers.{layer_idx}.attn.compressor.wkv",
+                    ],  # 2,3,...
                 )
 
                 # Norm-Linear的映射配置2：
                 qa_norm_mapping_config = MappingConfig(
                     source=f"layers.{layer_idx}.attn.q_norm",
-                    targets=[f"layers.{layer_idx}.attn.wq_b",]
+                    targets=[
+                        f"layers.{layer_idx}.attn.wq_b",
+                    ],
                 )
-                
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=input_norm_mapping_config
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=qa_norm_mapping_config
-                ),
-            ])
+
+            adapter_config.extend(
+                [
+                    AdapterConfig(subgraph_type="norm-linear", mapping=input_norm_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=qa_norm_mapping_config),
+                ]
+            )
 
         return adapter_config
 
+    # pylint: disable=duplicate-code
     @lru_cache(maxsize=1)
     def get_weight_map(self):
         model_index_path = os.path.join(self.model_path, "model.safetensors.index.json")
@@ -329,7 +328,12 @@ class DeepSeekV4ModelAdapter(TransformersModel,
             mtp_decoder.get_submodule('enorm')
         except AttributeError:
             get_logger().info('Creating MTP layer')
-            mtp_layer = get_mtp_layer(config=self.config, model_path=self.model_path, layer_prefix=layer_prefix, mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}.")
+            mtp_layer = get_mtp_layer(
+                config=self.config,
+                model_path=self.model_path,
+                layer_prefix=layer_prefix,
+                mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}.",
+            )
             wrap_mtp_decoder(mtp_decoder=mtp_decoder, mtp_layer=mtp_layer)
             get_logger().info('Create MTP successfully')
 
@@ -341,18 +345,24 @@ class DeepSeekV4ModelAdapter(TransformersModel,
             # these initializations is not necessary because we will load it from the state_dict
             # and these initializations will cost too much time because the DeepSeekV3's decoder layer is too large
             with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
-                get_logger().info(f'Creating decoder layer {idx}')
+                get_logger().info("Creating decoder layer %s", idx)
                 module_list: nn.ModuleList = model.layers
                 template_module = module_list[0]
                 decoder = template_module.__class__(layer_id=idx, args=self.config)
 
                 prefix = layer_prefix if layer_prefix != f"layers.{self.config.num_hidden_layers - 1}" else "mtp.0"
                 state_dict = self.get_state_dict(decoder, prefix=prefix)
-                auto_dequant_state_dict(layer_prefix, state_dict, str(self.model_path), mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}.")
+                auto_dequant_state_dict(
+                    layer_prefix,
+                    state_dict,
+                    str(self.model_path),
+                    mtp_layer_prefix=f"layers.{self.config.num_hidden_layers - 1}.",
+                )
                 decoder.load_state_dict(state_dict)
+                # pylint: disable=duplicate-code
                 decoder.eval()
                 module_list.append(decoder)
-                get_logger().info(f'Create decoder layer {idx} successfully')
+                get_logger().info("Create decoder layer %s successfully", idx)
         return decoder
 
     def generate_decoder_layer(self, model: nn.Module):
@@ -364,34 +374,28 @@ class DeepSeekV4ModelAdapter(TransformersModel,
             yield layer_prefix, decoder
 
     def get_ln_fuse_map(self):
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
 
         pre_ln_linear_map = {}
-        #=========================== GLOBAL ==============================
+        # =========================== GLOBAL ==============================
         pre_ln_linear_map['norm'] = ['head']
 
         ln_linear_map = {}
         for layer_idx in range(self.config.num_hidden_layers):
-            #============================ MOE =========================
+            # ============================ MOE =========================
             ln_linear_map[f"layers.{layer_idx}.ffn_norm"] = [
                 f"layers.{layer_idx}.ffn.experts.{i}.{proj}"
                 for proj in ["w1", "w3"]
-                for i in range(expert_num)
+                for i in range(expert_start, expert_end)
             ]
             # shared experts
             ln_linear_map[f"layers.{layer_idx}.ffn_norm"] += [
-                f"layers.{layer_idx}.ffn.shared_experts.{proj}"
-                for proj in ["w1", "w3"]
+                f"layers.{layer_idx}.ffn.shared_experts.{proj}" for proj in ["w1", "w3"]
             ]
             # expert gate
-            ln_linear_map[f"layers.{layer_idx}.ffn_norm"] += [
-                f"layers.{layer_idx}.ffn.gate"
-            ]
+            ln_linear_map[f"layers.{layer_idx}.ffn_norm"] += [f"layers.{layer_idx}.ffn.gate"]
 
-            #============================ Attention =========================
+            # ============================ Attention =========================
             # 根据层类型添加不同的Attention配置
             if layer_idx < 2 or (layer_idx == self.config.num_hidden_layers - 1):
                 # Norm-Linear的映射配置1
@@ -408,31 +412,32 @@ class DeepSeekV4ModelAdapter(TransformersModel,
                 ln_linear_map[f"layers.{layer_idx}.attn_norm"] = [
                     f"layers.{layer_idx}.attn.wq_a",
                     f"layers.{layer_idx}.attn.wkv",
-                    f"layers.{layer_idx}.attn.compressor.wgate", # 2,3,...
-                    f"layers.{layer_idx}.attn.compressor.wkv", # 2,3,...
-                    f"layers.{layer_idx}.attn.indexer.weights_proj", # 2,4,...
-                    f"layers.{layer_idx}.attn.indexer.compressor.wgate", # 2,4,...
-                    f"layers.{layer_idx}.attn.indexer.compressor.wkv", # 2,4,...
+                    f"layers.{layer_idx}.attn.compressor.wgate",  # 2,3,...
+                    f"layers.{layer_idx}.attn.compressor.wkv",  # 2,3,...
+                    f"layers.{layer_idx}.attn.indexer.weights_proj",  # 2,4,...
+                    f"layers.{layer_idx}.attn.indexer.compressor.wgate",  # 2,4,...
+                    f"layers.{layer_idx}.attn.indexer.compressor.wkv",  # 2,4,...
                 ]
 
                 # Norm-Linear的映射配置2：
                 ln_linear_map[f"layers.{layer_idx}.attn.q_norm"] = [
                     f"layers.{layer_idx}.attn.wq_b",
-                    f"layers.{layer_idx}.attn.indexer.wq_b",] # 2,4,...
+                    f"layers.{layer_idx}.attn.indexer.wq_b",
+                ]  # 2,4,...
             else:
                 # Norm-Linear的映射配置1
                 ln_linear_map[f"layers.{layer_idx}.attn_norm"] = [
                     f"layers.{layer_idx}.attn.wq_a",
                     f"layers.{layer_idx}.attn.wkv",
-                    f"layers.{layer_idx}.attn.compressor.wgate", # 2,3,...
-                    f"layers.{layer_idx}.attn.compressor.wkv", # 2,3,...
+                    f"layers.{layer_idx}.attn.compressor.wgate",  # 2,3,...
+                    f"layers.{layer_idx}.attn.compressor.wkv",  # 2,3,...
                 ]
-                
+
                 # Norm-Linear的映射配置2：
                 ln_linear_map[f"layers.{layer_idx}.attn.q_norm"] = [
                     f"layers.{layer_idx}.attn.wq_b",
                 ]
-        #============================ MTP =========================
+        # ============================ MTP =========================
         layer_idx = self.config.num_hidden_layers - 1
         # MTP 的 norm-linear 融合
         # Norm-Linear的映射配置1 （MTP专有）：
@@ -454,10 +459,7 @@ class DeepSeekV4ModelAdapter(TransformersModel,
         return [], []
 
     def get_rotate_map(self, block_size):
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
 
         rot_pairs = {}
 
@@ -470,28 +472,28 @@ class DeepSeekV4ModelAdapter(TransformersModel,
         # ============================= GLOBAL ==============================
         pre_left_rot = {}
         pre_right_rot = {}
-        pre_right_rot[f'embed'] = rot
-        pre_right_rot[f'hc_head_fn'] = rot
-        pre_right_rot[f'head'] = rot
+        pre_right_rot['embed'] = rot
+        pre_right_rot['hc_head_fn'] = rot
+        pre_right_rot['head'] = rot
         pre_run = QuaRotInterface.RotatePair(left_rot=pre_left_rot, right_rot=pre_right_rot)
 
         left_rot = {}
         right_rot = {}
         for layer_idx in range(self.config.num_hidden_layers):
-            #============================ MOE =========================
-            for i in range(expert_num):
+            # ============================ MOE =========================
+            for i in range(expert_start, expert_end):
                 left_rot[f"layers.{layer_idx}.ffn.experts.{i}.w2"] = rot
             left_rot[f"layers.{layer_idx}.ffn.shared_experts.w2"] = rot
 
             right_rot[f"layers.{layer_idx}.hc_ffn_fn"] = rot
-            for i in range(expert_num):
+            for i in range(expert_start, expert_end):
                 right_rot[f"layers.{layer_idx}.ffn.experts.{i}.w1"] = rot
                 right_rot[f"layers.{layer_idx}.ffn.experts.{i}.w3"] = rot
             right_rot[f"layers.{layer_idx}.ffn.shared_experts.w1"] = rot
             right_rot[f"layers.{layer_idx}.ffn.shared_experts.w3"] = rot
             right_rot[f"layers.{layer_idx}.ffn.gate"] = rot
 
-            #============================ Attention =========================
+            # ============================ Attention =========================
             left_rot[f"layers.{layer_idx}.attn.wo_b"] = rot
             right_rot[f"layers.{layer_idx}.hc_attn_fn"] = rot
             if layer_idx < 2 or (layer_idx == self.config.num_hidden_layers - 1):
@@ -510,8 +512,8 @@ class DeepSeekV4ModelAdapter(TransformersModel,
                 right_rot[f"layers.{layer_idx}.attn.wkv"] = rot
                 right_rot[f"layers.{layer_idx}.attn.compressor.wgate"] = rot
                 right_rot[f"layers.{layer_idx}.attn.compressor.wkv"] = rot
-        #============================ MTP =========================
-        layer_idx = (self.config.num_hidden_layers - 1)
+        # ============================ MTP =========================
+        layer_idx = self.config.num_hidden_layers - 1
         right_rot[f"layers.{layer_idx}.h_proj"] = rot
         right_rot[f"layers.{layer_idx}.head"] = rot
 
@@ -520,7 +522,7 @@ class DeepSeekV4ModelAdapter(TransformersModel,
 
         left_rot[f"layers.{layer_idx}.e_proj"] = rot
         left_rot[f"layers.{layer_idx}.h_proj"] = rot
-        
+
         rot_pairs['rot'] = QuaRotInterface.RotatePair(left_rot=left_rot, right_rot=right_rot)
 
         # q_b_proj rot
@@ -542,9 +544,11 @@ class DeepSeekV4ModelAdapter(TransformersModel,
             else:
                 right_rot_b_proj[f"layers.{layer_idx}.attn.wq_b"] = rot_b_proj
         rot_pairs["rot_b_proj"] = QuaRotInterface.RotatePair(left_rot=left_rot_b_proj, right_rot=right_rot_b_proj)
-        return [pre_run], [pair for pair in rot_pairs.values()]
+        return [pre_run], list(rot_pairs.values())
 
-    def ascendv1_save_module_preprocess(self, prefix: str, module: nn.Module, model: nn.Module) -> Tuple[str, nn.Module]:
+    def ascendv1_save_module_preprocess(
+        self, prefix: str, module: nn.Module, model: nn.Module
+    ) -> Tuple[str, nn.Module]:
         mtp_layer_prefix = f"layers.{self.config.num_hidden_layers - 1}"
         if prefix.startswith(mtp_layer_prefix):
             prefix = prefix.replace(mtp_layer_prefix, "mtp.0")

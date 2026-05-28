@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import os.path
 from collections import defaultdict
 from functools import lru_cache
@@ -42,26 +43,35 @@ from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security import get_valid_read_path, json_safe_load, json_safe_dump, MAX_READ_FILE_SIZE_32G
 from .convert_fp8_to_bf16 import auto_convert_module_fp8_to_bf16
-from .model import Transformer, ModelArgs, weight_dequant
+from .model import Transformer, ModelArgs
 from .mtp_quant_module import get_mtp_layer, wrap_mtp_decoder, remove_zero_and_shift
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, TransformersForwardBreak
 from ..default.model_adapter import DefaultModelAdapter
-from ..interface_hub import ModelSlimPipelineInterfaceV1, FlexSmoothQuantInterface, \
-                            FA3QuantAdapterInterface, FA3QuantPlaceHolder, OnlineQuaRotInterface, \
-                            AttentionAnalysisInterface, AscendV1SaveInterface
+from ..interface_hub import (
+    ModelSlimPipelineInterfaceV1,
+    FlexSmoothQuantInterface,
+    FA3QuantAdapterInterface,
+    FA3QuantPlaceHolder,
+    OnlineQuaRotInterface,
+    AttentionAnalysisInterface,
+    AscendV1SaveInterface,
+)
+from msmodelslim.model.common.utils import _get_expert_range
 
 
+# pylint: disable=too-many-ancestors
 @logger_setter("msmodelslim.model.deepseek_v3_2")
-class DeepSeekV32ModelAdapter(DefaultModelAdapter,
-                              ModelInfoInterface,
-                              AttentionAnalysisInterface,
-                              ModelSlimPipelineInterfaceV1,
-                              FlexSmoothQuantInterface,
-                              FA3QuantAdapterInterface,  # support FA3 activation quant placeholders
-                              QuaRotInterface,
-                              OnlineQuaRotInterface,
-                              AscendV1SaveInterface
-                              ):
+class DeepSeekV32ModelAdapter(
+    DefaultModelAdapter,
+    ModelInfoInterface,
+    AttentionAnalysisInterface,
+    ModelSlimPipelineInterfaceV1,
+    FlexSmoothQuantInterface,
+    FA3QuantAdapterInterface,  # support FA3 activation quant placeholders
+    QuaRotInterface,
+    OnlineQuaRotInterface,
+    AscendV1SaveInterface,
+):
     def get_model_pedigree(self) -> str:
         return 'deepseek_v3_2'
 
@@ -74,7 +84,8 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
     def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
         torch.set_default_dtype(torch.bfloat16)
         self.config.num_hidden_layers = 62
-        get_logger().info(f"Model with {self.config.num_hidden_layers} layers totally")
+        # pylint: disable=duplicate-code
+        get_logger().info(f"Model with {self.config.num_hidden_layers} layers totally")  # pylint: disable=logging-fstring-interpolation
 
         origin = self.config.num_hidden_layers
 
@@ -88,9 +99,10 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
         model.load_state_dict(state_dict)
         auto_convert_module_fp8_to_bf16("", model, str(self.model_path))
         model.eval()
-        get_logger().info(f"Create model with {self.config.num_hidden_layers} layers successfully at first")
+        get_logger().info("Create model with %s layers successfully at first", self.config.num_hidden_layers)
         return model
 
+    # pylint: disable=duplicate-code
     def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
         return generated_decoder_layer_visit_func(model, transformer_blocks=self.generate_decoder_layer(model))
 
@@ -100,14 +112,18 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
 
         def break_hook(module: nn.Module, hook_args: Tuple[Any, ...], hook_kwargs: Dict[str, Any]):
             nonlocal first_block_input
-            first_block_input = (hook_args, hook_kwargs,)
+            first_block_input = (
+                hook_args,
+                hook_kwargs,
+            )
             raise TransformersForwardBreak()
 
         remove_handler = model.model.layers[0].register_forward_pre_hook(break_hook, with_kwargs=True, prepend=True)
 
         # 执行一次前向传播以获取输入
+        # pylint: disable=duplicate-code
         try:
-            if isinstance(inputs, list) or isinstance(inputs, tuple):
+            if isinstance(inputs, (list, tuple)):
                 model(inputs[0])
             elif isinstance(inputs, dict):
                 model(**inputs)
@@ -136,14 +152,17 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
             h, residual = yield ProcessRequest(name, block, args, kwargs)
             args = (h, residual)
 
-    def mtp_preprocess(self,
-                       model: nn.Module,
-                       mtp_decoder: nn.Module,
-                       inputs: Union[List[Any], Dict[str, Any]],
-                       args: Tuple[Any, Any],
-                       kwargs: Dict[str, Any]) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
+    def mtp_preprocess(
+        self,
+        model: nn.Module,
+        mtp_decoder: nn.Module,
+        inputs: Union[List[Any], Dict[str, Any]],
+        args: Tuple[Any, Any],
+        kwargs: Dict[str, Any],
+    ) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
         def wrap_device(module: nn.Module):
             def auto_module(arg):
+                # pylint: disable=duplicate-code
                 module.to('npu')
                 result = module(arg.to('npu'))
                 module.to('cpu')
@@ -158,13 +177,17 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
 
         ####################### MTP LAYER ######################
         input_ids = inputs['input_ids'] if isinstance(inputs, dict) else inputs[0]
+        # pylint: disable=duplicate-code
         input_ids_mtp = remove_zero_and_shift(input_ids)
-        position_ids = torch.arange(
-            0,
-            input_ids_mtp.shape[-1],
-            dtype=torch.long,
-            device=input_ids.device,
-        ) + 1
+        position_ids = (
+            torch.arange(
+                0,
+                input_ids_mtp.shape[-1],
+                dtype=torch.long,
+                device=input_ids.device,
+            )
+            + 1
+        )
         position_ids = position_ids.unsqueeze(0)
         logits[:, -1, :].argmax(dim=1)
         input_ids_mtp[:, -1] = logits[:, -1, :].argmax(dim=1)
@@ -190,7 +213,7 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
         start_pos = kwargs['start_pos'] + 1
         seq_len = len(kwargs['freqs_cis'])
         kwargs['mask'] = attention_mask_mtp.squeeze(1)
-        kwargs['freqs_cis'] = model.model.freqs_cis[start_pos: start_pos + seq_len]
+        kwargs['freqs_cis'] = model.model.freqs_cis[start_pos : start_pos + seq_len]
         return (hidden_states_mtp, residual), kwargs
 
     def enable_kv_cache(self, model: nn.Module, need_kv_cache: bool) -> None:
@@ -198,61 +221,56 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
 
         for layer_idx in range(self.config.num_hidden_layers):
             # OKV_b融合的映射配置：o_proj -> kv_b_proj
             okv_b_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.kv_b_proj",  # KV_b投影层
-                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"]  # 输出投影层
+                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"],  # 输出投影层
             )
 
             # Norm-Linear融合的映射配置1：q_a_proj, kv_a_proj_with_mqa -> input_layernorm
             input_norm_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.input_layernorm",  # 第一个LayerNorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_a_proj",
-                         f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa",
-                         f"model.layers.{layer_idx}.self_attn.indexer.wk",
-                         f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"]  # 注意力层的Q_a,KV_a投影
+                targets=[
+                    f"model.layers.{layer_idx}.self_attn.q_a_proj",
+                    f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa",
+                    f"model.layers.{layer_idx}.self_attn.indexer.wk",
+                    f"model.layers.{layer_idx}.self_attn.indexer.weights_proj",
+                ],  # 注意力层的Q_a,KV_a投影
             )
 
             # Norm-Linear融合的映射配置2：q_b_proj -> q_a_layernorm
             qa_norm_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.q_a_layernorm",  # q_a_layernorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_b_proj",
-                         f"model.layers.{layer_idx}.self_attn.indexer.wq_b"]  # q_b投影
+                targets=[
+                    f"model.layers.{layer_idx}.self_attn.q_b_proj",
+                    f"model.layers.{layer_idx}.self_attn.indexer.wq_b",
+                ],  # q_b投影
             )
 
             # 为当前layer添加4个配置
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="ov",
-                    mapping=okv_b_mapping_config,
-                    extra_config={
-                        'group_method': 'max'
-                    },
-                    fusion=FusionConfig(
-                        fusion_type="kv",
-                        num_attention_heads=self.config.num_attention_heads,
-                        num_key_value_heads=self.config.num_key_value_heads,
-                        custom_config={
-                            'qk_nope_head_dim': self.config.qk_nope_head_dim,
-                            'v_head_dim': self.config.v_head_dim,
-                        }
+            adapter_config.extend(
+                [
+                    AdapterConfig(
+                        subgraph_type="ov",
+                        mapping=okv_b_mapping_config,
+                        extra_config={'group_method': 'max'},
+                        fusion=FusionConfig(
+                            fusion_type="kv",
+                            num_attention_heads=self.config.num_attention_heads,
+                            num_key_value_heads=self.config.num_key_value_heads,
+                            custom_config={
+                                'qk_nope_head_dim': self.config.qk_nope_head_dim,
+                                'v_head_dim': self.config.v_head_dim,
+                            },
+                        ),
                     ),
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=input_norm_mapping_config
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=qa_norm_mapping_config
-                ),
-            ])
+                    AdapterConfig(subgraph_type="norm-linear", mapping=input_norm_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=qa_norm_mapping_config),
+                ]
+            )
 
             # 根据层类型添加不同的FFN配置
             if layer_idx < self.config.first_k_dense_replace:
@@ -261,46 +279,32 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 down_proj = 'model.layers.' + str(layer_idx) + '.mlp.down_proj'
                 up_down_mapping_config = MappingConfig(
                     source=up_proj,  # 上投影层
-                    targets=[down_proj]  # 下投影层
+                    targets=[down_proj],  # 下投影层
                 )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config
-                    ),
-                ])
+                adapter_config.extend(
+                    [
+                        AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config),
+                    ]
+                )
             else:
                 # MOE FFN 层：Shared Experts
                 expert_up_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.up_proj'
                 expert_down_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.down_proj'
-                up_down_mapping_config_shared = MappingConfig(
-                    source=expert_up_proj,
-                    targets=[expert_down_proj]
-                )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config_shared
-                    )
-                ])
+                up_down_mapping_config_shared = MappingConfig(source=expert_up_proj, targets=[expert_down_proj])
+                adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_shared)])
 
                 # MOE FFN 层：Routed Experts
-                for expert in range(expert_num):
+                for expert in range(expert_start, expert_end):
                     up_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.up_proj'
                     down_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.down_proj'
-                    up_down_mapping_config_expert = MappingConfig(
-                        source=up_proj,
-                        targets=[down_proj]
+                    up_down_mapping_config_expert = MappingConfig(source=up_proj, targets=[down_proj])
+                    adapter_config.extend(
+                        [AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_expert)]
                     )
-                    adapter_config.extend([
-                        AdapterConfig(
-                            subgraph_type="up-down",
-                            mapping=up_down_mapping_config_expert
-                        )
-                    ])
 
         return adapter_config
 
+    # pylint: disable=duplicate-code
     @lru_cache(maxsize=1)
     def get_weight_map(self):
         model_index_path = os.path.join(self.model_path, "model.safetensors.index.json")
@@ -332,6 +336,7 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
         except AttributeError:
             get_logger().info('Creating MTP layer')
             mtp_layer = get_mtp_layer(config=self.config, model_path=self.model_path)
+            # pylint: disable=duplicate-code
             wrap_mtp_decoder(mtp_decoder=mtp_decoder, mtp_layer=mtp_layer)
             get_logger().info('Create MTP successfully')
 
@@ -343,17 +348,18 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
             # these initializations is not necessary because we will load it from the state_dict
             # and these initializations will cost too much time because the DeepSeekV3's decoder layer is too large
             with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
-                get_logger().info(f'Creating decoder layer {idx}')
+                get_logger().info("Creating decoder layer %s", idx)
                 module_list: nn.ModuleList = model.model.layers
                 template_module = module_list[0]
                 decoder = template_module.__class__(layer_id=idx, args=self.config)
 
                 state_dict = self.get_state_dict(decoder, prefix=name)
                 decoder.load_state_dict(state_dict)
+                # pylint: disable=duplicate-code
                 auto_convert_module_fp8_to_bf16(name, decoder, str(self.model_path))
                 decoder.eval()
                 module_list.append(decoder)
-                get_logger().info(f'Create decoder layer {idx} successfully')
+                get_logger().info("Create decoder layer %s successfully", idx)
         return decoder
 
     def generate_decoder_layer(self, model: nn.Module):
@@ -382,42 +388,43 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
         return [], []
 
     def get_rotate_map(self, block_size):
-        pre_run, rot_pairs, rotate_matrix = get_rotate_map(self.config,
-                                                           block_size,
-                                                           num_hidden_layers=self.config.num_hidden_layers)
+        pre_run, rot_pairs, rotate_matrix = get_rotate_map(
+            self.config, block_size, num_hidden_layers=self.config.num_hidden_layers
+        )
         for layer_idx in range(self.config.num_hidden_layers):
             rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wk"] = rotate_matrix['rot']
-            rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"] = \
-                rotate_matrix['rot']
-            rot_pairs['rot_b_proj'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wq_b"] = \
-                rotate_matrix['rot_b_proj']
-        return [pre_run], [pair for pair in rot_pairs.values()]
+            rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"] = rotate_matrix[
+                'rot'
+            ]
+            rot_pairs['rot_b_proj'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wq_b"] = rotate_matrix[
+                'rot_b_proj'
+            ]
+        return [pre_run], list(rot_pairs.values())
 
     # ===== OnlineQuaRotInterface =====
     def get_online_rotation_configs(self, model: Optional[nn.Module] = None):
         """
         返回在线旋转配置，配置 Indexer 的 q 和 k 旋转矩阵。
-        
+
         在此方法中直接给 Indexer 模块挂载 q_rot 和 k_rot Identity 模块。
-        
+
         Args:
             model: 可选的模型实例，如果提供，会在此方法中挂载 Identity 模块
-        
+
         Returns:
             Dict[str, RotationConfig]: 模块名到旋转配置的映射
         """
         configs = {}
         # 配置旋转，q_rot 和 k_rot 使用相同的随机数种子，确保生成相同的旋转矩阵
         shared_seed = 1234  # q_rot 和 k_rot 共享的随机数种子
-        
-        
+
         # 获取 head_dim - 从 Indexer 配置获取
         head_dim = self.config.index_head_dim
 
         # 为所有 Indexer 模块配置旋转
         for layer_idx in range(self.config.num_hidden_layers):
             name = f"model.layers.{layer_idx}.self_attn.indexer"
-            
+
             # 配置 q_rot
             q_rot_path = f"{name}.q_rot"
             configs[q_rot_path] = OnlineQuaRotInterface.RotationConfig(
@@ -426,9 +433,9 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
                 block_size=-1,
                 seed=shared_seed,
-                dtype=torch.bfloat16
+                dtype=torch.bfloat16,
             )
-            
+
             # 配置 k_rot（使用相同的种子，确保与 q_rot 使用相同的旋转矩阵）
             k_rot_path = f"{name}.k_rot"
             configs[k_rot_path] = OnlineQuaRotInterface.RotationConfig(
@@ -437,9 +444,9 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 rotation_mode=OnlineQuaRotInterface.QuaRotMode.HADAMARD,
                 block_size=-1,
                 seed=shared_seed,
-                dtype=torch.bfloat16
+                dtype=torch.bfloat16,
             )
-        
+
         return configs
 
     def _load_config(self, trust_remote_code=False) -> object:
@@ -448,7 +455,7 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
     # ===== FA3QuantAdapterInterface =====
     def inject_fa3_placeholders(self, root_name: str, root_module: nn.Module, should_inject) -> None:
         """为 DeepSeekV3.2 的Indexer模块安装 FA3 占位，并包裹 forward 调用这些占位。
-        
+
         - SFA TODO: 在每个 Attention 模块下注入子模块：fa3_q, fa3_k, fa3_v
 
         - 在每个 Indexer 模块下注入子模块：fa3_indexer_q, fa3_indexer_k
@@ -457,7 +464,7 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
 
         """
         from importlib import import_module
-        from .model import apply_rotary_emb, rotate_activation, fp8_index
+        from .model import rotate_activation, fp8_index
 
         def _wrap_indexer_forward(indexer_mod: nn.Module):
             """包裹Indexer模块的forward方法"""
@@ -465,16 +472,16 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
             apply_rotary_emb = deepseek_module.apply_rotary_emb
 
             def new_indexer_forward(
-                    self,
-                    x: torch.Tensor, 
-                    qr: torch.Tensor, 
-                    start_pos: int, 
-                    freqs_cis: torch.Tensor,
-                    mask: Optional[torch.Tensor]
+                self,
+                x: torch.Tensor,
+                qr: torch.Tensor,
+                start_pos: int,
+                freqs_cis: torch.Tensor,
+                mask: Optional[torch.Tensor],
             ):
                 bsz, seqlen, _ = x.size()
                 end_pos = start_pos + seqlen
-                
+
                 # Q路径：wq_b(qr) → RoPE → Hadamard旋转 → FA3量化
                 q = self.wq_b(qr)
                 q = rearrange(q, 'b s (h d) -> b s h d', d=self.head_dim)
@@ -488,7 +495,7 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 k_pe, k_nope = torch.split(k, [self.rope_head_dim, self.head_dim - self.rope_head_dim], dim=-1)
                 k_pe = apply_rotary_emb(k_pe.unsqueeze(2), freqs_cis).squeeze(2)
                 k = torch.cat([k_pe, k_nope], dim=-1)
-                
+
                 # ===== 应用在线旋转 =====
                 # 优先使用 q_rot 模块（在线旋转）
                 if hasattr(self, 'q_rot'):
@@ -512,35 +519,32 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
                 # ===================================
 
                 q_scale = torch.ones(*q.size()[:-1], q.size(-1) // 128, dtype=torch.float32).npu()
-                weights = self.weights_proj(x) * self.n_heads ** -0.5
+                weights = self.weights_proj(x) * self.n_heads**-0.5
                 weights = weights.unsqueeze(-1) * q_scale * self.softmax_scale
-                
+
                 k = k.view(bsz, -1, 1, self.head_dim)
                 index_score = fp8_index(q.contiguous(), weights, k)
-                
+
                 if mask is not None:
                     index_score += mask
                 topk_indices = index_score.topk(min(self.index_topk, end_pos), dim=-1)[1]
                 return topk_indices.clone()
 
             # 替换 forward 方法
+            # pylint: disable=no-value-for-parameter
             indexer_mod.forward = new_indexer_forward.__get__(indexer_mod, indexer_mod.__class__)
 
         for name, module in root_module.named_modules():
             module_type = module.__class__.__name__
-            
+
             # 检查是否是目标模块类型
             if module_type not in ["Indexer"]:
                 continue
-            
+
             full_name = f"{root_name}.{name}" if root_name else name
             if not should_inject(full_name):
                 continue
-            
-            if name == "":
-                prefix = ""
-            else:
-                prefix = f"{name}."
+
             root_module.set_submodule(f'{name}.fa3_q', FA3QuantPlaceHolder(ratio=0.9999))
             root_module.set_submodule(f'{name}.fa3_k', FA3QuantPlaceHolder(ratio=0.9999))
             _wrap_indexer_forward(module)
@@ -550,7 +554,8 @@ class DeepSeekV32ModelAdapter(DefaultModelAdapter,
 
     def get_attention_output_extractor(self) -> Callable[[Union[tuple, torch.Tensor]], torch.Tensor]:
         return lambda x: x
-    
+
+    # pylint: disable=useless-return
     def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
         """
         根据 vLLM-Ascend 要求在deepseek Indexer c8动态量化场景下,

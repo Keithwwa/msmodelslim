@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import os.path
 from collections import defaultdict
 from functools import lru_cache
@@ -46,16 +47,19 @@ from .mtp_quant_module import MTPLayer, wrap_mtp_decoder, remove_zero_and_shift
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, TransformersForwardBreak
 from ..common.transformers import TransformersModel
 from ..interface_hub import ModelSlimPipelineInterfaceV1, FlexSmoothQuantInterface, AscendV1SaveInterface
+from msmodelslim.model.common.utils import _get_expert_range
 
 
 @logger_setter("msmodelslim.model.glm_5")
-class GLM5ModelAdapter(TransformersModel,
-                              ModelInfoInterface,
-                              ModelSlimPipelineInterfaceV1,
-                              FlexSmoothQuantInterface,
-                              QuaRotInterface,
-                              AscendV1SaveInterface
-                              ):
+# pylint: disable=too-many-ancestors
+class GLM5ModelAdapter(
+    TransformersModel,
+    ModelInfoInterface,
+    ModelSlimPipelineInterfaceV1,
+    FlexSmoothQuantInterface,
+    QuaRotInterface,
+    AscendV1SaveInterface,
+):
     def get_model_pedigree(self) -> str:
         return 'glm_5'
 
@@ -68,7 +72,7 @@ class GLM5ModelAdapter(TransformersModel,
     def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
         torch.set_default_dtype(torch.bfloat16)
         self.config.num_hidden_layers = 79
-        get_logger().info(f"Model with {self.config.num_hidden_layers} layers totally")
+        get_logger().info("Model with %s layers totally", self.config.num_hidden_layers)
 
         origin = self.config.num_hidden_layers
 
@@ -82,7 +86,7 @@ class GLM5ModelAdapter(TransformersModel,
         model.load_state_dict(state_dict)
         auto_convert_module_fp8_to_bf16("", model, str(self.model_path))
         model.eval()
-        get_logger().info(f"Create model with {self.config.num_hidden_layers} layers successfully at first")
+        get_logger().info("Create model with %s layers successfully at first", self.config.num_hidden_layers)
         return model
 
     def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
@@ -94,14 +98,17 @@ class GLM5ModelAdapter(TransformersModel,
 
         def break_hook(module: nn.Module, hook_args: Tuple[Any, ...], hook_kwargs: Dict[str, Any]):
             nonlocal first_block_input
-            first_block_input = (hook_args, hook_kwargs,)
+            first_block_input = (
+                hook_args,
+                hook_kwargs,
+            )
             raise TransformersForwardBreak()
 
         remove_handler = model.model.layers[0].register_forward_pre_hook(break_hook, with_kwargs=True, prepend=True)
 
         # 执行一次前向传播以获取输入
         try:
-            if isinstance(inputs, list) or isinstance(inputs, tuple):
+            if isinstance(inputs, (list, tuple)):
                 model(inputs[0])
             elif isinstance(inputs, dict):
                 model(**inputs)
@@ -130,12 +137,14 @@ class GLM5ModelAdapter(TransformersModel,
             h, residual = yield ProcessRequest(name, block, args, kwargs)
             args = (h, residual)
 
-    def mtp_preprocess(self,
-                       model: nn.Module,
-                       mtp_decoder: nn.Module,
-                       inputs: Union[List[Any], Dict[str, Any]],
-                       args: Tuple[Any, Any],
-                       kwargs: Dict[str, Any]) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
+    def mtp_preprocess(
+        self,
+        model: nn.Module,
+        mtp_decoder: nn.Module,
+        inputs: Union[List[Any], Dict[str, Any]],
+        args: Tuple[Any, Any],
+        kwargs: Dict[str, Any],
+    ) -> Tuple[Tuple[Any, Any], Dict[str, Any]]:
         def wrap_device(module: nn.Module):
             def auto_module(arg):
                 module.to('npu')
@@ -153,12 +162,15 @@ class GLM5ModelAdapter(TransformersModel,
         ####################### MTP LAYER ######################
         input_ids = inputs['input_ids'] if isinstance(inputs, dict) else inputs[0]
         input_ids_mtp = remove_zero_and_shift(input_ids)
-        position_ids = torch.arange(
-            0,
-            input_ids_mtp.shape[-1],
-            dtype=torch.long,
-            device=input_ids.device,
-        ) + 1
+        position_ids = (
+            torch.arange(
+                0,
+                input_ids_mtp.shape[-1],
+                dtype=torch.long,
+                device=input_ids.device,
+            )
+            + 1
+        )
         position_ids = position_ids.unsqueeze(0)
         logits[:, -1, :].argmax(dim=1)
         input_ids_mtp[:, -1] = logits[:, -1, :].argmax(dim=1)
@@ -183,7 +195,7 @@ class GLM5ModelAdapter(TransformersModel,
         start_pos = kwargs['start_pos'] + 1
         seq_len = len(kwargs['freqs_cis'])
         kwargs['mask'] = attention_mask_mtp.squeeze(1)
-        kwargs['freqs_cis'] = model.model.freqs_cis[start_pos: start_pos + seq_len]
+        kwargs['freqs_cis'] = model.model.freqs_cis[start_pos : start_pos + seq_len]
         return (hidden_states_mtp, residual), kwargs
 
     def enable_kv_cache(self, model: nn.Module, need_kv_cache: bool) -> None:
@@ -191,61 +203,56 @@ class GLM5ModelAdapter(TransformersModel,
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
-        if hasattr(self.config, 'num_experts'):
-            expert_num = self.config.num_experts
-        elif hasattr(self.config, 'n_routed_experts') and hasattr(self.config, 'n_shared_experts'):
-            expert_num = self.config.n_routed_experts
+        expert_start, expert_end = _get_expert_range(self.config)
 
         for layer_idx in range(self.config.num_hidden_layers):
             # OKV_b融合的映射配置：o_proj -> kv_b_proj
             okv_b_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.kv_b_proj",  # KV_b投影层
-                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"]  # 输出投影层
+                targets=[f"model.layers.{layer_idx}.self_attn.o_proj"],  # 输出投影层
             )
 
             # Norm-Linear融合的映射配置1：q_a_proj, kv_a_proj_with_mqa -> input_layernorm
             input_norm_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.input_layernorm",  # 第一个LayerNorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_a_proj",
-                         f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa",
-                         f"model.layers.{layer_idx}.self_attn.indexer.wk",
-                         f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"]  # 注意力层的Q_a,KV_a投影
+                targets=[
+                    f"model.layers.{layer_idx}.self_attn.q_a_proj",
+                    f"model.layers.{layer_idx}.self_attn.kv_a_proj_with_mqa",
+                    f"model.layers.{layer_idx}.self_attn.indexer.wk",
+                    f"model.layers.{layer_idx}.self_attn.indexer.weights_proj",
+                ],  # 注意力层的Q_a,KV_a投影
             )
 
             # Norm-Linear融合的映射配置2：q_b_proj -> q_a_layernorm
             qa_norm_mapping_config = MappingConfig(
                 source=f"model.layers.{layer_idx}.self_attn.q_a_layernorm",  # q_a_layernorm
-                targets=[f"model.layers.{layer_idx}.self_attn.q_b_proj",
-                         f"model.layers.{layer_idx}.self_attn.indexer.wq_b"]  # q_b投影
+                targets=[
+                    f"model.layers.{layer_idx}.self_attn.q_b_proj",
+                    f"model.layers.{layer_idx}.self_attn.indexer.wq_b",
+                ],  # q_b投影
             )
 
             # 为当前layer添加4个配置
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="ov",
-                    mapping=okv_b_mapping_config,
-                    extra_config={
-                        'group_method': 'max'
-                    },
-                    fusion=FusionConfig(
-                        fusion_type="kv",
-                        num_attention_heads=self.config.num_attention_heads,
-                        num_key_value_heads=self.config.num_key_value_heads,
-                        custom_config={
-                            'qk_nope_head_dim': self.config.qk_nope_head_dim,
-                            'v_head_dim': self.config.v_head_dim,
-                        }
+            adapter_config.extend(
+                [
+                    AdapterConfig(
+                        subgraph_type="ov",
+                        mapping=okv_b_mapping_config,
+                        extra_config={'group_method': 'max'},
+                        fusion=FusionConfig(
+                            fusion_type="kv",
+                            num_attention_heads=self.config.num_attention_heads,
+                            num_key_value_heads=self.config.num_key_value_heads,
+                            custom_config={
+                                'qk_nope_head_dim': self.config.qk_nope_head_dim,
+                                'v_head_dim': self.config.v_head_dim,
+                            },
+                        ),
                     ),
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=input_norm_mapping_config
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=qa_norm_mapping_config
-                ),
-            ])
+                    AdapterConfig(subgraph_type="norm-linear", mapping=input_norm_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=qa_norm_mapping_config),
+                ]
+            )
 
             # 根据层类型添加不同的FFN配置
             if layer_idx < self.config.first_k_dense_replace:
@@ -254,43 +261,28 @@ class GLM5ModelAdapter(TransformersModel,
                 down_proj = 'model.layers.' + str(layer_idx) + '.mlp.down_proj'
                 up_down_mapping_config = MappingConfig(
                     source=up_proj,  # 上投影层
-                    targets=[down_proj]  # 下投影层
+                    targets=[down_proj],  # 下投影层
                 )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config
-                    ),
-                ])
+                adapter_config.extend(
+                    [
+                        AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config),
+                    ]
+                )
             else:
                 # MOE FFN 层：Shared Experts
                 expert_up_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.up_proj'
                 expert_down_proj = 'model.layers.' + str(layer_idx) + '.mlp.shared_experts.down_proj'
-                up_down_mapping_config_shared = MappingConfig(
-                    source=expert_up_proj,
-                    targets=[expert_down_proj]
-                )
-                adapter_config.extend([
-                    AdapterConfig(
-                        subgraph_type="up-down",
-                        mapping=up_down_mapping_config_shared
-                    )
-                ])
+                up_down_mapping_config_shared = MappingConfig(source=expert_up_proj, targets=[expert_down_proj])
+                adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_shared)])
 
                 # MOE FFN 层：Routed Experts
-                for expert in range(expert_num):
+                for expert in range(expert_start, expert_end):
                     up_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.up_proj'
                     down_proj = 'model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.down_proj'
-                    up_down_mapping_config_expert = MappingConfig(
-                        source=up_proj,
-                        targets=[down_proj]
+                    up_down_mapping_config_expert = MappingConfig(source=up_proj, targets=[down_proj])
+                    adapter_config.extend(
+                        [AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_expert)]
                     )
-                    adapter_config.extend([
-                        AdapterConfig(
-                            subgraph_type="up-down",
-                            mapping=up_down_mapping_config_expert
-                        )
-                    ])
 
         return adapter_config
 
@@ -322,7 +314,9 @@ class GLM5ModelAdapter(TransformersModel,
                     state_dict[name] = f.get_tensor(f'{prefix}.{name}' if prefix else name)
         return state_dict
 
-    def get_mtp_layer(self, ):
+    def get_mtp_layer(
+        self,
+    ):
         get_logger().debug('Start to load mtp')
         mtp_layer = MTPLayer(self.config)
 
@@ -338,7 +332,9 @@ class GLM5ModelAdapter(TransformersModel,
         state_dict['embed_tokens.weight'] = embed_state_dict['weight']
 
         mtp_layer.load_state_dict(state_dict)
-        auto_convert_module_fp8_to_bf16(f'model.layers.{self.config.num_hidden_layers - 1}', mtp_layer, str(self.model_path))
+        auto_convert_module_fp8_to_bf16(
+            f'model.layers.{self.config.num_hidden_layers - 1}', mtp_layer, str(self.model_path)
+        )
 
         get_logger().debug('Success to load mtp')
         return mtp_layer
@@ -360,7 +356,7 @@ class GLM5ModelAdapter(TransformersModel,
             # these initializations is not necessary because we will load it from the state_dict
             # and these initializations will cost too much time because the GLM-5's decoder layer is too large
             with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
-                get_logger().info(f'Creating decoder layer {idx}')
+                get_logger().info("Creating decoder layer %s", idx)
                 module_list: nn.ModuleList = model.model.layers
                 template_module = module_list[0]
                 decoder = template_module.__class__(layer_id=idx, args=self.config)
@@ -370,7 +366,7 @@ class GLM5ModelAdapter(TransformersModel,
                 auto_convert_module_fp8_to_bf16(name, decoder, str(self.model_path))
                 decoder.eval()
                 module_list.append(decoder)
-                get_logger().info(f'Create decoder layer {idx} successfully')
+                get_logger().info("Create decoder layer %s successfully", idx)
         return decoder
 
     def generate_decoder_layer(self, model: nn.Module):
@@ -399,22 +395,24 @@ class GLM5ModelAdapter(TransformersModel,
         return [], []
 
     def get_rotate_map(self, block_size):
-        pre_run, rot_pairs, rotate_matrix = get_rotate_map(self.config,
-                                                           block_size,
-                                                           num_hidden_layers=self.config.num_hidden_layers)
+        pre_run, rot_pairs, rotate_matrix = get_rotate_map(
+            self.config, block_size, num_hidden_layers=self.config.num_hidden_layers
+        )
         for layer_idx in range(self.config.num_hidden_layers):
             rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wk"] = rotate_matrix['rot']
-            rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"] = \
-                rotate_matrix['rot']
-            rot_pairs['rot_b_proj'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wq_b"] = \
-                rotate_matrix['rot_b_proj']
-        return [pre_run], [pair for pair in rot_pairs.values()]
+            rot_pairs['rot'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.weights_proj"] = rotate_matrix[
+                'rot'
+            ]
+            rot_pairs['rot_b_proj'].right_rot[f"model.layers.{layer_idx}.self_attn.indexer.wq_b"] = rotate_matrix[
+                'rot_b_proj'
+            ]
+        return [pre_run], list(rot_pairs.values())
 
     def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
         from msmodelslim.utils.security import json_safe_dump
 
         global_rotation, norm_weight = None, None
-        
+
         # catch the global rotation
         for _, module in model.named_modules():
             if isinstance(module, QuaRotExtraInfoWrapperIR):
@@ -422,7 +420,7 @@ class GLM5ModelAdapter(TransformersModel,
                 global_rotation = offline_info.global_rotation
         if global_rotation is None:
             return
-        
+
         # catch the original model.norm.weight
         origin_index_path = os.path.join(self.model_path, "model.safetensors.index.json")
         origin_index_data = json_safe_load(origin_index_path)
@@ -456,6 +454,7 @@ class GLM5ModelAdapter(TransformersModel,
         rot_weight = _apply_rot_transform(norm_weight, global_rotation).to(original_dtype)
 
         from safetensors.torch import save_file
+
         save_file({"rot.weight": rot_weight}, os.path.join(save_directory, "rot.safetensors"))
 
         # update quant_model_description.json
