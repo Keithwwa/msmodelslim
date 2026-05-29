@@ -19,22 +19,32 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from pydantic import Field, field_validator
+# pylint: disable=duplicate-code
+
+from typing import List
+
+from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Self
 
 from msmodelslim.core.const import RunnerType
-from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig, ModelslimV1ServiceConfig
+from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig, PriorStageConfig
+from msmodelslim.core.quant_service.modelslim_v1.save.saver import AutoSaverConfigList
+from msmodelslim.processor.base import AutoProcessorConfigList
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.exception_decorator import exception_handler
 from msmodelslim.utils.validation.value import non_empty_string
 from ..interface import BaseQuantConfig
 
 
-class MultimodalVLMServiceConfig(ModelslimV1ServiceConfig):
+class MultimodalVLMServiceConfig(BaseModel):
     runner: RunnerType = RunnerType.LAYER_WISE
+    prior: List[PriorStageConfig] = Field(default_factory=list, description="前置阶段列表，每阶段含 process 与 dataset")
+    process: AutoProcessorConfigList = Field(default_factory=list)
+    save: AutoSaverConfigList = Field(default_factory=list)
+    dataset: str = Field(default='mix_calib.jsonl')
     default_text: str = Field(
         default="Describe this image in detail.",
-        description="Default prompt used for image-only calibration data when text is not provided."
+        description="Default prompt used for image-only calibration data when text is not provided.",
     )
 
     @field_validator("default_text")
@@ -46,9 +56,10 @@ class MultimodalVLMServiceConfig(ModelslimV1ServiceConfig):
 class MultimodalVLMModelslimV1QuantConfig(ModelslimV1QuantConfig):
     """
     Quantization configuration for Multimodal VLM V1 service.
-    
+
     Compatible with NaiveQuantizationApplication and best practice system.
     """
+
     spec: MultimodalVLMServiceConfig
 
     @classmethod
@@ -60,9 +71,12 @@ class MultimodalVLMModelslimV1QuantConfig(ModelslimV1QuantConfig):
         )
 
 
-@exception_handler(err_cls=Exception, ms_err_cls=SchemaValidateError,
-                   keyword="validation error",
-                   action="Please check the spec parameters of the YAML file.")
+@exception_handler(
+    err_cls=Exception,
+    ms_err_cls=SchemaValidateError,
+    keyword="validation error",
+    action="Please check the spec parameters of the YAML file.",
+)
 def load_specific_config(yaml_spec: object) -> MultimodalVLMServiceConfig:
     """Load specific configuration from YAML spec"""
     if not isinstance(yaml_spec, dict):

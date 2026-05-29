@@ -19,20 +19,25 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+# pylint: disable=duplicate-code
+
 from dataclasses import dataclass
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self, Literal
-import torch.nn as nn
+from torch import nn
 
 from msmodelslim.core.const import RunnerType
 from msmodelslim.core.quant_service.interface import BaseQuantConfig
-from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig, ModelslimV1ServiceConfig
+from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1QuantConfig
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.exception_decorator import exception_handler
 from .pipeline_interface import MultimodalPipelineInterface
+from msmodelslim.processor.base import AutoProcessorConfigList
+from msmodelslim.core.quant_service.modelslim_v1.quant_config import PriorStageConfig
+from msmodelslim.core.quant_service.modelslim_v1.save.saver import AutoSaverConfigList
 
 
 class DumpConfig(BaseModel):
@@ -45,9 +50,7 @@ class DumpConfig(BaseModel):
 class MultimodalSDConfig(BaseModel):
     dump_config: DumpConfig
     # 允许接收未定义的额外参数
-    model_config = {
-        "extra": "allow"
-    }
+    model_config = {"extra": "allow"}
 
     # 可选：将额外参数转换为字典属性，方便访问
     @property
@@ -55,8 +58,12 @@ class MultimodalSDConfig(BaseModel):
         return self.model_extra or {}
 
 
-class MultimodalSDServiceConfig(ModelslimV1ServiceConfig):
+class MultimodalSDServiceConfig(BaseModel):
     runner: RunnerType = RunnerType.LAYER_WISE
+    prior: List[PriorStageConfig] = Field(default_factory=list, description="前置阶段列表，每阶段含 process 与 dataset")
+    process: AutoProcessorConfigList = Field(default_factory=list)
+    save: AutoSaverConfigList = Field(default_factory=list)
+    dataset: str = Field(default='mix_calib.jsonl')
     # 支持直接传入字典作为配置，或使用 MultimodalSDConfig 实例
     multimodal_sd_config: Union[Dict[str, Any], MultimodalSDConfig] = Field(
         default_factory=lambda: MultimodalSDConfig().model_dump()
@@ -73,6 +80,7 @@ class MultimodalSDServiceConfig(ModelslimV1ServiceConfig):
 
 class MultimodalSDModelslimV1QuantConfig(ModelslimV1QuantConfig):
     """支持多模态的量化配置类"""
+
     spec: MultimodalSDServiceConfig  # 使用新的多模态配置
 
     @classmethod
@@ -83,9 +91,12 @@ class MultimodalSDModelslimV1QuantConfig(ModelslimV1QuantConfig):
         )
 
 
-@exception_handler(err_cls=Exception, ms_err_cls=SchemaValidateError,
-                   keyword="validation error",
-                   action="Please check the multimodal_sd_config parameter of the YAML file.")
+@exception_handler(
+    err_cls=Exception,
+    ms_err_cls=SchemaValidateError,
+    keyword="validation error",
+    action="Please check the multimodal_sd_config parameter of the YAML file.",
+)
 def load_specific_config(yaml_spec: object) -> MultimodalSDServiceConfig:
     """Load specific configuration from YAML spec"""
     if isinstance(yaml_spec, MultimodalSDServiceConfig):
@@ -98,6 +109,7 @@ def load_specific_config(yaml_spec: object) -> MultimodalSDServiceConfig:
 @dataclass
 class MultiExpertQuantConfig:
     """多专家模型量化配置"""
+
     model_adapter: MultimodalPipelineInterface
     models: dict[str, nn.Module]
     calib_data: dict[str, Any]
