@@ -6,6 +6,8 @@ Unit tests for standing_high_with_experience: interface and strategy.
 
 命名约定：test_对象_断言_when_条件。注释中需写清场景、预期。
 """
+# pylint: disable=duplicate-code
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,8 +15,10 @@ import pytest
 
 from msmodelslim.core.const import DeviceType, QuantType
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
+from msmodelslim.core.tune_strategy.common.config_builder.expert_experience.expert_experience import (
+    ExpertExperienceConfigBuilder,
+)
 from msmodelslim.core.tune_strategy.common.config_builder.expert_experience import StructureConfig
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.core.tune_strategy.standing_high_with_experience.strategy import (
     StandingHighWithExperienceStrategy,
     StandingHighWithExperienceStrategyConfig,
@@ -23,7 +27,23 @@ from msmodelslim.core.tune_strategy.standing_high_with_experience.strategy impor
 from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_with_experience_interface import (
     StandingHighWithExperienceInterface,
 )
+from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
+from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
+
+
+def _default_quant_save_list():
+    return [AscendV1QuantFormatConfig(part_file_size=4)]
+
+
+@pytest.fixture(autouse=True)
+def _patch_expert_builder_spec_save(monkeypatch):
+    """ExpertExperienceConfigBuilder.build_spec_save 使用 QuantFormatConfig。"""
+    monkeypatch.setattr(
+        ExpertExperienceConfigBuilder,
+        "build_spec_save",
+        lambda self, **kwargs: _default_quant_save_list(),
+    )
 
 
 class _MockModel(StandingHighWithExperienceInterface, StandingHighInterface, PipelineInterface):
@@ -49,22 +69,17 @@ class _MockModel(StandingHighWithExperienceInterface, StandingHighInterface, Pip
         m.to = MagicMock(return_value=None)
         return m
 
-    # PipelineInterface minimal implementations (not used in these unit tests).
     def init_model(self, device: DeviceType = DeviceType.NPU):
         return MagicMock()
 
     def generate_model_visit(self, model):
-        if False:  # pragma: no cover
-            yield None
-        return
+        yield from ()
 
     def generate_model_forward(self, model, inputs):
-        if False:  # pragma: no cover
-            yield None
-        return
+        yield from ()
 
     def enable_kv_cache(self, model, need_kv_cache: bool) -> None:
-        return None
+        pass
 
 
 class TestStandingHighWithExperienceStrategyConfig:
@@ -119,6 +134,7 @@ class TestStandingHighWithExperienceStrategy:
         预期：抛出 SchemaValidateError 且消息含 StandingHighWithExperienceStrategyConfig。
         """
         from msmodelslim.core.tune_strategy.interface import StrategyConfig
+
         wrong_cfg = MagicMock(spec=StrategyConfig)
         wrong_cfg.type = "other"
         loader = self._make_dataset_loader()
@@ -140,9 +156,7 @@ class TestStandingHighWithExperienceStrategy:
             next(gen)
         assert "StandingHighWithExperienceInterface" in str(exc_info.value)
 
-    @patch(
-        "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy"
-    )
+    @patch("msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy")
     @patch(
         "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighWithExperienceStrategy._filter_supported_anti_outlier_strategies"
     )
@@ -158,6 +172,7 @@ class TestStandingHighWithExperienceStrategy:
         strategy = StandingHighWithExperienceStrategy(config=config, dataset_loader=loader)
         mock_sh = MagicMock()
         from msmodelslim.core.practice import PracticeConfig
+
         mock_practice = MagicMock(spec=PracticeConfig)
         mock_sh.generate_practice.return_value = iter([mock_practice])
         mock_standing_high_cls.return_value = mock_sh
@@ -171,9 +186,7 @@ class TestStandingHighWithExperienceStrategy:
         mock_standing_high_cls.assert_called_once()
         mock_sh.generate_practice.assert_called_once_with(model, DeviceType.NPU)
 
-    @patch(
-        "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy"
-    )
+    @patch("msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy")
     @patch(
         "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighWithExperienceStrategy._filter_supported_anti_outlier_strategies"
     )
@@ -202,9 +215,7 @@ class TestStandingHighWithExperienceStrategy:
         assert base_config.template is not None
         assert base_config.anti_outlier_strategies is not None
 
-    @patch(
-        "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy"
-    )
+    @patch("msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighStrategy")
     @patch(
         "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.StandingHighWithExperienceStrategy._auto_detect_structure_configs"
     )
@@ -265,9 +276,7 @@ class TestStandingHighWithExperienceStrategy:
         ) as mock_builder_cls:
             mock_builder = MagicMock()
             mock_builder.build.return_value = MagicMock(spec=MagicMock, metadata=MagicMock())
-            mock_builder.get_tuning_search_space.return_value = MagicMock(
-                anti_outlier_strategies=None
-            )
+            mock_builder.get_tuning_search_space.return_value = MagicMock(anti_outlier_strategies=None)
             mock_builder_cls.return_value = mock_builder
             with pytest.raises(SchemaValidateError) as exc_info:
                 strategy._generate_base_config(config, structure_configs, model=None)
@@ -287,9 +296,7 @@ class TestStandingHighWithExperienceStrategy:
         structure_configs = [StructureConfig(type="MHA", include=["*"], exclude=[])]
         mock_filter.return_value = []  # 全部被过滤掉
         with pytest.raises(SchemaValidateError) as exc_info:
-            strategy._generate_base_config(
-                config, structure_configs, model=_MockModel()
-            )
+            strategy._generate_base_config(config, structure_configs, model=_MockModel())
         assert "No supported" in str(exc_info.value) or "filtering" in str(exc_info.value).lower()
 
     def test_filter_supported_anti_outlier_strategies_returns_all_unchanged_when_load_model_fails(self):
@@ -306,9 +313,7 @@ class TestStandingHighWithExperienceStrategy:
         filtered = strategy._filter_supported_anti_outlier_strategies(strategies, model)
         assert filtered == strategies
 
-    @patch(
-        "msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.AutoSessionProcessor.from_config"
-    )
+    @patch("msmodelslim.core.tune_strategy.standing_high_with_experience.strategy.AutoSessionProcessor.from_config")
     def test_filter_supported_anti_outlier_strategies_skips_group_when_from_config_raises_UnsupportedError(
         self, mock_from_config
     ):
@@ -316,13 +321,12 @@ class TestStandingHighWithExperienceStrategy:
         场景：某组策略的 AutoSessionProcessor.from_config 抛出 UnsupportedError。
         预期：该组被过滤掉，其余组保留。
         """
-        from msmodelslim.utils.exception import UnsupportedError as UE
         config = self._make_config()
         loader = self._make_dataset_loader()
         strategy = StandingHighWithExperienceStrategy(config=config, dataset_loader=loader)
         model = _MockModel()
         # 第一组第一个 processor 不支持，第二组支持
-        mock_from_config.side_effect = [UE("not supported"), None]
+        mock_from_config.side_effect = [UnsupportedError("not supported"), None]
         strategies = [
             [{"type": "flex_smooth_quant"}],
             [{"type": "iter_smooth"}],

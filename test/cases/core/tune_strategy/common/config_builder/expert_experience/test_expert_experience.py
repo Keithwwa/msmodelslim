@@ -7,14 +7,15 @@ Unit tests for msmodelslim.core.tune_strategy.common.config_builder.expert_exper
 命名约定：test_对象_断言_when_条件（或：被测方法/场景 + 前置条件/状态 + 预期行为）。
 注释中需写清：场景、预期，必要时说明前置条件，便于看护默认值与行为。
 """
+
 import pytest
 
-from msmodelslim.core.practice import Metadata
 from msmodelslim.core.tune_strategy.common.config_builder.expert_experience.expert_experience import (
     StructureConfig,
     ExpertExperienceLoader,
     ExpertExperienceConfigBuilder,
 )
+from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
 from msmodelslim.utils.exception import UnsupportedError, SchemaValidateError
 
 
@@ -35,11 +36,15 @@ class TestStructureConfig:
         assert cfg.include == ["*self_attn*"]
         assert cfg.exclude == ["*kv_b_proj"]
 
-    @pytest.mark.parametrize("kwargs", [
-        {"type": "MHA"},
-        {"type": "MHA", "include": []},
-        {"type": "MHA", "include": ["*self_attn*", "", "*mlp*"]},
-    ], ids=["include_omitted", "include_empty_list", "include_contains_empty_string"])
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"type": "MHA"},
+            {"type": "MHA", "include": []},
+            {"type": "MHA", "include": ["*self_attn*", "", "*mlp*"]},
+        ],
+        ids=["include_omitted", "include_empty_list", "include_contains_empty_string"],
+    )
     def test_StructureConfig_raises_SchemaValidateError_when_include_invalid(self, kwargs):
         """
         场景：include 未传、为空列表或含空字符串时构造 StructureConfig。
@@ -130,6 +135,7 @@ class TestExpertExperienceLoader:
         loader = ExpertExperienceLoader()
         with pytest.raises(UnsupportedError):
             loader.get_anti_outlier_strategy_templates("w4a4")
+
 
 class TestExpertExperienceConfigBuilder:
     """ExpertExperienceConfigBuilder 单元测试"""
@@ -240,6 +246,7 @@ class TestExpertExperienceConfigBuilder:
         config = builder.build(
             quant_type="w8a8",
             structure_configs=structure_configs,
+            spec_save=[AscendV1QuantFormatConfig(part_file_size=4)],
         )
         assert config.apiversion == "modelslim_v1"
         assert config.metadata.config_id == "standing_high_with_experience"

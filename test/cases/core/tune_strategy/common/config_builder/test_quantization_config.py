@@ -4,21 +4,20 @@
 """
 Unit tests for msmodelslim.core.tune_strategy.common.config_builder.quantization_config
 """
-import pytest
 
 from msmodelslim.core.practice import Metadata
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1ServiceConfig
-from msmodelslim.core.quant_service.modelslim_v1.save import AscendV1Config
 from msmodelslim.core.tune_strategy.common.config_builder.quantization_config import (
     QuantizationConfig,
     TuningSearchSpace,
 )
+from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
 from msmodelslim.processor.base import AutoProcessorConfigList
 
 
 def _default_save():
-    """ModelslimV1ServiceConfig.save 至少需要一项"""
-    return [AscendV1Config(type="ascendv1_saver", part_file_size=4)]
+    """ModelslimV1ServiceConfig.save 为 QuantFormatConfig 列表（discriminator 为 format type）。"""
+    return [AscendV1QuantFormatConfig(part_file_size=4)]
 
 
 class TestQuantizationConfig:
@@ -47,9 +46,7 @@ class TestQuantizationConfig:
         场景：构造时未传 metadata，仅传 apiversion 与 spec。
         预期：metadata 为非 None 的 Metadata 实例。
         """
-        spec = ModelslimV1ServiceConfig(
-            runner="auto", process=[], dataset="d", save=_default_save()
-        )
+        spec = ModelslimV1ServiceConfig(runner="auto", process=[], dataset="d", save=_default_save())
         config = QuantizationConfig(apiversion="v1", spec=spec)
         assert config.metadata is not None
         assert isinstance(config.metadata, Metadata)

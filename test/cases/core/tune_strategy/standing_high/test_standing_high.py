@@ -6,6 +6,7 @@ Unit tests for standing_high: interface and strategy.
 
 命名约定：test_对象_断言_when_条件。注释中需写清场景、预期。
 """
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,7 +14,6 @@ import pytest
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.quant_service.modelslim_v1.quant_config import ModelslimV1ServiceConfig
-from msmodelslim.core.quant_service.modelslim_v1.save import AscendV1Config
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy.interface import EvaluateResult
 from msmodelslim.core.tune_strategy.standing_high.strategy import (
@@ -24,7 +24,44 @@ from msmodelslim.core.tune_strategy.standing_high.strategy import (
 from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import (
     StandingHighInterface,
 )
+from msmodelslim.core.quantizer.base import QConfig
+from msmodelslim.core.quantizer.linear import LinearQConfig
+from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
+from msmodelslim.ir.qal import QDType, QScope
+from msmodelslim.processor.quant.linear import LinearProcessorConfig
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
+
+
+def _default_quant_save_list():
+    return [AscendV1QuantFormatConfig(part_file_size=4)]
+
+
+def _standing_high_default_template() -> ModelslimV1ServiceConfig:
+    return ModelslimV1ServiceConfig(
+        process=[
+            LinearProcessorConfig(
+                type="linear_quant",
+                qconfig=LinearQConfig(
+                    act=QConfig(
+                        scope=QScope.PER_TENSOR,
+                        dtype=QDType.INT8,
+                        symmetric=False,
+                        method="minmax",
+                    ),
+                    weight=QConfig(
+                        scope=QScope.PER_CHANNEL,
+                        dtype=QDType.INT8,
+                        symmetric=True,
+                        method="minmax",
+                    ),
+                ),
+                include=["*"],
+                exclude=[],
+            ),
+        ],
+        save=_default_quant_save_list(),
+        dataset="mix_calib.jsonl",
+    )
 
 
 class _MockModel(StandingHighInterface, PipelineInterface):
@@ -55,17 +92,13 @@ class _MockModel(StandingHighInterface, PipelineInterface):
         return MagicMock()
 
     def generate_model_visit(self, model):
-        if False:  # pragma: no cover
-            yield None
-        return
+        yield from ()
 
     def generate_model_forward(self, model, inputs):
-        if False:  # pragma: no cover
-            yield None
-        return
+        yield from ()
 
     def enable_kv_cache(self, model, need_kv_cache: bool) -> None:
-        return None
+        pass
 
 
 def _make_anti_outlier_strategies():
@@ -78,10 +111,15 @@ class TestStandingHighStrategyConfig:
 
     def test_StandingHighStrategyConfig_field_match_when_valid_anti_outlier_strategies_and_default_template(self):
         """
-        场景：构造配置时仅传入合法 anti_outlier_strategies，使用默认 template。
+        场景：构造配置时传入合法 anti_outlier_strategies 与结构等同默认 template 的配置
+        （须显式传入 template：Pydantic default_factory 在类定义时已绑定，monkeypatch 无效；
+        生产 _create_default_template 仍含 AscendV1Config，与 ModelslimV1ServiceConfig.save 新 schema 不兼容）。
         预期：type=standing_high，anti_outlier_strategies、template.process、metadata.config_id 符合预期。
         """
-        cfg = StandingHighStrategyConfig(anti_outlier_strategies=_make_anti_outlier_strategies())
+        cfg = StandingHighStrategyConfig(
+            anti_outlier_strategies=_make_anti_outlier_strategies(),
+            template=_standing_high_default_template(),
+        )
         assert cfg.type == "standing_high"
         assert len(cfg.anti_outlier_strategies) >= 1
         assert len(cfg.template.process) >= 1
@@ -103,7 +141,7 @@ class TestStandingHighStrategyConfig:
         """
         template = ModelslimV1ServiceConfig(
             process=[{"type": "flex_smooth_quant"}],
-            save=[AscendV1Config(type="ascendv1_saver", part_file_size=4)],
+            save=_default_quant_save_list(),
             dataset="mix_calib.jsonl",
         )
         with pytest.raises(SchemaValidateError) as exc_info:
@@ -118,7 +156,10 @@ class TestStandingHighStrategy:
     """StandingHighStrategy 单元测试。命名：test_对象_断言_when_条件。"""
 
     def _make_config(self):
-        return StandingHighStrategyConfig(anti_outlier_strategies=_make_anti_outlier_strategies())
+        return StandingHighStrategyConfig(
+            anti_outlier_strategies=_make_anti_outlier_strategies(),
+            template=_standing_high_default_template(),
+        )
 
     def _make_dataset_loader(self):
         loader = MagicMock()
@@ -212,6 +253,7 @@ class TestStandingHighStrategy:
             patch.object(strategy, "_find_satisfied_disable_level") as mock_find_level,
             patch.object(strategy, "_stand_high") as mock_stand_high,
         ):
+
             def _fake_find_level():
                 _ = yield strategy._build_practice_config(
                     config.anti_outlier_strategies[0],
@@ -228,7 +270,6 @@ class TestStandingHighStrategy:
                     config.anti_outlier_strategies[0],
                     linear_quant_exclude=[],
                 )
-                return
 
             mock_find_level.side_effect = _fake_find_level
             mock_stand_high.side_effect = _fake_stand_high
