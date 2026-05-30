@@ -31,13 +31,21 @@ __all__ = [
     "WeightPerChannelGPTQ",
     "ActPerTensorNone",
     "MXWeightDualScaleMinmax",
-    "MXActDualScaleMinmax"
+    "MXActDualScaleMinmax",
+    "MXWeightPerBlockMseRound",
 ]
 
 from .impl.histogram import ActPerTensorHistogram
-from .impl.minmax import ActPerTokenMinmax, ActPerTensorMinmax, WeightPerChannelMinmax, ActPDMixMinmax, \
-    MXActPerBlockMinmax, MXWeightPerBlockMinmax
+from .impl.minmax import (
+    ActPerTokenMinmax,
+    ActPerTensorMinmax,
+    WeightPerChannelMinmax,
+    ActPDMixMinmax,
+    MXActPerBlockMinmax,
+    MXWeightPerBlockMinmax,
+)
 from .impl.ssz import WeightPerChannelSsz
 from .impl.gptq import WeightPerChannelGPTQ
 from .impl.none import ActPerTensorNone
 from .impl.dualscale import MXWeightDualScaleMinmax, MXActDualScaleMinmax
+from .impl.mse_round import MXWeightPerBlockMseRound

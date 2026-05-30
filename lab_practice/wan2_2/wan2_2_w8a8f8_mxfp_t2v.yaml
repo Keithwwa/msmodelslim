@@ -25,7 +25,7 @@ spec:
           scope: "per_block"
           dtype: "mxfp8"
           symmetric: True
-          method: "minmax"
+          method: "mse_round"
       include:
         - "*"
     - type: "online_quarot"
