@@ -18,11 +18,12 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import torch.nn as nn
+from torch import nn
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.graph import AdapterConfig
@@ -35,6 +36,7 @@ class DummyConfig:
     def __init__(self):
         self.num_hidden_layers = 3
         self.hidden_size = 4096
+        self.num_experts = 4
 
 
 class TestQwen3MoeModelAdapter(unittest.TestCase):
@@ -50,9 +52,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
         """测试get_model_type方法：初始化后应返回正确的模型类型"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
             adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path,
-                trust_remote_code=self.trust_remote_code
+                model_type=self.model_type, model_path=self.model_path, trust_remote_code=self.trust_remote_code
             )
             adapter.model_type = self.model_type
 
@@ -63,10 +63,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_get_model_pedigree_when_called_then_return_qwen3_moe(self):
         """测试get_model_pedigree方法：应返回'qwen3_moe'"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             result = adapter.get_model_pedigree()
 
@@ -75,10 +72,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_get_hidden_dim_when_called_then_return_hidden_size(self):
         """测试get_hidden_dim方法：应返回config.hidden_size"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
             adapter.config = DummyConfig()
 
             self.assertEqual(adapter.get_hidden_dim(), adapter.config.hidden_size)
@@ -86,10 +80,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_load_model_when_called_then_delegate_to_load_model(self):
         """测试load_model方法：应委托给_load_model方法"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_model = nn.Linear(10, 10)
             adapter._load_model = MagicMock(return_value=mock_model)
@@ -102,10 +93,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_handle_dataset_when_called_then_return_tokenized_data(self):
         """测试handle_dataset方法：应返回tokenized数据"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_dataset = ['data1', 'data2']
             adapter._get_tokenized_data = MagicMock(return_value=mock_dataset)
@@ -118,34 +106,22 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_handle_dataset_by_batch_when_called_then_return_batch_tokenized_data(self):
         """测试handle_dataset_by_batch方法：应返回批量tokenized数据"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_batch_dataset = [['batch1'], ['batch2']]
             adapter._get_batch_tokenized_data = MagicMock(return_value=mock_batch_dataset)
 
-            result = adapter.handle_dataset_by_batch(
-                dataset='test_data',
-                batch_size=2,
-                device=DeviceType.CPU
-            )
+            result = adapter.handle_dataset_by_batch(dataset='test_data', batch_size=2, device=DeviceType.CPU)
 
             self.assertEqual(result, mock_batch_dataset)
             adapter._get_batch_tokenized_data.assert_called_once_with(
-                calib_list='test_data',
-                batch_size=2,
-                device=DeviceType.CPU
+                calib_list='test_data', batch_size=2, device=DeviceType.CPU
             )
 
     def test_init_model_when_called_then_delegate_to_load_model(self):
         """测试init_model方法：应委托给_load_model方法"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_model = nn.Linear(10, 10)
             adapter._load_model = MagicMock(return_value=mock_model)
@@ -158,15 +134,12 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_enable_kv_cache_when_called_then_delegate_to_enable_kv_cache(self):
         """测试enable_kv_cache方法：应委托给_enable_kv_cache方法"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_model = nn.Linear(10, 10)
             adapter._enable_kv_cache = MagicMock(return_value=None)
 
-            result = adapter.enable_kv_cache(model=mock_model, need_kv_cache=True)
+            adapter.enable_kv_cache(model=mock_model, need_kv_cache=True)
 
             # 验证_enable_kv_cache被调用
             adapter._enable_kv_cache.assert_called_once_with(mock_model, True)
@@ -174,10 +147,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_enable_kv_cache_with_false_then_disable_cache(self):
         """测试enable_kv_cache方法：传入False时应禁用缓存"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
 
             mock_model = nn.Linear(10, 10)
             adapter._enable_kv_cache = MagicMock(return_value=None)
@@ -190,10 +160,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_get_adapter_config_for_subgraph_when_called_then_return_adapter_configs(self):
         """测试get_adapter_config_for_subgraph方法：应返回适配器配置列表"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
             adapter.config = DummyConfig()
 
             result = adapter.get_adapter_config_for_subgraph()
@@ -202,7 +169,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
             self.assertIsInstance(result, list)
 
             # 每层应该有2个配置（Norm-Linear融合 + OV融合）
-            expected_configs = adapter.config.num_hidden_layers * 2
+            expected_configs = adapter.config.num_hidden_layers * (2 + adapter.config.num_experts)
             self.assertEqual(len(result), expected_configs)
 
             # 验证第一个配置的类型
@@ -211,10 +178,7 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
     def test_get_adapter_config_for_subgraph_when_zero_layers_then_return_empty_list(self):
         """测试get_adapter_config_for_subgraph方法：0层时应返回空列表"""
         with patch('msmodelslim.model.qwen3_moe.model_adapter.DefaultModelAdapter.__init__', return_value=None):
-            adapter = Qwen3MoeModelAdapter(
-                model_type=self.model_type,
-                model_path=self.model_path
-            )
+            adapter = Qwen3MoeModelAdapter(model_type=self.model_type, model_path=self.model_path)
             adapter.config = DummyConfig()
             adapter.config.num_hidden_layers = 0
 
@@ -226,7 +190,6 @@ class TestQwen3MoeModelAdapter(unittest.TestCase):
 
 
 class TestQwen3MoeModuleFunctions(unittest.TestCase):
-
     def setUp(self):
         """测试前的准备工作"""
         self.config = DummyConfig()
@@ -254,7 +217,7 @@ class TestQwen3MoeModuleFunctions(unittest.TestCase):
         expected_input_targets = [
             "model.layers.0.self_attn.q_proj",
             "model.layers.0.self_attn.k_proj",
-            "model.layers.0.self_attn.v_proj"
+            "model.layers.0.self_attn.v_proj",
         ]
         for target in expected_input_targets:
             self.assertIn(target, input_ln_targets)

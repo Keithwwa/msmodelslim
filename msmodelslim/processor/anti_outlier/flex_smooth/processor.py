@@ -19,23 +19,25 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-"""Flex Smooth Quantization Processor (Refactored)"""
+import torch
+import torch.distributed as dist
+from torch import nn
 
 from typing import Callable, Any, Literal, Annotated, List, Optional, Dict
+from tqdm import tqdm
 
-import torch.distributed as dist
-import torch.nn as nn
 from pydantic import AfterValidator, Field, model_validator
 from pydantic_core import PydanticUndefined
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.core.base.protocol import BatchProcessRequest
+from msmodelslim.utils.distributed.task_scheduler import DistributedTaskScheduler
 from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.core.quantizer.linear import LinearQConfig
 from msmodelslim.core.observer import MsMinMaxObserver, MinMaxObserverConfig
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.distributed.dist_ops import sync_gather_tensor_lists
-from msmodelslim.utils.distributed import DistHelper
+from msmodelslim.utils.distributed import DistHelper, sync_base_operation
 from msmodelslim.utils.validation.value import validate_normalized_value, is_string_list
 from msmodelslim.ir.non_fusion_smooth_quant_ir import NonFusionSmoothQuantHookIR
 from msmodelslim.processor.anti_outlier.common.subgraph_type import NonFusionSubgraph
@@ -46,7 +48,7 @@ from ..common import (
     FlexAWQSSZContext,
     StatsCollector,
     SubgraphRegistry,
-    StatKey
+    StatKey,
 )
 from ..smooth_base import BaseSmoothProcessor
 from .api import flex_smooth_quant, flex_awq_ssz
@@ -55,8 +57,9 @@ from .interface import FlexSmoothQuantInterface
 
 class FlexSmoothBaseProcessorConfig(AutoProcessorConfig):
     """Base configuration class for Flex processors, defining common fields and validation rules"""
+
     type: Literal["_abstract_flex_smooth_base_"] = "_abstract_flex_smooth_base_"
-    
+
     alpha: Annotated[float, AfterValidator(validate_normalized_value)] = None
     beta: Annotated[float, AfterValidator(validate_normalized_value)] = None
     enable_subgraph_type: Annotated[list, AfterValidator(is_string_list)] = Field(
@@ -68,11 +71,13 @@ class FlexSmoothBaseProcessorConfig(AutoProcessorConfig):
 
 class FlexSmoothQuantProcessorConfig(FlexSmoothBaseProcessorConfig):
     """FlexSmoothQuant processor configuration"""
+
     type: Literal["flex_smooth_quant"] = "flex_smooth_quant"
 
 
 class FlexAWQSSZProcessorConfig(FlexSmoothBaseProcessorConfig):
     """FlexAWQSSZ processor configuration"""
+
     qconfig: LinearQConfig = Field(description="量化配置")
     type: Literal["flex_awq_ssz"] = "flex_awq_ssz"
 
@@ -86,7 +91,7 @@ class FlexAWQSSZProcessorConfig(FlexSmoothBaseProcessorConfig):
                 action=(
                     "Please provide qconfig parameter in the YAML configuration, "
                     "including act and weight quantization settings"
-                )
+                ),
             )
         return values
 
@@ -95,22 +100,22 @@ class FlexStatsCollector(StatsCollector):
     """
     Flex smooth statistics collector
     """
-    
+
     def __init__(self):
         super().__init__()
         self.dist_helper: Optional[DistHelper] = None
         # 为每个模块名称创建observer，用于收集channel_max统计
         self.observers: Dict[str, MsMinMaxObserver] = {}
-    
+
     def set_dist_helper(self, dist_helper: Optional[DistHelper]):
         """设置分布式辅助类"""
         self.dist_helper = dist_helper
-    
+
     def create_hook(self, name: str, subgraph_type: str = None) -> Callable:
         def stats_hook(module: nn.Linear, input_tensor: tuple, output: Any) -> None:
             # 有的路由专家可能采集不到激活，需要跳过
-            if not input_tensor or not isinstance(input_tensor, tuple):
-                get_logger().warning(f"Input tensor is empty for module {name}")
+            if not input_tensor or not isinstance(input_tensor, tuple) or input_tensor[0].numel() == 0:
+                get_logger().warning("Input tensor is empty for module %s", name)
                 return
 
             tensor = input_tensor[0]
@@ -119,27 +124,88 @@ class FlexStatsCollector(StatsCollector):
 
             if name not in self.act_stats:
                 self.act_stats[name] = {}
-            statis_dict = self.act_stats[name]
+            module_stats = self.act_stats[name]
 
             # 收集tensor用于后续算法
             cpu_tensor = tensor.to("cpu").reshape(-1, tensor.shape[-1])
-            if StatKey.TENSOR not in statis_dict:
-                statis_dict[StatKey.TENSOR] = [cpu_tensor]
+            if StatKey.TENSOR not in module_stats:
+                module_stats[StatKey.TENSOR] = [cpu_tensor]
             else:
-                statis_dict[StatKey.TENSOR].append(cpu_tensor)
+                module_stats[StatKey.TENSOR].append(cpu_tensor)
 
             if name not in self.observers:
                 observer_config = MinMaxObserverConfig(dim=0, keepdim=False)
                 self.observers[name] = MsMinMaxObserver(observer_config)
-            # 根据模块是否共享决定是否同步
-            sync = self.dist_helper.is_shared(name) if self.dist_helper is not None else False
             abs_tensor = tensor.abs()
-            self.observers[name].update(abs_tensor, sync=sync)
+            self.observers[name].update(abs_tensor)
             _, channel_max = self.observers[name].get_min_max()
-            statis_dict[StatKey.STAT_KEY_SMOOTH_SCALE] = channel_max
+            module_stats[StatKey.STAT_KEY_SMOOTH_SCALE] = channel_max
 
         return stats_hook
-    
+
+    def sync_act_stats(self, on_cpu: bool = False) -> None:
+        """
+        在各 rank 间汇总 ``act_stats[name][StatKey.TENSOR]`` 列表（原地写回），
+        并对 ``StatKey.STAT_KEY_SMOOTH_SCALE``（channel_max）做跨 rank **逐元素取大**
+        （``all_reduce(MAX)``），与原先在 hook 内对 observer 做 ``sync`` 时的语义一致。
+
+        仅处理「所有 rank 上都存在非空 TENSOR 列表」的模块名，以保证 collective 对齐。
+        rank 0 上进度通过 tqdm  postfix 单行刷新；结束后仅打一条汇总 info 日志。
+        """
+        if not dist.is_initialized() or dist.get_world_size() <= 1:
+            return
+        world_size = dist.get_world_size()
+        my_tensor_keys = {k for k, st in self.act_stats.items() if st.get(StatKey.TENSOR)}
+        gathered_key_sets: List[Optional[set]] = [None] * world_size
+        dist.all_gather_object(gathered_key_sets, my_tensor_keys)
+        key_sets = [s for s in gathered_key_sets if s is not None]
+        if not key_sets:
+            return
+        keys_to_sync = sorted(set.intersection(*key_sets))
+        if not keys_to_sync:
+            get_logger().info("sync_act_stats: no module keys with non-empty TENSOR on all ranks; skip gather.")
+            return
+        show_bar = dist.get_rank() == 0
+        bar_desc = f"sync_act_stats (on_cpu={on_cpu})"
+        pbar = tqdm(
+            keys_to_sync,
+            desc=bar_desc,
+            disable=not show_bar,
+            unit="module",
+        )
+        for name in pbar:
+            # 同步 StatKey.TENSOR
+            local_tensors = self.act_stats[name][StatKey.TENSOR]
+            merged = sync_gather_tensor_lists(local_tensors, on_cpu=on_cpu)
+            self.act_stats[name][StatKey.TENSOR] = merged
+
+            # 同步 StatKey.STAT_KEY_SMOOTH_SCALE
+            sm = self.act_stats[name].get(StatKey.STAT_KEY_SMOOTH_SCALE)
+            if not isinstance(sm, torch.Tensor):
+                raise SchemaValidateError(
+                    f"sync_act_stats: missing STAT_KEY_SMOOTH_SCALE for {name!r} while TENSOR is present; "
+                    "cannot run collective max across ranks.",
+                    action="Ensure hooks record smooth scale before sync_act_stats.",
+                )
+            # 各 rank 本地 channel_max 在 CPU float 上做 MAX 规约，再写回原 dtype/设备
+            buf = sm.detach().to(dtype=torch.float32).contiguous()
+            if buf.device.type == "cpu":
+                if hasattr(torch, "npu") and torch.npu.is_available():
+                    buf = buf.to(f"npu:{torch.npu.current_device()}")
+            sync_base_operation(buf, op="max")
+            self.act_stats[name][StatKey.STAT_KEY_SMOOTH_SCALE] = buf.to(device=sm.device, dtype=sm.dtype)
+
+            # 更新进度条
+            if show_bar:
+                disp = name if len(name) <= 56 else f"{name[:53]}..."
+                pbar.set_postfix_str(f"{disp} | n={len(merged)}", refresh=True)
+        if show_bar:
+            get_logger().info(
+                "sync_act_stats (on_cpu=%s): finished %d module(s)",
+                on_cpu,
+                len(keys_to_sync),
+            )
+
     def clear_stats(self) -> None:
         super().clear_stats()
         for observer in self.observers.values():
@@ -147,14 +213,32 @@ class FlexStatsCollector(StatsCollector):
         self.observers.clear()
 
 
-class FlexSmoothBaseProcessor(BaseSmoothProcessor):    
+class FlexSmoothBaseProcessor(BaseSmoothProcessor):
     def __init__(self, model: nn.Module, config: FlexSmoothBaseProcessorConfig, adapter: object, **kwargs):
         super().__init__(model, config, adapter)
         self.config = config
         self._validate_parameters()
         self.stats_collector = FlexStatsCollector()
-        
-        # 初始化分布式辅助类（延迟到preprocess时创建，因为需要prefix信息）
+        self.sorted_configs = None
+        self.dist_helper = None
+
+    def support_distributed(self) -> bool:
+        return True
+
+    def preprocess(self, request: BatchProcessRequest) -> None:
+        # 在preprocess时创建DistHelper，传入prefix信息
+        if dist.is_initialized():
+            self.dist_helper = DistHelper(request.module, prefix=request.name)
+            self.stats_collector.set_dist_helper(self.dist_helper)
+
+        super().preprocess(request)
+
+    def postprocess(self, request: BatchProcessRequest) -> None:
+        # 同步激活统计信息，必须在super().postprocess(request)清理资源之前执行
+        self.stats_collector.sync_act_stats(on_cpu=False)
+        super().postprocess(request)
+        # 清理分布式辅助类
+        self.stats_collector.set_dist_helper(None)
         self.dist_helper = None
 
     def _validate_adapter_interface(self, adapter: object) -> None:
@@ -164,9 +248,52 @@ class FlexSmoothBaseProcessor(BaseSmoothProcessor):
                 '%s does not implement FlexSmoothQuantInterface. Fallback to default model adapter logic (hook-based auto-detect). '
                 'To use model-specific config, ensure %s inherits from FlexSmoothQuantInterface and implements the methods defined by the interface',
                 adapter.__class__.__name__,
-                adapter.__class__.__name__
+                adapter.__class__.__name__,
             )
             self.is_defalut_adapter = True
+
+    def _worker_fn(self, idx) -> None:
+        adapter_config = self.sorted_configs[idx - 1]
+        priority = self.SUBGRAPH_PRIORITY.get(adapter_config.subgraph_type, 999)
+        module_name = (
+            adapter_config.mapping.source if adapter_config.mapping.source else adapter_config.mapping.targets[0]
+        )
+        get_logger().debug("  %d. %s (priority: %d) - %s", idx, adapter_config.subgraph_type, priority, module_name)
+        self._process_single_subgraph(adapter_config)
+
+    def _process_subgraphs_by_priority(self) -> None:
+        """Process subgraphs in priority order"""
+        get_logger().debug("Starting smoothing application")
+        self.sorted_configs = sorted(
+            self.adapter_config, key=lambda x: self.SUBGRAPH_PRIORITY.get(x.subgraph_type, 999)
+        )
+
+        if not self.sorted_configs:
+            get_logger().warning("No subgraphs to process for current layer.")
+            return
+
+        with DistributedTaskScheduler(self.model) as scheduler:
+            for idx, adapter_config in enumerate(self.sorted_configs, start=1):
+                m = adapter_config.mapping
+                is_non_fusion = m.source is None and m.targets is not None
+                has_non_shared_module = False
+                if self.dist_helper is not None:
+                    module_names = []
+                    if m.source is not None:
+                        module_names.append(m.source)
+                    if m.targets is not None:
+                        module_names.extend(m.targets)
+                    has_non_shared_module = any(not self.dist_helper.is_shared(name) for name in module_names)
+                scheduler.submit(
+                    fn=self._worker_fn,
+                    args=(idx,),
+                    dependencies=([m.source] if m.source else []) + list(m.targets),
+                    parallel=not (is_non_fusion or has_non_shared_module),
+                )
+
+            scheduler.run()
+
+        self.sorted_configs = None
 
 
 @QABCRegistry.register(dispatch_key=FlexSmoothQuantProcessorConfig, abc_class=AutoSessionProcessor)
@@ -174,37 +301,17 @@ class FlexSmoothBaseProcessor(BaseSmoothProcessor):
 class FlexSmoothQuantProcessor(FlexSmoothBaseProcessor):
     """FlexSmoothQuant Processor"""
 
-    def support_distributed(self) -> bool:
-        return True
-    
-    def preprocess(self, request: BatchProcessRequest) -> None:
-        # 在preprocess时创建DistHelper，传入prefix信息
-        if dist.is_initialized():
-            self.dist_helper = DistHelper(request.module, prefix=request.name)
-            self.stats_collector.set_dist_helper(self.dist_helper)
-        
-        super().preprocess(request)
-    
-    def postprocess(self, request: BatchProcessRequest) -> None:
-        super().postprocess(request)
-        # 清理分布式辅助类
-        self.stats_collector.set_dist_helper(None)
-        self.dist_helper = None
-    
     def apply_smooth_algorithm(self, subgraph_obj: Any, linear_names: List[str]) -> None:
         """Apply FlexSmoothQuant algorithm"""
         subgraph_type = SubgraphRegistry.get_name(type(subgraph_obj))
         config = FlexSmoothQuantConfig(
-            alpha=self.config.alpha,
-            beta=self.config.beta,
-            extra_config=getattr(subgraph_obj, 'extra_config', None)
+            alpha=self.config.alpha, beta=self.config.beta, extra_config=getattr(subgraph_obj, 'extra_config', None)
         )
         smooth_context = self._build_smooth_context(linear_names)
         if smooth_context is None:
             get_logger().warning(
-                "No statistics collected for %s subgraph, skipping. "
-                "This may happen for unused MOE experts.",
-                subgraph_type
+                "No statistics collected for %s subgraph, skipping. This may happen for unused MOE experts.",
+                subgraph_type,
             )
             return
         scales = flex_smooth_quant(subgraph_obj, config, smooth_context)
@@ -213,7 +320,7 @@ class FlexSmoothQuantProcessor(FlexSmoothBaseProcessor):
                 hook_ir = NonFusionSmoothQuantHookIR(scales)
                 hook_handle = linear_module.register_forward_pre_hook(hook_ir)
                 hook_ir.set_hook_handle(hook_handle)
-        get_logger().info(f"Successfully applied FlexSmoothQuant to {subgraph_type} subgraph")
+        get_logger().info("Successfully applied FlexSmoothQuant to %s subgraph", subgraph_type)
 
     def _build_smooth_context(self, linear_names: List[str]) -> Optional[FlexSmoothQuantContext]:
         a_smooth_scale = None
@@ -238,31 +345,23 @@ class FlexSmoothQuantProcessor(FlexSmoothBaseProcessor):
 
             # 获取 tensors
             if StatKey.TENSOR in stats:
-                local_tensors = stats[StatKey.TENSOR]
+                tensors = stats[StatKey.TENSOR]
             else:
-                local_tensors = None
+                tensors = None
         else:
-            get_logger().warning(f"Linear name {linear_name} not in act_stats")
+            get_logger().warning("Linear name %s not in act_stats", linear_name)
             return None
 
         # 检查是否成功获取到激活平滑尺度
-        if a_smooth_scale is None or local_tensors is None:
+        if a_smooth_scale is None or tensors is None:
             # 返回 None 而不是抛出异常，让调用者决定如何处理
             get_logger().debug(
                 "Failed to get activation smooth scale from linear name %s. "
                 "This may happen for unused subgraphs (e.g., unactivated MOE experts).",
-                linear_name
+                linear_name,
             )
             return None
-        
-        # 多卡同步：收集所有卡的 tensor，确保 alpha/beta 搜索使用相同的数据
-        # 只有共享模块才需要进行多卡同步
-        if (local_tensors and self.dist_helper is not None and self.dist_helper.is_shared(linear_name)):
-            tensors = sync_gather_tensor_lists(local_tensors)
-        else:
-            # 单卡场景、非共享模块或空列表，直接使用本地 tensor
-            tensors = local_tensors
-        
+
         # 创建 FlexSmoothQuantContext
         smooth_context = FlexSmoothQuantContext(
             version=1,
@@ -277,25 +376,20 @@ class FlexSmoothQuantProcessor(FlexSmoothBaseProcessor):
 @logger_setter(prefix="msmodelslim.processor.flex_awq_ssz")
 class FlexAWQSSZProcessor(FlexSmoothBaseProcessor):
     """FlexAWQSSZ Processor"""
-    
+
     def apply_smooth_algorithm(self, subgraph_obj: Any, linear_names: List[str]) -> None:
         """Apply FlexAWQSSZ algorithm"""
         subgraph_type = SubgraphRegistry.get_name(type(subgraph_obj))
-        config = FlexAWQSSZConfig(
-            alpha=self.config.alpha,
-            beta=self.config.beta,
-            qconfig=self.config.qconfig
-        )
+        config = FlexAWQSSZConfig(alpha=self.config.alpha, beta=self.config.beta, qconfig=self.config.qconfig)
         smooth_context = self._build_smooth_context(linear_names)
         if smooth_context is None:
             get_logger().warning(
-                "No statistics collected for %s subgraph, skipping. "
-                "This may happen for unused MOE experts.",
-                subgraph_type
+                "No statistics collected for %s subgraph, skipping. This may happen for unused MOE experts.",
+                subgraph_type,
             )
             return
         flex_awq_ssz(subgraph_obj, config, smooth_context)
-        get_logger().info(f"Successfully applied FlexAWQSSZ to {subgraph_type} subgraph")
+        get_logger().info("Successfully applied FlexAWQSSZ to %s subgraph", subgraph_type)
 
     def _build_smooth_context(self, linear_names: List[str]) -> Optional[FlexAWQSSZContext]:
         tensors = None
@@ -317,7 +411,7 @@ class FlexAWQSSZProcessor(FlexSmoothBaseProcessor):
             else:
                 tensors = None
         else:
-            get_logger().warning(f"Linear name {linear_name} not in act_stats")
+            get_logger().warning("Linear name %s not in act_stats", linear_name)
             return None
 
         # 检查是否成功获取到激活平滑尺度
@@ -326,13 +420,11 @@ class FlexAWQSSZProcessor(FlexSmoothBaseProcessor):
             get_logger().debug(
                 "Failed to get activation tensors from linear name %s. "
                 "This may happen for unused subgraphs (e.g., unactivated MOE experts).",
-                linear_name
+                linear_name,
             )
             return None
+
         # 创建 FlexAWQSSZContext
-        smooth_context = FlexAWQSSZContext(
-            version=1,
-            tensors=tensors
-        )
+        smooth_context = FlexAWQSSZContext(version=1, tensors=tensors)
 
         return smooth_context

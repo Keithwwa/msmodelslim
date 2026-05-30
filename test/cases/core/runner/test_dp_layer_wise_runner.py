@@ -19,10 +19,6 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-"""
-DPLayerWiseRunner 的单元测试
-"""
-
 import os
 import unittest
 from dataclasses import dataclass, replace
@@ -30,8 +26,7 @@ from typing import List, Any, Generator, Literal
 from typing import Optional
 from unittest.mock import patch, MagicMock
 
-import torch
-import torch.nn as nn
+from torch import nn
 
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
@@ -47,7 +42,8 @@ def is_npu_available():
     """检查NPU是否可用"""
     try:
         import torch_npu
-        return torch.npu.is_available()
+
+        return torch_npu.npu.is_available()
     except ImportError:
         return False
 
@@ -55,6 +51,7 @@ def is_npu_available():
 @dataclass
 class WorkerParams:
     """Parameters for the distributed_worker method."""
+
     rank: int
     world_size: int
     device_indices: List[int]
@@ -62,9 +59,6 @@ class WorkerParams:
     calib_data: Optional[List[Any]]
     device: DeviceType
     master_port: int = 29500
-    # ContextManager 要求非 None；生产路径由 get_current_context() 提供
-    shared_ctx: Any = None
-    work_queue: Any = None
 
 
 class MockPipelineInterface(PipelineInterface):
@@ -107,6 +101,7 @@ class MockPipelineInterface(PipelineInterface):
 
 class MockProcessorConfig(AutoProcessorConfig):
     """Mock processor config for testing"""
+
     type: Literal['mock_processor'] = "mock_processor"
 
 
@@ -136,10 +131,7 @@ class TestConvertToDistributedConfig(unittest.TestCase):
     def test_convert_ascendv1_config(self):
         """测试将 AscendV1Config 转换为 DistributedAscendV1Config"""
         original_config = AscendV1Config(
-            type="ascendv1_saver",
-            save_directory="/test/path",
-            part_file_size=8,
-            ext={"key": "value"}
+            type="ascendv1_saver", save_directory="/test/path", part_file_size=8, ext={"key": "value"}
         )
 
         converted = DPLayerWiseRunner.convert_to_distributed_config_if_needed(original_config)
@@ -151,10 +143,7 @@ class TestConvertToDistributedConfig(unittest.TestCase):
 
     def test_no_convert_already_distributed_config(self):
         """测试不转换已经是 DistributedAscendV1Config 的配置"""
-        original_config = DistributedAscendV1Config(
-            type="ascendv1_saver_distributed",
-            save_directory="/test/path"
-        )
+        original_config = DistributedAscendV1Config(type="ascendv1_saver_distributed", save_directory="/test/path")
 
         converted = DPLayerWiseRunner.convert_to_distributed_config_if_needed(original_config)
         self.assertIs(converted, original_config)
@@ -262,8 +251,7 @@ class TestRunDistributed(unittest.TestCase):
     @patch('torch.multiprocessing.set_start_method')
     @patch.object(AutoSessionProcessor, 'from_config')
     @patch('msmodelslim.core.runner.generated_runner.get_input_datas')
-    def test_run_distributed_execution(
-            self, mock_get_input_datas, mock_from_config, mock_set_start_method, mock_spawn):
+    def test_run_distributed_execution(self, mock_get_input_datas, mock_from_config, mock_set_start_method, mock_spawn):
         """测试多设备分布式执行"""
         adapter = MockPipelineInterface()
         runner = DPLayerWiseRunner(adapter)
@@ -305,8 +293,8 @@ class TestRunDistributed(unittest.TestCase):
     @patch.object(AutoSessionProcessor, 'from_config')
     @patch('msmodelslim.core.runner.generated_runner.get_input_datas')
     def test_run_port_handling(
-            self, mock_get_input_datas, mock_from_config, mock_set_start_method,
-            mock_spawn, mock_find_free_port):
+        self, mock_get_input_datas, mock_from_config, mock_set_start_method, mock_spawn, mock_find_free_port
+    ):
         """测试端口处理逻辑"""
         adapter = MockPipelineInterface()
         runner = DPLayerWiseRunner(adapter)
@@ -356,21 +344,21 @@ class TestDistributedWorker(unittest.TestCase):
             calib_data=None,
             device=DeviceType.NPU,
             master_port=29500,
-            shared_ctx=MagicMock(),
         )
 
     def test_distributed_worker_execution(self):
         """测试 distributed_worker 执行流程"""
         runner_path = 'msmodelslim.core.runner.dp_layer_wise_runner'
         layer_runner_path = 'msmodelslim.core.runner.layer_wise_runner'
-        with patch('torch.distributed.get_rank', return_value=0), \
-                patch('torch.distributed.is_initialized', return_value=False), \
-                patch(f'{runner_path}.dist.destroy_process_group') as mock_destroy, \
-                patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized, \
-                patch(f'{runner_path}.setup_distributed') as mock_setup, \
-                patch.object(DPLayerWiseRunner, 'generated_schedule') as mock_schedule, \
-                patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build, \
-                patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu:
+        with (
+            patch('torch.distributed.get_rank', return_value=0),
+            patch('torch.distributed.is_initialized', return_value=False),
+            patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized,
+            patch(f'{runner_path}.setup_distributed') as mock_setup,
+            patch.object(DPLayerWiseRunner, 'generated_schedule') as mock_schedule,
+            patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build,
+            patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu,
+        ):
             mock_is_initialized.return_value = True
             mock_build.return_value = []
             mock_npu.current_device.return_value = 0
@@ -384,7 +372,7 @@ class TestDistributedWorker(unittest.TestCase):
                 worker_params.world_size,
                 'hccl',
                 device_index=worker_params.device_indices[worker_params.rank],
-                master_port=worker_params.master_port
+                master_port=worker_params.master_port,
             )
             mock_build.assert_called_once()
             mock_schedule.assert_called_once()
@@ -393,22 +381,22 @@ class TestDistributedWorker(unittest.TestCase):
         """测试 distributed_worker 设备索引映射"""
         runner_path = 'msmodelslim.core.runner.dp_layer_wise_runner'
         layer_runner_path = 'msmodelslim.core.runner.layer_wise_runner'
-        with patch('torch.distributed.get_rank', return_value=0), \
-                patch('torch.distributed.is_initialized', return_value=False), \
-                patch(f'{runner_path}.dist.destroy_process_group'), \
-                patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized, \
-                patch(f'{runner_path}.setup_distributed') as mock_setup, \
-                patch.object(DPLayerWiseRunner, 'generated_schedule'), \
-                patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build, \
-                patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu:
+        with (
+            patch('torch.distributed.get_rank', return_value=0),
+            patch('torch.distributed.is_initialized', return_value=False),
+            patch(f'{runner_path}.dist.destroy_process_group'),
+            patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized,
+            patch(f'{runner_path}.setup_distributed') as mock_setup,
+            patch.object(DPLayerWiseRunner, 'generated_schedule'),
+            patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build,
+            patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu,
+        ):
             mock_is_initialized.return_value = True
             mock_build.return_value = []
             mock_npu.current_device.return_value = 3
 
             # 修改 rank 和 device_indices
-            worker_params = replace(
-                self.default_params, rank=1, device_indices=[0, 3]
-            )
+            worker_params = replace(self.default_params, rank=1, device_indices=[0, 3])
 
             # rank=1 对应 device_indices[1]=3
             self.runner.distributed_worker(**vars(worker_params))
@@ -418,21 +406,23 @@ class TestDistributedWorker(unittest.TestCase):
                 worker_params.world_size,
                 'hccl',
                 device_index=worker_params.device_indices[worker_params.rank],
-                master_port=worker_params.master_port
+                master_port=worker_params.master_port,
             )
 
     def test_distributed_worker_cleanup_behavior(self):
         """测试 distributed_worker 清理行为"""
         runner_path = 'msmodelslim.core.runner.dp_layer_wise_runner'
         layer_runner_path = 'msmodelslim.core.runner.layer_wise_runner'
-        with patch('torch.distributed.get_rank', return_value=0), \
-                patch('torch.distributed.is_initialized', return_value=False), \
-                patch(f'{runner_path}.dist.destroy_process_group') as mock_destroy, \
-                patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized, \
-                patch(f'{runner_path}.setup_distributed'), \
-                patch.object(DPLayerWiseRunner, 'generated_schedule'), \
-                patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build, \
-                patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu:
+        with (
+            patch('torch.distributed.get_rank', return_value=0),
+            patch('torch.distributed.is_initialized', return_value=False),
+            patch(f'{runner_path}.dist.destroy_process_group') as mock_destroy,
+            patch(f'{runner_path}.dist.is_initialized') as mock_is_initialized,
+            patch(f'{runner_path}.setup_distributed'),
+            patch.object(DPLayerWiseRunner, 'generated_schedule'),
+            patch.object(DPLayerWiseRunner, 'build_process_unit') as mock_build,
+            patch(f'{layer_runner_path}.torch.npu', create=True) as mock_npu,
+        ):
             mock_build.return_value = []
             mock_npu.current_device.return_value = 0
 
