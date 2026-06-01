@@ -31,6 +31,7 @@ import sys
 from unittest.mock import MagicMock
 
 import pytest
+import torch
 
 from testing_utils.mock import mock_security_library, mock_kia_library, mock_init_config
 
@@ -38,6 +39,26 @@ from testing_utils.mock import mock_security_library, mock_kia_library, mock_ini
 mock_init_config()
 mock_kia_library()
 mock_security_library()
+
+
+# fixup: replace torch.npu with a clean stub. Some tests (e.g. flux1)
+# overwrite torch.npu with a bare Mock and don't clean up, causing
+# subsequent tests to see Mock-tainted current_device(). An autouse
+# fixture ensures the stub is restored before every test.
+class _NpuStub:
+    """Safe NPU stub — not a Mock, so no auto-created child mocks."""
+    def is_available(self):
+        return False
+
+    def current_device(self):
+        return 0
+
+
+@pytest.fixture(autouse=True)
+def _reset_npu_stub():
+    """Restore torch.npu stub before each test, preventing cross-test Mock leakage."""
+    torch.npu = _NpuStub()  # type: ignore[attr-defined]
+    yield
 
 # 记录 wcmatch 的原始状态，用于 pytest_unconfigure 中清理
 _wcmatch_original = None

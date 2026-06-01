@@ -25,7 +25,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 import torch
 
-from ..common.quarot_utils import QuaRotMode, create_rot
+from ..common.quarot_utils import QuaRotMode, create_rot, GLOBAL_DTYPE
 
 
 class RotSide(Enum):
@@ -75,7 +75,10 @@ class QuaRotInterface:
                block_size: int = -1,
                rot_step: int = 1,
                eye_step: tuple = (-1,)):
-        return create_rot(mode, size, block_size, rot_step, eye_step)
+        rot = create_rot(mode, size, block_size, rot_step, eye_step)
+        if hasattr(torch, 'npu') and torch.npu.is_available():
+            rot = rot.to(dtype=GLOBAL_DTYPE, device=torch.device(f"npu:{torch.npu.current_device()}"))
+        return rot
 
     @abstractmethod
     def get_ln_fuse_map(self) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
