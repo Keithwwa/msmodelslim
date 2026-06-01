@@ -16,17 +16,25 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
+InternVL-U
+Modifications Copyright (c) 2026 OpenGVLab
+This file includes code from Qwen-Image and HuggingFace,
+licensed under the Apache License, Version 2.0.
+--------------------------------------------------------
+Copyright 2025 Qwen-Image Team, The HuggingFace Team. All rights reserved.
+--------------------------------------------------------
 """
 
 import argparse
 import os
+from types import MethodType
 from pathlib import Path
 from typing import Dict, Any, Generator, Tuple, Optional, Callable
 from importlib import import_module
 
 import torch
+import torch.nn.functional as F
 from torch import nn, distributed as dist
-from tqdm import tqdm
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.base.protocol import ProcessRequest
@@ -40,58 +48,16 @@ from msmodelslim.utils.security import get_valid_read_path
 from msmodelslim.utils.cache import to_device
 from msmodelslim.utils.exception import InvalidModelError, SchemaValidateError
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface, FA3QuantPlaceHolder
-from ..interface_hub import (
-    ModelInfoInterface,
-    MultimodalSDPipelineInterface,
-    OnlineQuaRotInterface
-)
-
-#-------------------解决 diffuser 0.35.1 torch2.1 报错----------------
-def custom_op(
-    name,
-    fn=None,
-    /,
-    *,
-    mutates_args,
-    device_types=None,
-    schema=None,
-    tags=None,
-):
-    def decorator(func):
-        return func
-    
-    if fn is not None:
-        return decorator(fn)
-    
-    return decorator
-
-def register_fake(
-    op,
-    fn=None,
-    /,
-    *,
-    lib=None,
-    _stacklevel: int = 1,
-    allow_override: bool = False,
-):
-    def decorator(func):
-        return func
-    
-    if fn is not None:
-        return decorator(fn)
-    
-    return decorator
-    
-torch.library.custom_op = custom_op
-torch.library.register_fake = register_fake
-#-----------------------------------------------------------------------
+from ..interface_hub import ModelInfoInterface, MultimodalSDPipelineInterface, OnlineQuaRotInterface
 
 # QwenImageTransformer2DModel (diffusers) uses blocks with "TransformerBlock" in class name
 # (e.g. BasicTransformerBlock). Match by keyword for visit/forward.
 TRANSFORMER_BLOCK_KEYWORD = "transformerblock"
 QWEN_IMAGE_EDIT_ATTENTION_BLOCK_CLASS = "QwenImageTransformerBlock"
 
+
 @logger_setter()
+# pylint: disable=too-many-ancestors
 class QwenImageEditModelAdapter(
     BaseModelAdapter,
     ModelInfoInterface,
@@ -200,9 +166,9 @@ class QwenImageEditModelAdapter(
         """当前不做推理校准。若需启用校准，请在 model_config 中提供 img_paths、prompt_file，并在此方法内实现一次 pipeline 前向以 dump 校准数据。"""
         pass
 
-    def apply_quantization(self, process_model_func) -> None:
+    def apply_quantization(self, quant_model_func) -> None:
         from contextlib import contextmanager
-        import torch.cuda.amp as amp
+        from torch.cuda import amp
 
         @contextmanager
         def noop_no_sync():
@@ -210,7 +176,7 @@ class QwenImageEditModelAdapter(
 
         no_sync = getattr(self, 'no_sync', noop_no_sync)
         with amp.autocast(dtype=torch.bfloat16), torch.no_grad(), no_sync():
-            process_model_func()
+            quant_model_func()
 
     def load_pipeline(self) -> None:
         self._load_pipeline()
@@ -242,9 +208,7 @@ class QwenImageEditModelAdapter(
         pass
 
     def _load_pipeline(self) -> None:
-        self.model_path = get_valid_read_path(
-            str(self.model_path), is_dir=True, check_user_stat=True
-        )
+        self.model_path = get_valid_read_path(str(self.model_path), is_dir=True, check_user_stat=True)
         model_path_str = str(self.model_path)
         transformer_subdir = os.path.join(model_path_str, "transformer")
         torch_dtype = torch.bfloat16
@@ -259,9 +223,7 @@ class QwenImageEditModelAdapter(
                 "从仓库加载 qwenimage_edit 失败，请确保在 Qwen-Image-Edit-2509 根目录下或安装 diffusers。",
                 action=str(e),
             ) from e
-        get_logger().info(
-            "Loading Qwen-Image-Edit-2509 from repo (qwenimage_edit) at %s", model_path_str
-        )
+        get_logger().info("Loading Qwen-Image-Edit-2509 from repo (qwenimage_edit) at %s", model_path_str)
         self.transformer = QwenImageTransformer2DModel.from_pretrained(
             transformer_subdir,
             torch_dtype=torch_dtype,
@@ -281,33 +243,36 @@ class QwenImageEditModelAdapter(
         self.model_args = parser.parse_args([])
 
     def _get_parser(self) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(
-            description="使用 Qwen-Image-Edit-2509 模型生成编辑图像"
+        parser = argparse.ArgumentParser(description="使用 Qwen-Image-Edit-2509 模型生成编辑图像")
+        parser.add_argument("--model_path", type=str, default="/home/weight/Qwen-Image-Edit-2509/", help="模型本地路径")
+        parser.add_argument(
+            "--torch_dtype", type=str, default="bfloat16", choices=["float32", "bfloat16"], help="模型数据类型"
         )
-        parser.add_argument("--model_path", type=str, default="/home/weight/Qwen-Image-Edit-2509/",
-                            help="模型本地路径")
-        parser.add_argument("--torch_dtype", type=str, default="bfloat16", choices=["float32", "bfloat16"],
-                            help="模型数据类型")
         parser.add_argument("--device", type=str, default="npu", help="运行设备（npu/cuda/cpu）")
         parser.add_argument("--device_id", type=int, default=0, help="设备ID")
         # 输入配置（多图支持，用逗号分隔路径，校准时由 model_config 注入）
-        parser.add_argument("--img_paths", type=str, default=None,
-                            help="输入图像路径（多图用逗号分隔，如 'img1.png,img2.png'）")
-        parser.add_argument("--prompt_file", type=str, default="edit_prompts.txt",
-                            help="提示词文件路径（每行一个提示词）")
-        parser.add_argument("--negative_prompt_file", type=str, default=None,
-                            help="负面提示词文件路径（每行一个）")
+        parser.add_argument(
+            "--img_paths", type=str, default=None, help="输入图像路径（多图用逗号分隔，如 'img1.png,img2.png'）"
+        )
+        parser.add_argument(
+            "--prompt_file", type=str, default="edit_prompts.txt", help="提示词文件路径（每行一个提示词）"
+        )
+        parser.add_argument("--negative_prompt_file", type=str, default=None, help="负面提示词文件路径（每行一个）")
         # 推理配置
         parser.add_argument("--num_inference_steps", type=int, default=40, help="推理步数")
         parser.add_argument("--true_cfg_scale", type=float, default=4.0, help="真实CFG缩放系数")
         parser.add_argument("--guidance_scale", type=float, default=1.0, help="引导缩放系数（Qwen特有）")
         parser.add_argument("--seed", type=int, default=0, help="随机种子（确保 reproducibility）")
         parser.add_argument("--num_images_per_prompt", type=int, default=1, help="每个提示词生成的图像数量")
-        # 输出配置  
+        # 输出配置
         parser.add_argument("--output_dir", type=str, default="output_images", help="生成图像保存目录")
-        parser.add_argument("--quant_desc_path", type=str, default=None,
-                            help="Path to quantization description file (e.g., quant_model_description_*.json). "
-                                 "Enables quantization if provided (applies to Text Encoder and Transformer).")
+        parser.add_argument(
+            "--quant_desc_path",
+            type=str,
+            default=None,
+            help="Path to quantization description file (e.g., quant_model_description_*.json). "
+            "Enables quantization if provided (applies to Text Encoder and Transformer).",
+        )
         return parser
 
     def _validate_args(self, args: Any) -> None:
@@ -343,9 +308,9 @@ class QwenImageEditModelAdapter(
                         module.register_module("q_rot", nn.Identity())
                     if not hasattr(module, "k_rot"):
                         module.register_module("k_rot", nn.Identity())
-                    get_logger().debug(f"Registered q_rot and k_rot Identity for {name}")
+                    get_logger().debug("Registered q_rot and k_rot Identity for %s", name)
                 except Exception as e:
-                    get_logger().warning(f"Failed to register rotation modules for {name}: {e}")
+                    get_logger().warning("Failed to register rotation modules for %s: %s", name, e)
 
         shared_seed = 1234
         target_model = model if model is not None else getattr(self, "transformer", None)
@@ -472,15 +437,23 @@ class QwenImageEditModelAdapter(
 
                 if _attention_forward is not None:
                     joint_hidden_states = _attention_forward(
-                        joint_query, joint_key, joint_value,
-                        opt_mode="manual", op_type="fused_attn_score", layout="BNSD",
+                        joint_query,
+                        joint_key,
+                        joint_value,
+                        opt_mode="manual",
+                        op_type="fused_attn_score",
+                        layout="BNSD",
                     )
                 else:
                     # fallback: BNSD -> (B, N, S, D), then SDPA
                     q, k, v = joint_query, joint_key, joint_value
-                    scale = (getattr(attn, "scale", None) or (q.shape[-1] ** -0.5)
-                    if isinstance(scale, torch.Tensor) else scale)
-                    joint_hidden_states = torch.nn.functional.scaled_dot_product_attention(
+                    attn_scale = getattr(attn, "scale", None)
+                    if isinstance(attn_scale, torch.Tensor):
+                        scale = attn_scale
+                    else:
+                        # If attn.scale is missing (None) fall back to sqrt(dk) rule.
+                        scale = attn_scale if attn_scale is not None else (q.shape[-1] ** -0.5)
+                    joint_hidden_states = F.scaled_dot_product_attention(  # pylint: disable=not-callable
                         q, k, v, scale=scale, dropout_p=0.0
                     )
 
@@ -517,7 +490,7 @@ class QwenImageEditModelAdapter(
                     hidden_states = hidden_states.clip(-65504, 65504)
                 return hidden_states, encoder_hidden_states
 
-            module.forward = new_forward.__get__(module, module.__class__)
+            module.forward = MethodType(new_forward, module)
 
         for name, module in root_module.named_modules():
             if module.__class__.__name__ != QWEN_IMAGE_EDIT_ATTENTION_BLOCK_CLASS:
@@ -530,4 +503,4 @@ class QwenImageEditModelAdapter(
             root_module.set_submodule(f"{prefix}fa3_k", FA3QuantPlaceHolder(ratio=0.9999))
             root_module.set_submodule(f"{prefix}fa3_v", FA3QuantPlaceHolder(ratio=1.0))
             _wrap_block_forward(module)
-            get_logger().info(f"Injected FA3 placeholders for {full_name}")
+            get_logger().info("Injected FA3 placeholders for %s", full_name)

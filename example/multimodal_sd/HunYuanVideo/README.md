@@ -188,7 +188,7 @@ msmodelslim quant \
     --model_path /path/to/hunyuan_float_weights \
     --save_path /path/to/hunyuan_quantized_weights \
     --device npu \
-    --model_type hunyuan_video \
+    --model_type HunyuanVideo \
     --quant_type w8a8f8 \
     --trust_remote_code True
 ```
@@ -197,7 +197,7 @@ msmodelslim quant \
 
 W8A8(INT8)+FA3(INT8静态)
 
-**注意：** 
+**注意：**
 Atlas 800I A2(8*64G)推理设备：支持4卡量化、6卡量化、8卡量化。
 
 我们提供了完整的量化启动脚本示例：[HunYuanVideo/sample_video.py](./sample_video.py)，其启动命令可参考(请提前确保calib_prompts.txt权限不大于'0o640')：
@@ -288,13 +288,13 @@ json_name = get_rank_suffix_file(base_name='quant_model_description_w8a8_dynamic
 # 量化配置
 session_cfg = SessionConfig(
     processor_cfg_map={
-        "fa3": FA3ProcessorConfig(), 
+        "fa3": FA3ProcessorConfig(),
         "w8a8_dynamic": W8A8DynamicProcessorConfig(
             cfg = W8A8DynamicQuantConfig(
                 act_method = 'minmax'
             ),
             disable_names=get_disable_layer_names(
-                model, 
+                model,
                 layer_include=('*double_blocks*', '*single_blocks*'),
                 layer_exclude=('*img_mod*', '*modulation*'),
             ),
@@ -412,13 +412,13 @@ json_name = get_rank_suffix_file(base_name='quant_model_description_w8a8_dynamic
 # 量化配置
 session_cfg = SessionConfig(
     processor_cfg_map={
-        "m4": M4ProcessorConfig(), 
+        "m4": M4ProcessorConfig(),
         "w8a8_dynamic": W8A8DynamicProcessorConfig(
             cfg = W8A8DynamicQuantConfig(
                 act_method = 'minmax'
             ),
             disable_names=get_disable_layer_names(
-                model, 
+                model,
                 layer_include=['*double_blocks*', '*single_blocks*'],
                 layer_exclude=['*img_mod*', '*modulation*', '*fc2*'],
             ),

@@ -20,6 +20,7 @@
 - ✅ 表示该量化策略已通过 msModelSlim 官方验证，功能完整、性能稳定，建议优先采用。
 - 空格表示该量化策略暂未通过 msModelSlim 官方验证，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证。
 - 点击量化命令列中的链接可跳转到对应的具体量化命令。
+- 推荐使用MindIE-SD [3.0.0版本](https://gitcode.com/Ascend/MindIE-SD)
 
 ## Qwen Image Edit 量化支持
 
@@ -58,9 +59,17 @@ msmodelslim quant \
 apiversion: multimodal_sd_modelslim_v1
 
 metadata:
-  config_id: qwen-image-edit-mxw8a8
-  verified_model_types:
-    - Qwen-Image-Edit-2509
+  config_id: qwen-image-edit-w8a8f8-mxfp
+  score: 90
+  verified_tags:
+    Qwen-Image-Edit-2509:
+      - - MindIE-SD
+        - Atlas_350
+  label:
+    w_bit: 8
+    a_bit: 8
+    is_sparse: False
+    fa_quant: True
 
 default_w8a8_dynamic: &default_w8a8_dynamic
   act:
@@ -68,15 +77,11 @@ default_w8a8_dynamic: &default_w8a8_dynamic
     dtype: "mxfp8"
     symmetric: True
     method: "minmax"
-    ext:
-      axes: -1
   weight:
     scope: "per_block"
     dtype: "mxfp8"
     symmetric: True
     method: "minmax"
-    ext:
-      axes: -1
 
 spec:
   process:
@@ -108,6 +113,20 @@ spec:
 
 ### 关键配置参数
 
+#### 元数据 (metadata)
+
+- **config_id**：配置标识，与文件名 `qwen-image-edit-w8a8f8-mxfp` 对应。
+- **score**：官方验证评分，数值越高表示该配置在验证场景下表现越稳定。
+- **verified_tags**：已验证的模型类型及对接环境标签；当前 `Qwen-Image-Edit-2509` 对应 MindIE-SD 推理与 Atlas_350 设备。
+- **label**：量化能力标签，便于检索与对照：
+  - `w_bit` / `a_bit`：权重与激活位宽（均为 8）。
+  - `is_sparse`：是否稀疏量化（当前为 `False`）。
+  - `fa_quant`：是否启用 FA 量化（当前为 `True`，与下方 `fa3_quant` 流程一致）。
+
+#### 默认 W8A8 动态量化锚点 (default_w8a8_dynamic)
+
+- **act** / **weight**：线性层 W8A8 动态量化，`per_block` + `mxfp8` + `minmax`，供 `linear_quant` 通过 YAML 锚点 `*default_w8a8_dynamic` 引用。
+
 #### 量化配置 (process)
 
 - **linear_quant**：对线性层等进行 W8A8（mxfp8）动态量化；`exclude` 中模式用于排除部分子模块，以稳定精度。
@@ -130,10 +149,10 @@ spec:
 
 ## FAQ
 
-**现象：量化时报错无法导入 `qwenimage_edit`。**  
+**现象：量化时报错无法导入 `qwenimage_edit`。**
 **解决方案：** 请按 [MindIE/Qwen-Image-Edit-2509](https://modelers.cn/models/MindIE/Qwen-Image-Edit-2509) 将推理工程置于 Python 路径或按说明安装，使 `qwenimage_edit.transformer_qwenimage`、`qwenimage_edit.pipeline_qwenimage_edit_plus` 可被正常导入。
 
-**现象：如何自定义量化配置？**  
+**现象：如何自定义量化配置？**
 **解决方案：** 可在 `process` 中调整 `exclude`/`include`、量化 dtype 与范围等；自定义配置需自行验证精度与兼容性，官方仅对最佳实践库中已验证配置提供保证。
 
 ## 附录
