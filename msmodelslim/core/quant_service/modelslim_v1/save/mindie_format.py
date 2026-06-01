@@ -415,3 +415,9 @@ class MindIEFormatSaver(AutoSaverProcessor):
             self.json_writer.write(quant_type_key, "FP8_DYNAMIC")
         else:
             raise SchemaValidateError(f"FakeQuantActivationPerToken Unsupported dtype: {module.x_q_scheme.dtype}")
+
+    def on_non_fusion_smooth_quant_wrapper(self, prefix: str, module: qir.NonFusionSmoothQuantWrapper):
+        wrapped_module = module.wrapped_module
+        self.write_tensor(prefix + ".div.mul_scale", "FLOAT", module.scales)
+        prefix = prefix + ".linear"
+        self._process_module(prefix, wrapped_module)

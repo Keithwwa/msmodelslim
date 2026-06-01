@@ -45,7 +45,8 @@ class TestQuantProcessComplete:
     mock_model1 = None
     mock_model2 = None
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_method(self, tmp_path):
         # 基础服务与核心依赖
         self.dataset_loader = Mock()
 
@@ -165,8 +166,8 @@ class TestQuantProcessComplete:
         assert call_kw["dump_config"] == self.mock_quant_spec.multimodal_sd_config.dump_config
         mock_to_device.assert_called_once_with("raw_calib_data", self.device.value)
         # 保存配置与Runner处理
-        expert_save_path1 = self.save_path.joinpath(f"{self.model_adapter.model_args.task_config}_model1")
-        expert_save_path2 = self.save_path.joinpath(f"{self.model_adapter.model_args.task_config}_model2")
+        expert_save_path1 = self.save_path.joinpath("model1")
+        expert_save_path2 = self.save_path.joinpath("model2")
         for save_cfg in self.mock_quant_spec.save:
             save_cfg.set_save_directory.assert_has_calls(
                 [call(expert_save_path1), call(expert_save_path2)],

@@ -36,6 +36,7 @@ from tqdm import tqdm
 
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
+from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.model.base import BaseModelAdapter
 from msmodelslim.model.common.layer_wise_forward import TransformersForwardBreak, \
     generated_decoder_layer_visit_func_with_keyword
@@ -43,7 +44,8 @@ from msmodelslim.utils.cache import to_device
 from msmodelslim.utils.exception import InvalidModelError, SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface, FA3QuantPlaceHolder
-from ..interface_hub import ModelInfoInterface, MultimodalSDPipelineInterface, OnlineQuaRotInterface
+from ..interface_hub import ModelInfoInterface, MultimodalSDPipelineInterface, OnlineQuaRotInterface, \
+    IterSmoothInterface
 
 MAX_RECURSION_DEPTH = 20
 
@@ -83,6 +85,7 @@ class Wan2Point2Adapter(BaseModelAdapter,
                         MultimodalSDPipelineInterface,
                         FA3QuantAdapterInterface,
                         OnlineQuaRotInterface,
+                        IterSmoothInterface,
                         ):
     def __init__(self,
                  model_type: str,
@@ -241,6 +244,18 @@ class Wan2Point2Adapter(BaseModelAdapter,
         no_sync_low_noise = getattr(self.low_noise_model, 'no_sync', noop_no_sync)
         no_sync_high_noise = getattr(self.high_noise_model, 'no_sync', noop_no_sync)
 
+        # 遍历所有子模块，将非blocks部分移至npu
+        for name, module in self.transformer.named_modules():
+            # 最大的一层，不处理
+            if not name:
+                continue
+            # 处理非blocks模块：确保在npu上
+            if not name.startswith('blocks'):
+                module.to('npu')
+            # 处理blocks模块：确保在cpu上
+            else:
+                module.to('cpu')
+
         with (
                 amp.autocast(dtype=self.model_args.param_dtype),
                 torch.no_grad(),
@@ -290,6 +305,88 @@ class Wan2Point2Adapter(BaseModelAdapter,
         self.model_args = parser.parse_args(argv)
 
         self._validate_args(self.model_args)
+
+    def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
+        """
+        Get adapter config for subgraph-based anti-outlier processing (iter_smooth).
+        
+        Defines the subgraph structure for non-fusion.
+        Based on wan2_2.py implementation but adapted for Wan2.2 model.
+        
+        Includes both vision encoder and text decoder layers.
+        """
+        adapter_config = []
+
+        # Text decoder layers
+        for layer_idx in range(self.transformer.num_layers):
+            # Non-fusion: non-fusion
+            self_attn_qkv_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.self_attn.q",
+                         f"blocks.{layer_idx}.self_attn.k",
+                         f"blocks.{layer_idx}.self_attn.v"]
+            )
+            
+            # Cross-Attention Q 与 K/V 来源不同，分开统计其smooth scale
+            cross_attn_q_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.cross_attn.q"]
+            )
+            cross_attn_kv_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.cross_attn.k",
+                         f"blocks.{layer_idx}.cross_attn.v"]
+            )
+
+            # Norm-Linear mappings
+            adapter_config.extend([
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=self_attn_qkv_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=cross_attn_q_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=cross_attn_kv_mapping_config
+                ),
+            ])
+
+            # O层 非融合
+            o_self_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.self_attn.o"]
+            )
+            o_cross_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.cross_attn.o"]
+            )
+            adapter_config.extend([
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=o_self_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=o_cross_mapping_config
+                ),
+            ])
+
+            up_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.ffn.0"]
+            )
+            down_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.ffn.2"]
+            )
+            adapter_config.extend([
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=up_mapping_config
+                ),
+                AdapterConfig(
+                    subgraph_type="norm-linear",
+                    mapping=down_mapping_config
+                ),
+            ])
+
+        return adapter_config
 
     def _add_attentioncache_args(self, parser: argparse.ArgumentParser):
         group = parser.add_argument_group(title="Attention Cache args")

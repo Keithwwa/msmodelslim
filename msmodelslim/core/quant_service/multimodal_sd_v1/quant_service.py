@@ -102,18 +102,17 @@ class MultimodalSDModelslimV1QuantService(IQuantService):
 
         # 遍历所有专家模型进行量化
         for expert_name, expert_model in models.items():
-            get_logger().info(f"========== Quantizing {model_adapter.model_args.task_config}_{expert_name} ==========")
+            get_logger().info(f"========== Quantizing {expert_name} ==========")
 
             if expert_name not in calib_data:
-                get_logger().error(f"========== \
-                    Calib data missing {model_adapter.model_args.task_config}_{expert_name}, continued ==========")
+                get_logger().error(f"========== Calib data missing {expert_name}, continued ==========")
                 continue
 
             model_adapter.transformer = expert_model
 
             # 自动生成专家专属保存路径
             if expert_name != '':
-                expert_save_path = save_path.joinpath(f"{model_adapter.model_args.task_config}_{expert_name}")
+                expert_save_path = save_path.joinpath(f"{expert_name}")
                 expert_save_path.mkdir(parents=True, exist_ok=True)
             else:
                 expert_save_path = save_path
