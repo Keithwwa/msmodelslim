@@ -3,7 +3,7 @@
 ## 简介
 
 - **概述**：std 度量用于`msmodelslim analyze`的**linear**范围分析：在线性层（及支持的卷积层）激活上采集统计量，用数值范围与标准差的比值作为敏感度分数，对**线性层粒度**排序。
-- **核心思想**：量化误差与动态范围、离散程度相关；在激活标准差较大时，相同动态范围下的相对扰动更小，故用 `max(|max|,|min|) / std` 形式的 score 刻画层对量化的敏感程度。
+- **核心思想**：量化误差与动态范围、离散程度相关；在激活标准差较大时，相同动态范围下的相对扰动更小，故用 `max(|max|,|min|)/std` 形式的 score 刻画层对量化的敏感程度。
 
 ## 使用前准备
 
@@ -15,13 +15,13 @@
 2. **分数（score）**：
    - $\text{abs\_max} = \max(|\text{max\_value}|, |\text{min\_value}|)$
    - $\text{score} = \text{abs\_max} / \text{std}$（实现中对 $\text{std}=0$ 等情况有防护处理）
-3. **解读**：score 越大通常表示该层对量化越敏感（在文档口径下与「范围相对波动」一致）；具体阈值需结合模型与业务精度要求判断。
+3. **解读**：score 越大表示该层对量化越敏感，反映其激活具有较大的范围/波动比值；具体阈值需结合模型与业务精度要求判断。
 
 ## 适用要求
 
 - **推荐场景**：常规量化前的敏感层粗筛。
 - **计算特点**：实现相对轻量，运行速度较快。
-- **模型适配**：**无需**模型适配器额外实现分析接口；`model_type` 与线性分析支持范围参见《[使用指南](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)》。
+- **模型适配**：无需模型适配器额外实现分析接口；`model_type` 支持范围参见参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
 
 ## 功能介绍
 
@@ -42,11 +42,11 @@ msmodelslim analyze linear \
 
 | 参数 | 说明 |
 |------|------|
-| `linear`（scope） | 线性层敏感度分析 |
-| `--metrics std` | 指定本算法 |
+| `linear` | 线性层敏感度分析 |
+| `--metrics` | 指定分析算法，取值为 `std` 时使用本算法 |
 | `--pattern` | 层名通配符，过滤待分析线性层 |
 
-完整参数见《[量化敏感层分析工具使用指南](../../feature_guide/sensitive_layer_analysis/usage.md)》。
+完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)。
 
 ## FAQ
 

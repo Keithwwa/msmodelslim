@@ -2,7 +2,7 @@
 
 ## 简介
 
-- **概述**：`mse`（旧命令行参数名 `attention_mse`）用于**attn**范围分析：在浮点权重与量化权重下分别前向，对同一 attention 模块的输出计算 MSE，输出**注意力模块粒度**排序。
+- **概述**：`mse`（均方误差，Mean Squared Error）用于**attn**范围分析：分别使用浮点权重与量化权重执行前向推理，对同一 attention 模块的输出计算均方误差，输出**注意力模块粒度**排序。
 - **核心思想**：直接度量注意力子系统在量化权重下的输出漂移；数值越大表示该注意力层对权重量化越敏感。
 
 ## 使用前准备
@@ -22,7 +22,7 @@
 
 - **推荐场景**：需要对 **Attention** 结构做权重量化或评估其敏感度时。
 - **模型适配（必选）**：对应 `model_type` 的模型适配器必须实现 `AttentionMSEAnalysisInterface`，提供模块类名与输出提取函数；未实现会在分析阶段报错。
-- **model_type**：仅下表所列类型在工具侧具备该分析路径所需适配；其他 `model_type` 会报错或需自行在适配器中实现接口。
+- **model_type**：工具当前仅实现了以下模型的接口适配，其他 `model_type` 会报错或需自行在适配器中实现接口。
 
 | model_type       |
 | ---------------- |
@@ -36,7 +36,7 @@
 
 ### 使用说明
 
-本分析依赖工具在 attention 子模块上挂 hook 并读取其前向输出；不同模型的 attention 类名与 `forward` 返回值形态不一致，无法由框架统一推断。因此须在目标 `model_type` 的**模型适配器**中实现 `AttentionMSEAnalysisInterface`（声明待 hook 的类名、以及如何从 `forward` 返回值中取出用于 MSE 的张量），`msmodelslim analyze attn --metrics mse` 方可在该模型上使用。下为接口约定；未实现或实现与模型结构不一致时会在分析阶段报错。
+本分析依赖工具在 attention 子模块上挂 hook 并读取其前向输出；不同模型的 attention 类名与 `forward` 返回值形态不一致，无法由框架统一推断。因此须在目标 `model_type` 的**模型适配器**中实现 `AttentionMSEAnalysisInterface`（声明待 hook 的类名、以及如何从 `forward` 返回值中取出用于计算 MSE 的张量），`msmodelslim analyze attn --metrics mse` 方可在该模型上使用。以下为接口约定，未实现或实现与模型结构不一致时会在分析阶段报错。
 
 ```python
 class AttentionMSEAnalysisInterface(ABC):
@@ -52,7 +52,7 @@ class AttentionMSEAnalysisInterface(ABC):
 | 方法 | 作用 |
 |------|------|
 | `get_attention_module_cls` | 返回待挂 hook 的 attention 模块类名字符串 |
-| `get_attention_output_extractor` | 从 `forward` 返回值中取出用于算 MSE 的张量 |
+| `get_attention_output_extractor` | 从 `forward` 返回值中取出用于计算 MSE 的张量 |
 
 ### 命令行示例
 
@@ -70,10 +70,10 @@ msmodelslim analyze attn \
 
 | 参数 | 说明 |
 |------|------|
-| `attn`（scope） | 注意力结构敏感度分析 |
-| `--metrics mse` | 指定本算法 |
+| `attn` | 注意力结构敏感度分析 |
+| `--metrics` | 指定分析算法，取值为 `mse` 时使用本算法 |
 
-完整参数见《[量化敏感层分析工具使用指南](../../feature_guide/sensitive_layer_analysis/usage.md)》。
+完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)。
 
 ## FAQ
 

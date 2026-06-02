@@ -2,7 +2,7 @@
 
 ## 简介
 
-- **概述**：Kurtosis（峰度）度量用于**linear**范围分析：对激活采样后估计峰度，用于识别分布尖峰与尾部极端值对量化的影响，输出**线性层粒度**排序。`linear` scope 下 `--metrics` 的默认值为 `kurtosis`。
+- **概述**：Kurtosis（峰度）度量用于**linear**范围分析：对激活采样后估计峰度，用于识别分布尖峰与尾部极端值对量化的影响，输出**线性层粒度**排序。
 - **核心思想**：超额峰度刻画相对正态的尖峭程度；分布越集中、极端值越突出，量化截断带来的相对风险往往越高。
 
 ## 使用前准备
@@ -17,8 +17,8 @@
 
 ## 适用要求
 
-- **推荐场景**：需要细粒度识别激活尖峰、配合敏感层回退或混合精度策略时。
-- **模型适配**：**无需**模型适配器额外实现分析接口。
+- **推荐场景**：需要根据激活分布的尖峰程度来识别量化敏感层，从而辅助回退或混合精度决策。
+- **模型适配**：无需模型适配器额外实现分析接口。`model_type` 支持范围参见参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
 
 ## 功能介绍
 
@@ -39,7 +39,7 @@ msmodelslim analyze linear \
 
 | 参数 | 说明 |
 |------|------|
-| `linear`（scope） | 线性层敏感度分析 |
-| `--metrics kurtosis` | 指定本算法（亦为 `linear` 默认 metrics） |
+| `linear` | 线性层敏感度分析 |
+| `--metrics` | 指定分析算法，取值为 `kurtosis` 时使用本算法（亦为 `linear` 默认 metrics） |
 
-完整参数见《[量化敏感层分析工具使用指南](../../feature_guide/sensitive_layer_analysis/usage.md)》。
+完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)。
