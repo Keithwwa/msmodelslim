@@ -23,7 +23,7 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from pydantic import validate_call
 from torch import nn
 
@@ -34,20 +34,12 @@ from .base import AutoActQuantizer, AutoWeightQuantizer, QConfig, QScope
 
 
 class LinearQConfig(BaseModel):
-    act: QConfig = QConfig(
-        dtype=QDType.FLOAT,
-        scope=QScope.PER_TENSOR,
-        symmetric=True,
-        method="none"
-    )
+    act: QConfig = QConfig(dtype=QDType.FLOAT, scope=QScope.PER_TENSOR, symmetric=True, method="none")
     weight: QConfig
-
-    model_config = ConfigDict(extra="forbid")
 
 
 @logger_setter()
 class LinearQuantizer(nn.Module):
-
     @validate_call(config=dict(arbitrary_types_allowed=True))
     def __init__(self, config: LinearQConfig, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,6 +47,7 @@ class LinearQuantizer(nn.Module):
         self.sync = False  # 默认不启用同步操作
         self.input_quantizer = AutoActQuantizer.from_config(config.act)
         self.weight_quantizer = AutoWeightQuantizer.from_config(config.weight)
+        self.weight: Optional[torch.Tensor] = None
         self.bias: Optional[nn.Parameter] = None
         self.q_weight: Optional[QStorage] = None
 
@@ -87,7 +80,7 @@ class LinearQuantizer(nn.Module):
             self.input_quantizer.get_q_param(),
             self.weight_quantizer.get_q_param(),
             self.weight_quantizer.get_q_storage(),
-            self.bias
+            self.bias,
         )
 
         for hook in self._forward_pre_hooks.values():
@@ -100,7 +93,7 @@ class LinearQuantizer(nn.Module):
         """
         判断是否支持分布式
         通过检查 input_quantizer 和 weight_quantizer 是否都支持分布式来判断
-        
+
         Returns:
             bool: 是否支持分布式
         """
@@ -112,7 +105,7 @@ class LinearQuantizer(nn.Module):
         """
         判断是否是data free场景
         通过检查 input_quantizer 和 weight_quantizer 是否都支持data free来判断
-        
+
         Returns:
             bool: 是否是data free场景
         """

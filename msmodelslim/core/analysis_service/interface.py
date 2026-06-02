@@ -21,12 +21,13 @@ See the Mulan PSL v2 for more details.
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, AfterValidator, model_validator
 
 from msmodelslim.core.const import DeviceType
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 
 class AnalysisScope(str, Enum):
@@ -88,7 +89,9 @@ class AnalysisResult(BaseModel):
         description="List of {'name': str, 'score': float}",
     )
     method: str = Field(..., description="分析方法名，如 std / kurtosis")
-    patterns: List[str] = Field(default_factory=list, description="层匹配模式")
+    patterns: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
+        default_factory=list, description="层匹配模式"
+    )
 
 
 class IAnalysisService(ABC):

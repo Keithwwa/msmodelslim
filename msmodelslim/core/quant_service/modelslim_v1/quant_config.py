@@ -19,14 +19,14 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import List, Optional
+from typing import List, Optional, Annotated
+from pydantic import BaseModel, Field, AfterValidator
 from typing_extensions import Self
-
-from pydantic import BaseModel, Field
 
 from msmodelslim.core.const import RunnerType
 from msmodelslim.format.registry import QuantFormatConfigList
 from msmodelslim.processor.base import AutoProcessorConfigList
+from msmodelslim.utils.validation.pydantic import validate_str_length
 from ..interface import BaseQuantConfig
 
 
@@ -34,7 +34,9 @@ class PriorStageConfig(BaseModel):
     """前置阶段配置：仅 process + dataset，用于如 adapt_rotation stage1 等先验阶段。"""
 
     process: AutoProcessorConfigList = Field(default_factory=list, description="该阶段处理器列表")
-    dataset: Optional[str] = Field(default=None, description="该阶段数据集名称，不提供则使用 spec.dataset")
+    dataset: Optional[Annotated[str, AfterValidator(validate_str_length(max_len=4096))]] = Field(
+        default=None, description="该阶段数据集名称，不提供则使用 spec.dataset"
+    )
 
 
 class ModelslimV1ServiceConfig(BaseModel):

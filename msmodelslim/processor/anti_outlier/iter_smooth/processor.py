@@ -19,11 +19,10 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
 from typing import Callable, Any, Literal, Annotated, Optional, List, Dict
 
 import torch.distributed as dist
-import torch.nn as nn
+from torch import nn
 from pydantic import AfterValidator, Field
 
 from msmodelslim.ir.qal.qregistry import QABCRegistry
@@ -36,7 +35,7 @@ from msmodelslim.utils.distributed import DistHelper
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.ir.non_fusion_smooth_quant_ir import NonFusionSmoothQuantHookIR
 from msmodelslim.processor.anti_outlier.common.subgraph_type import NonFusionSubgraph
-from msmodelslim.utils.validation.value import validate_normalized_value, is_boolean, is_string_list
+import msmodelslim.utils.validation.pydantic as pydtc
 
 from ..common import (
     IterSmoothConfig,
@@ -52,14 +51,14 @@ from .interface import IterSmoothInterface
 
 class IterSmoothProcessorConfig(AutoProcessorConfig):
     type: Literal["iter_smooth"] = "iter_smooth"
-    alpha: Annotated[float, AfterValidator(validate_normalized_value)] = 0.9
-    scale_min: Annotated[float, AfterValidator(validate_normalized_value)] = 1e-5
-    symmetric: Annotated[bool, AfterValidator(is_boolean)] = True
-    enable_subgraph_type: Annotated[list, AfterValidator(is_string_list)] = Field(
+    alpha: Annotated[float, AfterValidator(pydtc.validate_normalized_value)] = 0.9
+    scale_min: Annotated[float, AfterValidator(pydtc.validate_normalized_value)] = 1e-5
+    symmetric: bool = True
+    enable_subgraph_type: Annotated[list, AfterValidator(pydtc.is_string_list)] = Field(
         default_factory=lambda: ["norm-linear", "linear-linear", "ov", "up-down"]
     )
-    include: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
+    include: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
+    exclude: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
 
 
 class IterStatsCollector(StatsCollector):
@@ -71,7 +70,7 @@ class IterStatsCollector(StatsCollector):
         self.dist_helper: Optional[DistHelper] = None
         self.minmax_observers: Dict[str, MsMinMaxObserver] = {}
         self.channel_max_observers: Dict[str, MsMinMaxObserver] = {}
-    
+
     def set_dist_helper(self, dist_helper: Optional[DistHelper]):
         """设置分布式辅助类"""
         self.dist_helper = dist_helper
@@ -79,7 +78,7 @@ class IterStatsCollector(StatsCollector):
     def create_hook(self, name: str, subgraph_type: str = None) -> Callable:
         def stats_hook(module: nn.Linear, input_tensor: tuple, output: Any) -> None:
             if not input_tensor or not isinstance(input_tensor, tuple):
-                get_logger().warning(f"Input tensor is empty for module {name}")
+                get_logger().warning("Input tensor is empty for module %s", name)
                 return
 
             tensor = input_tensor[0]
@@ -90,7 +89,7 @@ class IterStatsCollector(StatsCollector):
             hidden_dim = tensor.shape[-1]
             tensor = tensor.reshape(-1, hidden_dim).detach()
 
-            statis_dict = self.act_stats[name]
+            stats_dict = self.act_stats[name]
 
             if name not in self.minmax_observers:
                 observer_config = MinMaxObserverConfig(dim=0, keepdim=False)
@@ -101,10 +100,10 @@ class IterStatsCollector(StatsCollector):
             self.minmax_observers[name].update(tensor, sync=sync)
             coming_min, coming_max = self.minmax_observers[name].get_min_max()
 
-            statis_dict[StatKey.STAT_KEY_MAX] = coming_max
-            statis_dict[StatKey.STAT_KEY_MIN] = coming_min
+            stats_dict[StatKey.STAT_KEY_MAX] = coming_max
+            stats_dict[StatKey.STAT_KEY_MIN] = coming_min
 
-            statis_dict[StatKey.STAT_KEY_SHIFT] = (coming_max + coming_min) / 2
+            stats_dict[StatKey.STAT_KEY_SHIFT] = (coming_max + coming_min) / 2
 
             if name not in self.channel_max_observers:
                 observer_config = MinMaxObserverConfig(dim=0, keepdim=False)
@@ -113,7 +112,7 @@ class IterStatsCollector(StatsCollector):
             # 根据symmetric/asymmetric模式计算channel_max
             if not self.symmetric and subgraph_type in self.ASYM_SUPPORT_SUBGRAPH_TYPES:
                 # asymmetric模式：计算shift后的绝对值最大值
-                shifted_tensor = (tensor - statis_dict[StatKey.STAT_KEY_SHIFT]).abs()
+                shifted_tensor = (tensor - stats_dict[StatKey.STAT_KEY_SHIFT]).abs()
                 self.channel_max_observers[name].update(shifted_tensor, sync=sync)
             else:
                 # symmetric模式：计算绝对值最大值
@@ -121,7 +120,7 @@ class IterStatsCollector(StatsCollector):
                 self.channel_max_observers[name].update(abs_tensor, sync=sync)
 
             _, channel_max = self.channel_max_observers[name].get_min_max()
-            statis_dict[StatKey.STAT_KEY_SMOOTH_SCALE] = channel_max
+            stats_dict[StatKey.STAT_KEY_SMOOTH_SCALE] = channel_max
 
         return stats_hook
 
@@ -152,7 +151,7 @@ class IterSmoothProcessor(BaseSmoothProcessor):
         if not config.symmetric:
             supported_types = ', '.join(IterStatsCollector.ASYM_SUPPORT_SUBGRAPH_TYPES)
             get_logger().warning(
-                f"Detected asymmetric IterSmooth; currently only supports {supported_types} subgraph types"
+                "Detected asymmetric IterSmooth; currently only supports %s subgraph types", supported_types
             )
 
     def support_distributed(self) -> bool:
@@ -167,17 +166,12 @@ class IterSmoothProcessor(BaseSmoothProcessor):
             shift_value = not self.config.symmetric
             get_logger().debug("Asym-capable subgraph (%s), setting shift=%s", subgraph_type, shift_value)
 
-        iter_smooth_cfg = IterSmoothConfig(
-            alpha=self.config.alpha,
-            shift=shift_value,
-            scale_min=self.config.scale_min
-        )
+        iter_smooth_cfg = IterSmoothConfig(alpha=self.config.alpha, shift=shift_value, scale_min=self.config.scale_min)
         smooth_context = self._build_smooth_context(linear_names)
         if smooth_context is None:
             get_logger().warning(
-                "No statistics collected for %s subgraph, skipping. "
-                "This may happen for unused MOE experts.",
-                subgraph_type
+                "No statistics collected for %s subgraph, skipping. This may happen for unused MOE experts.",
+                subgraph_type,
             )
             return
 
@@ -187,21 +181,18 @@ class IterSmoothProcessor(BaseSmoothProcessor):
                 hook_ir = NonFusionSmoothQuantHookIR(scales)
                 hook_handle = linear_module.register_forward_pre_hook(hook_ir)
                 hook_ir.set_hook_handle(hook_handle)
-        
-        get_logger().info(
-            "Successfully applied IterSmooth to %s subgraph (shift=%s)", subgraph_type, shift_value
-        )
+
+        get_logger().info("Successfully applied IterSmooth to %s subgraph (shift=%s)", subgraph_type, shift_value)
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         # 在preprocess时创建DistHelper，传入prefix信息
         if dist.is_initialized():
             self.dist_helper = DistHelper(request.module, prefix=request.name)
             self.stats_collector.set_dist_helper(self.dist_helper)
-        
+
         super().preprocess(request)
         self._replace_norm_modules()
-        get_logger().debug("Processed %d subgraphs for submodule %s",
-                           len(self.adapter_config), request.name)
+        get_logger().debug("Processed %d subgraphs for submodule %s", len(self.adapter_config), request.name)
 
     def postprocess(self, request: BatchProcessRequest) -> None:
         super().postprocess(request)
@@ -237,7 +228,7 @@ class IterSmoothProcessor(BaseSmoothProcessor):
             else:
                 shift = None
         else:
-            get_logger().warning(f"Linear name {linear_name} not in act_stats")
+            get_logger().warning("Linear name %s not in act_stats", linear_name)
             return None
 
         # 检查是否成功获取到激活平滑尺度
@@ -249,11 +240,7 @@ class IterSmoothProcessor(BaseSmoothProcessor):
             )
             return None
         # 创建 IterSmoothContext
-        smooth_context = IterSmoothContext(
-            version=1,
-            a_smooth_scale=a_smooth_scale,
-            shift=shift
-        )
+        smooth_context = IterSmoothContext(version=1, a_smooth_scale=a_smooth_scale, shift=shift)
 
         return smooth_context
 
@@ -291,6 +278,6 @@ class IterSmoothProcessor(BaseSmoothProcessor):
                 '%s does not implement IterSmoothInterface. Fallback to default model adapter logic (hook-based auto-detect). '
                 'To use model-specific config, ensure %s inherits from IterSmoothInterface and implements the methods defined by the interface',
                 adapter.__class__.__name__,
-                adapter.__class__.__name__
+                adapter.__class__.__name__,
             )
             self.is_defalut_adapter = True

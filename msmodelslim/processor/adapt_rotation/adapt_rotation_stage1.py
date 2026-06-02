@@ -17,13 +17,13 @@ See the Mulan PSL v2 for more details.
 """
 
 from collections import defaultdict
-from typing import List, Literal, Dict
+from typing import Annotated, List, Literal, Dict
 
 import functools
 import torch
 import torch.distributed as dist
 from torch import nn
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, AfterValidator, field_validator
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.core.context import get_current_context
@@ -31,6 +31,7 @@ from msmodelslim.processor.base import AutoSessionProcessor
 from msmodelslim.utils.distributed import DistHelper
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import get_logger, logger_setter
+from msmodelslim.utils.validation.pydantic import in_range, validate_str_length
 from msmodelslim.processor.quarot.offline_quarot.quarot_interface import QuaRotInterface
 from msmodelslim.processor.quarot.common.quarot_utils import fuse_ln_linear, is_power_of_two
 from .interface import AdaptRotationInterface
@@ -41,20 +42,24 @@ LAYER_TYPE_STR_MAX_LEN = 128
 
 class AdaptRotationStage1ProcessorConfig(BaseModel):
     """Internal config for stage1 (BaseModel, not in AutoProcessorConfig registry to avoid union recursion)."""
-    model_config = ConfigDict(extra="forbid")
+
     type: Literal["_adapt_rotation_stage1"] = "_adapt_rotation_stage1"
-    steps: int = Field(default=20, ge=1, le=1000, description="迭代优化步数")
+    steps: Annotated[int, AfterValidator(in_range(min_val=1, max_val=1000))] = Field(
+        default=20, description="迭代优化步数"
+    )
     quant_dtype: Literal["int4", "int8"] = Field(
         default="int4",
         description="量化比特数，应与下游量化中激活值量化类型一致（如 w4a4 用 int4，w8a8 用 int8）",
     )
-    layer_type: List[str] = Field(
+    layer_type: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
         default_factory=lambda: ["up_proj"],
         min_length=1,
         description="要收集激活的层名子串列表",
     )
     block_size: int = Field(default=-1, description="块大小，-1 表示 hidden_dim")
-    max_samples: int = Field(default=2048, ge=1, le=100000, description="每层最大采样数")
+    max_samples: Annotated[int, AfterValidator(in_range(min_val=1, max_val=100000))] = Field(
+        default=2048, description="每层最大采样数"
+    )
 
     @field_validator('layer_type')
     @classmethod
@@ -85,11 +90,7 @@ class AdaptRotationStage1ProcessorConfig(BaseModel):
 @logger_setter(prefix="msmodelslim.processor.adapt_rotation")
 class AdaptRotationStage1Processor(AutoSessionProcessor):
     def __init__(
-        self,
-        model: nn.Module,
-        config: AdaptRotationStage1ProcessorConfig,
-        adapter: AdaptRotationInterface,
-        **kwargs
+        self, model: nn.Module, config: AdaptRotationStage1ProcessorConfig, adapter: AdaptRotationInterface, **kwargs
     ) -> None:
         super().__init__(model)
         self.config = config
@@ -103,7 +104,7 @@ class AdaptRotationStage1Processor(AutoSessionProcessor):
             raise UnsupportedError(
                 f'{adapter.__class__.__name__} does not support AdaptRotationInterface',
                 action='AdaptRotationStage1Processor depends on AdaptRotationInterface. '
-                       'Please provide a valid model adapter which implements AdaptRotationInterface',
+                'Please provide a valid model adapter which implements AdaptRotationInterface',
             )
 
     def stat_tensor(self, name, tensor):
@@ -172,11 +173,7 @@ class AdaptRotationStage1Processor(AutoSessionProcessor):
         self._stat_hooks = []
         for name, m in request.module.named_modules():
             if isinstance(m, torch.nn.Linear) and any(layer in name for layer in self.config.layer_type):
-                self._stat_hooks.append(
-                    m.register_forward_hook(
-                        functools.partial(stat_input_hook, name=prefix + name)
-                    )
-                )
+                self._stat_hooks.append(m.register_forward_hook(functools.partial(stat_input_hook, name=prefix + name)))
 
     def postprocess(self, request: BatchProcessRequest) -> None:
         """移除本层注册的前向钩子。"""
@@ -203,7 +200,7 @@ class AdaptRotationStage1Processor(AutoSessionProcessor):
         if not act_matrix:
             raise UnsupportedError(
                 "AdaptRotation stage1 collected no activations; act_dict is empty.",
-                action="Check layer_type config matches model layer names. "
+                action="Check layer_type config matches model layer names. ",
             )
 
         optimizer = HadamardOptimizer(

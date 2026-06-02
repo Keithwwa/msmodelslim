@@ -59,7 +59,7 @@ spec:
             - "*mlp.experts*"
           exclude:
             - "model.layers.61.*"
-  calib_dataset: calib_prompt.jsonl
+  dataset: calib_prompt.jsonl
   save:
     - type: "ascendv1_saver"
       part_file_size: 4

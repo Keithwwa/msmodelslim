@@ -27,7 +27,7 @@ import shutil
 import stat
 import sys
 
-from msmodelslim.utils.exception import SecurityError
+from msmodelslim.utils.exception import SecurityError, SchemaValidateError
 from msmodelslim.utils.logging import get_logger, LOGGER_FUNC
 from msmodelslim.utils.validation.type import check_dict_character, check_type
 
@@ -40,10 +40,8 @@ MAX_READ_FILE_SIZE_512G = 549755813888  # 512G, 512 * 1024 * 1024 * 1024
 WRITE_FILE_NOT_PERMITTED_STAT = stat.S_IWGRP | stat.S_IWOTH | stat.S_IROTH | stat.S_IXOTH
 # group not writable, others not writable, max stat is 755
 READ_FILE_NOT_PERMITTED_STAT = stat.S_IWGRP | stat.S_IWOTH
-yaml.SafeDumper.add_multi_representer(
-    str,
-    yaml.representer.SafeRepresenter.represent_str
-)
+yaml.SafeDumper.add_multi_representer(str, yaml.representer.SafeRepresenter.represent_str)
+
 
 def is_endswith_extensions(path, extensions):
     result = False
@@ -64,30 +62,41 @@ def get_valid_path(path, extensions=None):
 
     if PATH_WHITE_LIST_REGEX.search(path):  # Check special char
         # Not printing out the path value for invalid char
-        raise SecurityError("Input path contains invalid characters.",
-                            action='Please make sure the path contains only valid characters [_A-Za-z0-9/.-]')
+        raise SecurityError(
+            "Input path contains invalid characters.",
+            action='Please make sure the path contains only valid characters [_A-Za-z0-9/.-]',
+        )
     if os.path.islink(os.path.abspath(path)):  # when checking link, get rid of the "/" at the path tail if any
-        raise SecurityError("The value of the path cannot be soft link: {}.".format(path),
-                            action='Please make sure the path is not a soft link.')
+        raise SecurityError(
+            "The value of the path cannot be soft link: {}.".format(path),
+            action='Please make sure the path is not a soft link.',
+        )
 
     real_path = os.path.realpath(path)
 
     file_name = os.path.split(real_path)[1]
     if len(file_name) > 255:
-        raise SecurityError(f"The length of filename should be less than 256.",
-                            action='Please make sure the filename is not longer than 256 characters.')
+        raise SecurityError(
+            "The length of filename should be less than 256.",
+            action='Please make sure the filename is not longer than 256 characters.',
+        )
     if len(real_path) > 4096:
-        raise SecurityError("The length of file path should be less than 4096.",
-                            action='Please make sure the file path is not longer than 4096 characters.')
+        raise SecurityError(
+            "The length of file path should be less than 4096.",
+            action='Please make sure the file path is not longer than 4096 characters.',
+        )
 
     if real_path != path and PATH_WHITE_LIST_REGEX.search(real_path):  # Check special char again
         # Not printing out the path value for invalid char
-        raise SecurityError("Input path contains invalid characters.",
-                            action='Please make sure the path contains only valid characters [_A-Za-z0-9/.-]')
+        raise SecurityError(
+            "Input path contains invalid characters.",
+            action='Please make sure the path contains only valid characters [_A-Za-z0-9/.-]',
+        )
     if extensions and not is_endswith_extensions(path, extensions):  # Check whether the file name endswith extension
-        raise SecurityError("The filename {} doesn't endswith \"{}\".".format(path, extensions),
-                            action='Please make sure the filename ends with one of the following extensions: {}'.format(
-                                extensions))
+        raise SecurityError(
+            "The filename {} doesn't endswith \"{}\".".format(path, extensions),
+            action='Please make sure the filename ends with one of the following extensions: {}'.format(extensions),
+        )
 
     return real_path
 
@@ -99,8 +108,8 @@ def is_belong_to_user_or_group(file_stat):
 def check_others_not_writable(path):
     dir_stat = os.stat(path)
     is_writable = (
-            bool(dir_stat.st_mode & stat.S_IWGRP) or  # 组可写
-            bool(dir_stat.st_mode & stat.S_IWOTH)  # 其他用户可写
+        bool(dir_stat.st_mode & stat.S_IWGRP)  # 组可写
+        or bool(dir_stat.st_mode & stat.S_IWOTH)  # 其他用户可写
     )
     if is_writable:
         get_logger().warning("The file path %r may be insecure because it can be written by others.", path)
@@ -117,8 +126,9 @@ def check_dirpath_before_read(path):
     dirpath = os.path.dirname(path)
     dirpath = get_valid_path(dirpath)
     if not os.path.isdir(dirpath):
-        raise SecurityError("The directory {} doesn't exist.".format(dirpath),
-                            action='Please make sure the directory exists.')
+        raise SecurityError(
+            "The directory {} doesn't exist.".format(dirpath), action='Please make sure the directory exists.'
+        )
 
     check_others_not_writable(dirpath)
     check_path_owner_consistent(dirpath)
@@ -128,50 +138,71 @@ def get_valid_read_path(path, extensions=None, size_max=MAX_READ_FILE_SIZE_4G, c
     check_dirpath_before_read(path)
     real_path = get_valid_path(path, extensions)
     if not is_dir and not os.path.isfile(real_path):
-        raise SecurityError("The path {} doesn't exist or not a file.".format(path),
-                            action='Please make sure the path exists and is a file.')
+        raise SecurityError(
+            "The path {} doesn't exist or not a file.".format(path),
+            action='Please make sure the path exists and is a file.',
+        )
     if is_dir and not os.path.isdir(real_path):
-        raise SecurityError("The path {} doesn't exist or not a directory.".format(path),
-                            action='Please make sure the path exists and is a directory.')
+        raise SecurityError(
+            "The path {} doesn't exist or not a directory.".format(path),
+            action='Please make sure the path exists and is a directory.',
+        )
 
     file_stat = os.stat(real_path)
     if check_user_stat and not sys.platform.startswith("win") and not is_belong_to_user_or_group(file_stat):
         if os.geteuid() == 0:
-            get_logger().warning("The file %r doesn't belong to the current user or group."
-            " current user is root, continue", path)
+            get_logger().warning(
+                "The file %r doesn't belong to the current user or group. current user is root, continue", path
+            )
         else:
-            raise SecurityError("The file {} doesn't belong to the current user or group.".format(path),
-                                action='Please make sure the file belongs to the current user or group.')
+            raise SecurityError(
+                "The file {} doesn't belong to the current user or group.".format(path),
+                action='Please make sure the file belongs to the current user or group.',
+            )
     if check_user_stat and os.stat(path).st_mode & READ_FILE_NOT_PERMITTED_STAT > 0:
-        raise SecurityError("The file {} is group writable, or is others writable.".format(path),
-                            action='Please make sure the file is not group writable or others writable.')
+        raise SecurityError(
+            "The file {} is group writable, or is others writable.".format(path),
+            action='Please make sure the file is not group writable or others writable.',
+        )
     if not os.access(real_path, os.R_OK) or file_stat.st_mode & stat.S_IRUSR == 0:  # At least been 400
-        raise SecurityError("Current user doesn't have read permission to the file {}.".format(path),
-                            action='Please make sure the current user has read permission to the file.')
-    if not is_dir and size_max > 0 and file_stat.st_size > size_max:
-        raise SecurityError("The file {} exceeds size limitation of {}.".format(path, size_max),
-                            action='Please make sure the file size is less than the size limitation.')
+        raise SecurityError(
+            "Current user doesn't have read permission to the file {}.".format(path),
+            action='Please make sure the current user has read permission to the file.',
+        )
+    if not is_dir and 0 < size_max < file_stat.st_size:
+        raise SecurityError(
+            "The file {} exceeds size limitation of {}.".format(path, size_max),
+            action='Please make sure the file size is less than the size limitation.',
+        )
     return real_path
 
 
 def check_write_directory(dir_name, check_user_stat=True):
     real_dir_name = get_valid_path(dir_name)
     if not os.path.isdir(real_dir_name):
-        raise SecurityError("The file writen directory {} doesn't exist.".format(dir_name),
-                            action='Please make sure the file writen directory exists.')
+        raise SecurityError(
+            "The file writen directory {} doesn't exist.".format(dir_name),
+            action='Please make sure the file writen directory exists.',
+        )
 
     file_stat = os.stat(real_dir_name)
     if check_user_stat and not sys.platform.startswith("win") and not is_belong_to_user_or_group(file_stat):
         if os.geteuid() == 0:
-            get_logger().warning("The file writen directory %r doesn't belong to the current user or group."
-            " current user is root, continue", dir_name)
+            get_logger().warning(
+                "The file writen directory %r doesn't belong to the current user or group."
+                " current user is root, continue",
+                dir_name,
+            )
         else:
             raise SecurityError(
                 "The file writen directory {} doesn't belong to the current user or group.".format(dir_name),
-                action='Please make sure the file writen directory belongs to the current user or group.')
+                action='Please make sure the file writen directory belongs to the current user or group.',
+            )
     if not os.access(real_dir_name, os.W_OK):
-        raise SecurityError("Current user doesn't have writen permission to file writen directory {}.".format(dir_name),
-                            'Please make sure the current user has writen permission to the file writen directory.')
+        raise SecurityError(
+            "Current user doesn't have writen permission to file writen directory {}.".format(dir_name),
+            'Please make sure the current user has writen permission to the file writen directory.',
+        )
 
 
 def get_write_directory(dir_name, write_mode=0o750):
@@ -191,36 +222,69 @@ def get_valid_write_path(path, extensions=None, check_user_stat=True, is_dir=Fal
 
     if not is_dir and os.path.exists(real_path):
         if os.path.isdir(real_path):
-            raise SecurityError("The file {} exist and is a directory.".format(path),
-                                action='Please make sure the file is not a directory.')
+            raise SecurityError(
+                "The file {} exist and is a directory.".format(path),
+                action='Please make sure the file is not a directory.',
+            )
         if check_user_stat and os.stat(real_path).st_uid != os.getuid():  # Has to be exactly belonging to current user
-            raise SecurityError("The file {} doesn't belong to the current user.".format(path),
-                                action='Please make sure the file belongs to the current user.')
+            raise SecurityError(
+                "The file {} doesn't belong to the current user.".format(path),
+                action='Please make sure the file belongs to the current user.',
+            )
         if check_user_stat and os.stat(real_path).st_mode & WRITE_FILE_NOT_PERMITTED_STAT > 0:
-            raise SecurityError("The file {} permission for others is not 0, or is group writable.".format(path),
-                                action='Please make sure the file permission for others is 0, or is group writable.')
+            raise SecurityError(
+                "The file {} permission for others is not 0, or is group writable.".format(path),
+                action='Please make sure the file permission for others is 0, or is group writable.',
+            )
         if not os.access(real_path, os.W_OK):
-            raise SecurityError("The file {} exist and not writable.".format(path),
-                                action='Please make sure the file is writable.')
+            raise SecurityError(
+                "The file {} exist and not writable.".format(path), action='Please make sure the file is writable.'
+            )
         if warn_exists:
             get_logger().warning("%r already exist. The original file will be overwritten.", path)
     return real_path
 
 
+class _DuplicateKeyLoader(yaml.SafeLoader):
+    """在 SafeLoader 基础上检测 YAML 重复键，发现时报错而非静默覆盖。"""
+
+    pass
+
+
+def _construct_mapping_check_duplicates(loader, node, deep=False):
+    loader.flatten_mapping(node)
+    pairs = loader.construct_pairs(node, deep=deep)
+    keys = [key for key, _ in pairs]
+    seen = set()
+    for key in keys:
+        if key in seen:
+            raise SchemaValidateError(
+                f"Duplicate key '{key}' found in YAML at line {node.start_mark.line + 1}.",
+                action='Please remove the duplicate key, each key should appear only once in a YAML mapping.',
+            )
+        seen.add(key)
+    return dict(pairs)
+
+
+_DuplicateKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_mapping_check_duplicates,
+)
+
+
 def yaml_safe_load(
-        path, extensions=("yml", "yaml"), size_max=MAX_READ_FILE_SIZE_4G, key_max_len=512, check_user_stat=True
+    path, extensions=("yml", "yaml"), size_max=MAX_READ_FILE_SIZE_4G, key_max_len=512, check_user_stat=True
 ):
-    import yaml
     path = get_valid_read_path(path, extensions, size_max, check_user_stat)
-    with open(path) as yaml_file:
-        raw_dict = yaml.safe_load(yaml_file)
+    with open(path, encoding='utf-8') as yaml_file:
+        raw_dict = yaml.load(yaml_file, Loader=_DuplicateKeyLoader)  # nosec B506
     check_dict_character(raw_dict, key_max_len)
     return raw_dict
 
 
 def json_safe_load(path, extensions="json", size_max=MAX_READ_FILE_SIZE_4G, key_max_len=512, check_user_stat=True):
     path = get_valid_read_path(path, extensions, size_max, check_user_stat)
-    with open(path) as json_file:
+    with open(path, encoding='utf-8') as json_file:
         raw_dict = json.load(json_file)
     if isinstance(raw_dict, dict):
         check_dict_character(raw_dict, key_max_len)
@@ -228,7 +292,6 @@ def json_safe_load(path, extensions="json", size_max=MAX_READ_FILE_SIZE_4G, key_
 
 
 def yaml_safe_dump(obj, path, extensions=("yml", "yaml"), check_user_stat=True):
-    import yaml
     check_dict_character(obj)
     write_path = get_valid_write_path(path, extensions, check_user_stat)
 

@@ -22,13 +22,12 @@ See the Mulan PSL v2 for more details.
 from typing import List
 
 import pytest
-import torch.nn as nn
+from torch import nn
 
 from msmodelslim.core.graph.adapter_types import AdapterConfig, MappingConfig, FusionConfig
-from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.processor.anti_outlier.iter_smooth import IterSmoothProcessor, IterSmoothProcessorConfig
 from msmodelslim.processor.anti_outlier.iter_smooth.interface import IterSmoothInterface
-from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
+from msmodelslim.utils.exception import SchemaValidateError
 
 
 class MockModel(nn.Module):
@@ -69,11 +68,13 @@ class MockAdapterWithIncompleteFusion(IterSmoothInterface):
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         # FusionConfig缺少必要参数
         fusion_config = FusionConfig(fusion_type="qkv", num_attention_heads=None, num_key_value_heads=None)
-        return [AdapterConfig(
-            subgraph_type="norm-linear",
-            mapping=MappingConfig(targets=["layer2"], source="layer1"),
-            fusion=fusion_config
-        )]
+        return [
+            AdapterConfig(
+                subgraph_type="norm-linear",
+                mapping=MappingConfig(targets=["layer2"], source="layer1"),
+                fusion=fusion_config,
+            )
+        ]
 
 
 class TestIterSmoothProcessor:
@@ -92,8 +93,8 @@ class TestIterSmoothProcessor:
 
     def test_adapter_missing_subgraph_type(self):
         """测试用例2：用户adapter不配置subgraph_type"""
-        model = MockModel()
-        config = IterSmoothProcessorConfig()
+        _ = MockModel()
+        _ = IterSmoothProcessorConfig()
         adapter = MockAdapterWithIncompleteConfig()
 
         # 现在 AdapterConfig 在构造阶段就会校验 subgraph_type，并抛出 ValueError
@@ -119,8 +120,8 @@ class TestIterSmoothProcessor:
 
     def test_adapter_incomplete_fusion_config(self):
         """测试用例4：用户adapter配置了FusionConfig，但是没有给出num_attention_heads和num_key_value_heads"""
-        model = MockModel()
-        config = IterSmoothProcessorConfig()
+        _ = MockModel()
+        _ = IterSmoothProcessorConfig()
         adapter = MockAdapterWithIncompleteFusion()
 
         # FusionConfig 在构造阶段会校验必要字段，并抛出 ValueError
@@ -131,61 +132,61 @@ class TestIterSmoothProcessor:
 
     def test_yaml_alpha_validation_negative(self):
         """测试用例5：yaml参数校验alpha为浮点类型且大于0"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # alpha参数校验在创建config时就会触发
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(alpha=-1)
+            _ = IterSmoothProcessorConfig(alpha=-1)
 
         error_str = str(exc_info.value)
         assert "value must be in the range (0, 1)" in error_str or "range" in error_str.lower()
 
     def test_yaml_alpha_validation_out_of_range(self):
         """测试用例5：yaml参数校验alpha超出范围"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # alpha参数校验在创建config时就会触发
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(alpha=1.5)
+            _ = IterSmoothProcessorConfig(alpha=1.5)
 
         error_str = str(exc_info.value)
-        assert "value must be in the range (0, 1)" in error_str
+        assert "alpha must be in the range (0, 1)" in error_str
 
     def test_yaml_scale_min_validation_negative(self):
         """测试用例6：yaml参数校验scale_min为浮点类型且大于0"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # scale_min参数校验在创建config时就会触发
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(scale_min=-1)
+            _ = IterSmoothProcessorConfig(scale_min=-1)
 
         error_str = str(exc_info.value)
-        assert "value must be in the range (0, 1)" in error_str
+        assert "scale_min must be in the range (0, 1)" in error_str
 
     def test_yaml_scale_min_validation_out_of_range(self):
         """测试用例6：yaml参数校验scale_min超出范围"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # scale_min参数校验在创建config时就会触发
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(scale_min=2.0)
+            _ = IterSmoothProcessorConfig(scale_min=2.0)
 
         error_str = str(exc_info.value)
-        assert "value must be in the range (0, 1)" in error_str
+        assert "scale_min must be in the range (0, 1)" in error_str
 
     def test_yaml_symmetric_validation_non_boolean(self):
         """测试用例7：yaml参数校验symmetric为布尔类型"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # symmetric参数校验在创建config时就会触发
         # Pydantic会抛出ValidationError，而不是SchemaValidateError
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(symmetric="haha")
+            _ = IterSmoothProcessorConfig(symmetric="haha")
 
         # 检查错误信息中是否包含我们的验证器消息
         error_str = str(exc_info.value)
@@ -201,31 +202,31 @@ class TestIterSmoothProcessor:
         config = IterSmoothProcessorConfig(enable_subgraph_type=["haha"])
 
         with pytest.raises(SchemaValidateError) as exc_info:
-            processor = IterSmoothProcessor(model, config, adapter)
+            _ = IterSmoothProcessor(model, config, adapter)
 
         assert "Elements in enable_subgraph_type must be in" in str(exc_info.value)
 
     def test_yaml_enable_subgraph_type_validation_non_list(self):
         """测试用例8：yaml参数校验enable_subgraph_type为非列表类型"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # enable_subgraph_type参数校验在创建config时就会触发
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(enable_subgraph_type="haha")
+            _ = IterSmoothProcessorConfig(enable_subgraph_type="haha")
 
         error_str = str(exc_info.value)
         assert "value must be a list type" in error_str or "list" in error_str.lower()
 
     def test_yaml_include_validation_non_list(self):
         """测试用例9：include参数为非列表类型时在创建config时抛出ValidationError"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # include参数校验在创建config时就会触发，因为Pydantic会自动验证类型
         # include: Optional[List[str]] = None 期望列表类型，传入整数会失败
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(include=1)
+            _ = IterSmoothProcessorConfig(include=1)
 
         # 检查错误信息
         error_str = str(exc_info.value)
@@ -233,26 +234,26 @@ class TestIterSmoothProcessor:
 
     def test_yaml_exclude_validation_non_list(self):
         """测试用例9：exclude是字符串列表"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # exclude参数校验在创建config时就会触发（如果使用了AfterValidator）
         # 由于BaseSmoothProcessorConfig中的exclude没有使用AfterValidator，这里测试类型转换
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(exclude=1)
+            _ = IterSmoothProcessorConfig(exclude=1)
 
         error_str = str(exc_info.value)
         assert "exclude" in error_str.lower() or "list" in error_str.lower()
 
     def test_yaml_include_validation_non_string_elements(self):
         """测试用例9：include列表元素不是字符串时在创建config时抛出ValidationError"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # include参数校验在创建config时就会触发，因为Pydantic会自动验证类型
         # include: Optional[List[str]] = None 期望字符串列表，传入整数列表会失败
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(include=[1, 2, 3])
+            _ = IterSmoothProcessorConfig(include=[1, 2, 3])
 
         # 检查错误信息
         error_str = str(exc_info.value)
@@ -260,13 +261,13 @@ class TestIterSmoothProcessor:
 
     def test_yaml_exclude_validation_non_string_elements(self):
         """测试用例9：exclude列表元素不是字符串时在创建config时抛出ValidationError"""
-        model = MockModel()
-        adapter = MockAdapterWithoutInterface()
+        _ = MockModel()
+        _ = MockAdapterWithoutInterface()
 
         # exclude参数校验在创建config时就会触发，因为Pydantic会自动验证类型
         # exclude: Optional[List[str]] = None 期望字符串列表，传入整数列表会失败
         with pytest.raises(SchemaValidateError) as exc_info:
-            config = IterSmoothProcessorConfig(exclude=[1, 2, 3])
+            _ = IterSmoothProcessorConfig(exclude=[1, 2, 3])
 
         # 检查错误信息
         error_str = str(exc_info.value)

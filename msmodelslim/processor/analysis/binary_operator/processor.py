@@ -18,10 +18,11 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-import functools
-from typing import Any, Callable, Dict, List, Literal, Optional
 
-from pydantic import Field
+import functools
+from typing import Annotated, Any, Callable, Dict, List, Literal, Optional
+
+from pydantic import Field, AfterValidator
 from torch import nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
@@ -30,6 +31,7 @@ from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoProcessorConfigList, AutoSessionProcessor
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError
+from msmodelslim.utils.validation.pydantic import validate_str_length
 from msmodelslim.processor.analysis.binary_operator.metrics.factory import BinaryAnalysisMethodFactory
 
 
@@ -41,7 +43,7 @@ class BinaryAnalysisProcessorConfig(AutoProcessorConfig):
         default="mse",
         description="Analysis method: mse",
     )
-    patterns: List[str] = Field(
+    patterns: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
         default_factory=lambda: ["*"],
         description="Layer name patterns to analyze",
     )
@@ -69,9 +71,7 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
         self.config = config
         self.adapter = adapter
         self.quant_processors = [AutoSessionProcessor.from_config(model, cfg, adapter) for cfg in config.configs]
-        self._analysis_method = BinaryAnalysisMethodFactory.create_method(
-            config.metrics, adapter=self.adapter
-        )
+        self._analysis_method = BinaryAnalysisMethodFactory.create_method(config.metrics, adapter=self.adapter)
         self._target_layers: List[str] = []
         self._float_layer_stats: Dict[str, Any] = {}
         self._quant_layer_stats: Dict[str, Any] = {}
@@ -89,9 +89,7 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         all_layers = self._analysis_method.get_target_layers(request.module, request.name)
-        self._target_layers = self._analysis_method.filter_layers_by_patterns(
-            all_layers, self.config.patterns
-        )
+        self._target_layers = self._analysis_method.filter_layers_by_patterns(all_layers, self.config.patterns)
         get_logger().debug(
             "BinaryAnalysisProcessor preprocess: %d target layers (metrics=%s)",
             len(self._target_layers),
@@ -100,9 +98,11 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
 
         if len(self._target_layers) == 0:
             get_logger().warning(
-                f"No target layers/modules found matching the specified patterns for {request.name}. "
-                f"Please check the patterns {self.config.patterns} and the model structure, to ensure it meets expectations."
-                )
+                "No target layers/modules found matching the specified patterns for %s. "
+                "Please check the patterns %s and the model structure, to ensure it meets expectations.",
+                request.name,
+                self.config.patterns,
+            )
 
         hook_fn = self._analysis_method.get_hook()
         self._register_hooks_for_request(request, hook_fn, self._float_layer_stats)
@@ -139,7 +139,7 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
             if k in self._float_layer_stats and k in self._quant_layer_stats and k in self._target_layers:
                 score = self._analysis_method.compute_score(self._float_layer_stats[k], self._quant_layer_stats[k])
                 self._layer_scores.append({"name": k, "score": score})
-                get_logger().debug(f"{k}: {score}")
+                get_logger().debug("%s: %s", k, score)
                 # 分数计算完成后删除激活状态，及时释放内存
                 del self._float_layer_stats[k]
                 del self._quant_layer_stats[k]
@@ -149,9 +149,12 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
             processor.post_run()
 
         ctx = get_current_context()
-        ctx["layer_analysis"].debug["layer_scores"] = self._layer_scores
-        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
-        ctx["layer_analysis"].debug["patterns"] = self.config.patterns
+        if ctx is None:
+            return
+        layer_analysis = ctx["layer_analysis"]  # pylint: disable=unsubscriptable-object
+        layer_analysis.debug["layer_scores"] = self._layer_scores
+        layer_analysis.debug["method"] = self._analysis_method.name
+        layer_analysis.debug["patterns"] = self.config.patterns
 
         get_logger().info(
             "BinaryAnalysisProcessor post_run: %d layer scores computed (%s)",
@@ -159,16 +162,15 @@ class BinaryAnalysisProcessor(AutoSessionProcessor):
             self._analysis_method.name,
         )
 
-        if not ctx["layer_analysis"].debug["layer_scores"] or len(ctx["layer_analysis"].debug["layer_scores"]) == 0:
+        if not layer_analysis.debug["layer_scores"] or len(layer_analysis.debug["layer_scores"]) == 0:
             get_logger().warning(
-                f"No statistics collected. This may be caused by empty calibration data "
-                f"or incompatible patterns with the model structure."
-                )
+                "No statistics collected. This may be caused by empty calibration data "
+                "or incompatible patterns with the model structure."
+            )
 
-    def _register_hooks_for_request(self, 
-                                    request: BatchProcessRequest, 
-                                    hook_fn: Callable, 
-                                    stats_dict: Dict[str, Any]) -> None:
+    def _register_hooks_for_request(
+        self, request: BatchProcessRequest, hook_fn: Callable, stats_dict: Dict[str, Any]
+    ) -> None:
         """
         为当前 request 块中属于 _target_layers 且非 nn.Linear 的子模块注册前向 hook。
         采集到的激活状态存储到stats_dict中。

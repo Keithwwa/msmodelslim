@@ -19,13 +19,12 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
 import re
 from collections import defaultdict
-from typing import List, Optional, Dict, Literal
+from typing import List, Optional, Dict, Literal, Annotated
 
 import torch
-from pydantic import ConfigDict
+from pydantic import AfterValidator, Field
 from torch import nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
@@ -40,6 +39,7 @@ from msmodelslim.utils.exception import VersionError, UnsupportedError
 from msmodelslim.utils.function_hijacker import hijack_function
 from msmodelslim.utils.hook_utils import add_before_hook, add_after_hook, restore_target
 from msmodelslim.utils.logging import get_logger, logger_setter
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 DYNAMIC_AVAILABLE = True
 try:
@@ -55,10 +55,8 @@ LAYER_IDX_NAME = "layer_idx" if DYNAMIC_AVAILABLE else None
 class DynamicCacheProcessorConfig(AutoProcessorConfig):
     type: Literal['dynamic_cache'] = "dynamic_cache"
     qconfig: QConfig
-    include: List[str] = []
-    exclude: List[str] = []
-
-    model_config = ConfigDict(extra="forbid")   
+    include: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(default_factory=list)
+    exclude: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(default_factory=list)
 
 
 def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
@@ -66,7 +64,8 @@ def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
     unmatched_keys = list(filter(lambda x: x != "*", unmatched_keys))
     if unmatched_keys:
         get_logger().warning(
-            f"These {name} patterns are not matched any module, please ensure this is as expected: {unmatched_keys}")
+            "These %s patterns are not matched any module, please ensure this is as expected: %s", name, unmatched_keys
+        )
 
 
 def _get_module_by_name(model: nn.Module, submodule_key: str) -> nn.Module:
@@ -84,7 +83,7 @@ def _detect_attention_layers(model: torch.nn.Module) -> Dict[int, str]:
     Identifies attention modules by checking if class name contains 'attention'.
     """
     attention_layers = {}
-    
+
     for name, module in model.named_modules():
         class_name = module.__class__.__name__.lower()
         if 'attention' in class_name or 'attn' in class_name:
@@ -93,7 +92,7 @@ def _detect_attention_layers(model: torch.nn.Module) -> Dict[int, str]:
             if numbers:
                 layer_idx = int(numbers[0])
                 attention_layers[layer_idx] = name
-    
+
     return attention_layers
 
 
@@ -108,10 +107,10 @@ def _get_first_layer(model: torch.nn.Module):
 @logger_setter(prefix="msmodelslim.processor.kvcache_quant")
 class DynamicCacheQuantProcessor(AutoSessionProcessor):
     def __init__(
-            self,
-            model: nn.Module,
-            config: DynamicCacheProcessorConfig,
-            adapter: Optional[object] = None,
+        self,
+        model: nn.Module,
+        config: DynamicCacheProcessorConfig,
+        adapter: Optional[object] = None,
     ):
         super().__init__(model)
         self.config = config
@@ -123,7 +122,7 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
         self.include = ConfigSet(config.include) if config.include else ConfigSet(["*"])
         self.exclude = ConfigSet(config.exclude) if config.exclude else ConfigSet([])
 
-        self.input_name_map = {i: key for i, key in enumerate(CACHE_INPUT_NAME)}
+        self.input_name_map = dict(enumerate(CACHE_INPUT_NAME))
         self.input_layer_idx_name = LAYER_IDX_NAME
 
         self.cache_quantizers: Dict[int, Dict[str, DynamicCacheQuantizer]] = defaultdict(
@@ -171,7 +170,7 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
         for layer_idx, attention_prefix in attention_layers.items():
             mod = _get_module_by_name(self.model, attention_prefix)
             self._deploy_quantizer(mod, layer_idx)
-    
+
     def post_run(self) -> None:
         # remove global hook if used
         if self._trigger_hook_installed:
@@ -182,7 +181,7 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
             # Remove trigger hook
             restore_target(self.trigger_hook_target)
             self._trigger_hook_installed = False
-        
+
         # Clear hook registry
         self._installed_cache_ids.clear()
 
@@ -203,8 +202,9 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
                 self.fake_kvcache_quantizers[layer_idx][target_name] = getattr(mod, f'{target_name}_quantizer')
 
     def _add_quantizer_hook(self, _, kwargs):
-        get_logger().debug(f"dynamic cache quant processor hijack kvcache update, "
-                           "the cache is always empty when calibrating!")
+        get_logger().debug(
+            "dynamic cache quant processor hijack kvcache update, the cache is always empty when calibrating!"
+        )
         for _, value in kwargs.items():
             if isinstance(value, self.cache_target[0]):
                 # Check if hook already installed using cache ID
@@ -216,9 +216,14 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
                 self._installed_cache_ids.add(cache_id)
                 return
         if not self._use_global_hook:
-            get_logger().warning(f"No {self.cache_target[0].__name__} found in the model forward function arguments"
-                        f"try to hook on {self.cache_target[0].__name__}.{self.cache_target[1]}, "
-                        "this may influence other model's inference!")
+            get_logger().warning(
+                "No %s found in the model forward function arguments"
+                "try to hook on %s.%s, "
+                "this may influence other model's inference!",
+                self.cache_target[0].__name__,
+                self.cache_target[0].__name__,
+                self.cache_target[1],
+            )
             hijack_function(self.cache_target, self._custom_cache_update)
             self._use_global_hook = True
 
@@ -234,9 +239,14 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
                 self._installed_cache_ids.add(cache_id)
                 return
         if not self._use_global_hook:
-            get_logger().warning(f"No {self.cache_target[0].__name__} found in the model forward function arguments"
-                        f"try to hook on {self.cache_target[0].__name__}.{self.cache_target[1]}, "
-                        "this may influence other model's inference!")
+            get_logger().warning(
+                "No %s found in the model forward function arguments"
+                "try to hook on %s.%s, "
+                "this may influence other model's inference!",
+                self.cache_target[0].__name__,
+                self.cache_target[0].__name__,
+                self.cache_target[1],
+            )
             add_after_hook(self.cache_target, self._fake_quant_update)
             self._use_global_hook = True
 
@@ -248,13 +258,13 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
                 states = result[idx]
             else:
                 states = result
-        
+
             if self._attention_layers_map[layer_idx] not in self.include:
                 return result
 
             if self._attention_layers_map[layer_idx] in self.exclude:
                 return result
-            
+
             quantizer = self.fake_kvcache_quantizers[layer_idx][target_name]
             if quantizer is not None:
                 states = quantizer(states)
@@ -272,23 +282,27 @@ class DynamicCacheQuantProcessor(AutoSessionProcessor):
         # Get layer_idx from kwargs using the configured name
         layer_idx = kwargs.get(self.input_layer_idx_name)
         if layer_idx is None:
-            raise UnsupportedError(f"Can't find layer index from cache update function", 
-                                   action="please check the implementation of the model's cache update function")
+            raise UnsupportedError(
+                "Can't find layer index from cache update function",
+                action="please check the implementation of the model's cache update function",
+            )
         for _, target_name in self.input_name_map.items():
             states = kwargs.get(target_name)
             if states is None:
-                raise UnsupportedError(f"Can't find {target_name} from cache update function", 
-                                   action="please check the implementation of the model's cache update function")
+                raise UnsupportedError(
+                    f"Can't find {target_name} from cache update function",
+                    action="please check the implementation of the model's cache update function",
+                )
             if self._attention_layers_map[layer_idx] not in self.include:
                 return tuple(kwargs.get(name) for name in CACHE_INPUT_NAME)
 
             if self._attention_layers_map[layer_idx] in self.exclude:
                 return tuple(kwargs.get(name) for name in CACHE_INPUT_NAME)
-                
+
             # Update key and value quantization observers
             quantizer = self.cache_quantizers[layer_idx][target_name]
             if quantizer is not None:
                 quantizer(states)
                 self.quantizer_ready[layer_idx][target_name] = True
-        
+
         return tuple(kwargs.get(name) for name in CACHE_INPUT_NAME)

@@ -152,6 +152,7 @@ class _MeanMinMaxObserver(nn.Module):
 class MinMaxBlockObserverConfig(BaseModel):
     method: str = 'max'
     clip: float = 1.0
+    axes: Optional[int] = None
 
 
 class MsMinMaxBlockObserver(nn.Module):

@@ -131,7 +131,7 @@ class TestStandingHighStrategyConfig:
         预期：抛出 SchemaValidateError 且消息含 least one。
         """
         with pytest.raises(SchemaValidateError) as exc_info:
-            StandingHighStrategyConfig(anti_outlier_strategies=[])
+            StandingHighStrategyConfig(anti_outlier_strategies=[], template=_standing_high_default_template())
         assert "least one" in str(exc_info.value).lower()
 
     def test_StandingHighStrategyConfig_raises_SchemaValidateError_when_template_has_no_linear_quant(self):

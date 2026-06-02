@@ -20,11 +20,12 @@ See the Mulan PSL v2 for more details.
 """
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, AfterValidator
 
 from msmodelslim.core.quant_service.interface import BaseQuantConfig
+from msmodelslim.utils.validation.pydantic import validate_str_length, in_range
 
 
 class ScenarioTagMatch(str, Enum):
@@ -43,14 +44,14 @@ class ScenarioTagMatch(str, Enum):
 
 class Metadata(BaseModel):
     # ID of the quantization config, e.g., 'Qwen3-32B W8A8'
-    config_id: str = 'Unknown'
+    config_id: Annotated[str, AfterValidator(validate_str_length())] = 'Unknown'
     # score of the quantization config, used to sort the quantization configs
-    score: float = 100.0
+    score: Annotated[float, AfterValidator(in_range(min_val=0))] = 100.0
     # label of the quantization config, used to filter the quantization configs.
     # e.g., # {'w_bit': 8, 'a_bit': 8, 'is_sparse': True, 'kv_cache': True}
     label: dict = Field(default_factory=dict)
     # verified model types, e.g., ['LLaMa3.1-70B', 'Qwen2.5-72B']
-    verified_model_types: List[str] = Field(default_factory=list)
+    verified_model_types: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(default_factory=list)
     # verified_tags: Dict[model_type, List[List[tags]]]
     # key: model_type; value: list of scenarios, each scenario is a list of tags (e.g. ["MindIE","Atlas_A2_Inference"], ["vLLM-Ascend","Atlas_A3_Inference"])
     verified_tags: Dict[str, List[List[str]]] = Field(default_factory=dict)

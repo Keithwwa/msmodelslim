@@ -38,7 +38,7 @@ from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.distributed.dist_ops import sync_gather_tensor_lists
 from msmodelslim.utils.distributed import DistHelper, sync_base_operation
-from msmodelslim.utils.validation.value import validate_normalized_value, is_string_list
+import msmodelslim.utils.validation.pydantic as pydtc
 from msmodelslim.ir.non_fusion_smooth_quant_ir import NonFusionSmoothQuantHookIR
 from msmodelslim.processor.anti_outlier.common.subgraph_type import NonFusionSubgraph
 from ..common import (
@@ -60,13 +60,13 @@ class FlexSmoothBaseProcessorConfig(AutoProcessorConfig):
 
     type: Literal["_abstract_flex_smooth_base_"] = "_abstract_flex_smooth_base_"
 
-    alpha: Annotated[float, AfterValidator(validate_normalized_value)] = None
-    beta: Annotated[float, AfterValidator(validate_normalized_value)] = None
-    enable_subgraph_type: Annotated[list, AfterValidator(is_string_list)] = Field(
+    alpha: Annotated[float, AfterValidator(pydtc.validate_normalized_value)] = None
+    beta: Annotated[float, AfterValidator(pydtc.validate_normalized_value)] = None
+    enable_subgraph_type: Annotated[list, AfterValidator(pydtc.is_string_list)] = Field(
         default_factory=lambda: ["norm-linear", "linear-linear", "ov", "up-down"]
     )
-    include: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
+    include: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
+    exclude: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
 
 
 class FlexSmoothQuantProcessorConfig(FlexSmoothBaseProcessorConfig):

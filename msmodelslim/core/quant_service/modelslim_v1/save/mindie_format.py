@@ -23,11 +23,11 @@ See the Mulan PSL v2 for more details.
 import functools
 import inspect
 import os
-from typing import Dict, Any, Optional, List, Literal
+from typing import Dict, Any, Optional, List, Literal, Annotated
 
 import torch
 import torch.distributed as dist
-from pydantic import Field
+from pydantic import Field, AfterValidator
 from torch import nn
 
 import msmodelslim.ir as qir
@@ -40,6 +40,7 @@ from msmodelslim.utils.exception import UnsupportedError, SchemaValidateError
 from msmodelslim.utils.logging import logger
 from msmodelslim.utils.security import safe_copy_file
 from msmodelslim.ir.qal import QDType, QScope
+from msmodelslim.utils.validation.pydantic import in_range
 from .saver import AutoSaverProcessor, AutoSaverBaseConfig
 from .utils.json import JsonWriter
 from .utils.safetensors import SafetensorsWriter, BufferedSafetensorsWriter
@@ -107,7 +108,7 @@ class MindIEFormatConfig(AutoSaverBaseConfig):
 
     type: Literal['mindie_format_saver'] = "mindie_format_saver"
     save_directory: str = Field(default=".", exclude=True)
-    part_file_size: int = 4
+    part_file_size: Annotated[int, AfterValidator(in_range(min_val=0))] = 4
     ext: Dict[str, Any] = Field(default_factory=dict, exclude_if=lambda v: not v)
 
     def set_save_directory(self, save_directory: str):
@@ -296,7 +297,10 @@ class MindIEFormatSaver(AutoSaverProcessor):
         self._raise_ascendv1_saver_recommended("on_quarot_extra_info_wrapper")
 
     def on_non_fusion_smooth_quant_wrapper(self, prefix: str, module: qir.NonFusionSmoothQuantWrapper):
-        self._raise_ascendv1_saver_recommended("on_non_fusion_smooth_quant_wrapper")
+        wrapped_module = module.wrapped_module
+        self.write_tensor(prefix + ".div.mul_scale", "FLOAT", module.scales)
+        prefix = prefix + ".linear"
+        self._process_module(prefix, wrapped_module)
 
     def on_w16a16s(self, prefix: str, module: qir.W16A16sLinear):
         self._raise_ascendv1_saver_recommended("on_w16a16s")
@@ -415,9 +419,3 @@ class MindIEFormatSaver(AutoSaverProcessor):
             self.json_writer.write(quant_type_key, "FP8_DYNAMIC")
         else:
             raise SchemaValidateError(f"FakeQuantActivationPerToken Unsupported dtype: {module.x_q_scheme.dtype}")
-
-    def on_non_fusion_smooth_quant_wrapper(self, prefix: str, module: qir.NonFusionSmoothQuantWrapper):
-        wrapped_module = module.wrapped_module
-        self.write_tensor(prefix + ".div.mul_scale", "FLOAT", module.scales)
-        prefix = prefix + ".linear"
-        self._process_module(prefix, wrapped_module)

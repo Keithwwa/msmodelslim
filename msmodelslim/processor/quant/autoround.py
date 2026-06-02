@@ -19,11 +19,10 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
-from typing import Dict, Any, List, Optional, Literal, Tuple, Union
+from typing import Annotated, Dict, Any, List, Optional, Literal, Tuple, Union
 
 import torch
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, AfterValidator, model_validator
 from torch import nn
 
 import msmodelslim.ir as qir
@@ -35,6 +34,7 @@ from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.utils.config_map import ConfigSet
 from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.logging import logger_setter, get_logger
+from msmodelslim.utils.validation.pydantic import greater_than_zero, validate_str_length
 from .autoround_utils.trainer import BlockQuantTrainer
 from .autoround_utils.utils import get_shared_keys
 from .autoround_utils.wrapper import WrapperLinear
@@ -78,7 +78,7 @@ def _check_to_quantized(config: Union[Dict[str, Any], Any]) -> bool:
     act_bits = _get_bits(config, "act_bits")
     should_quantize = bits <= QUANTIZATION_THRESHOLD or act_bits <= QUANTIZATION_THRESHOLD
 
-    get_logger().debug(f"Quantization check: bits={bits}, act_bits={act_bits}, should_quantize={should_quantize}")
+    get_logger().debug("Quantization check: bits=%s, act_bits=%s, should_quantize=%s", bits, act_bits, should_quantize)
     return should_quantize
 
 
@@ -86,15 +86,15 @@ def _mark_smooth_layers(module: nn.Module, name: str) -> None:
     """标记需要平滑的层"""
     if any(pattern in name for pattern in SMOOTH_LAYER_PATTERNS):
         module.to_smooth = True
-        get_logger().debug(f"Marked layer '{name}' for smoothing")
+        get_logger().debug("Marked layer '%s' for smoothing", name)
 
 
 def _merge_input_others(request_datas: List[Tuple[List[Any], Dict[str, Any]]]) -> Dict[str, Any]:
     """合并input_others数据
-    
+
     Args:
         request_datas: 请求数据列表，每个元素包含input_ids和input_others
-        
+
     Returns:
         合并后的input_others字典
     """
@@ -118,10 +118,10 @@ def _merge_input_others(request_datas: List[Tuple[List[Any], Dict[str, Any]]]) -
 
 def _extract_input_ids(request_datas: List[Tuple[List[Any], Dict[str, Any]]]) -> List[Any]:
     """提取所有input_ids
-    
+
     Args:
         request_datas: 请求数据列表
-        
+
     Returns:
         所有input_ids的列表
     """
@@ -134,16 +134,17 @@ def _extract_input_ids(request_datas: List[Tuple[List[Any], Dict[str, Any]]]) ->
     return all_input_ids
 
 
-def _convert_request_datas_format(request_datas: List[Tuple[List[Any], Dict[str, Any]]]) -> Tuple[
-    List[Any], Dict[str, Any]]:
+def _convert_request_datas_format(
+    request_datas: List[Tuple[List[Any], Dict[str, Any]]],
+) -> Tuple[List[Any], Dict[str, Any]]:
     """将request.datas格式转换为训练器所需的格式
-    
+
     Args:
         request_datas: 请求数据列表
-        
+
     Returns:
         转换后的(input_ids, input_others)元组
-        
+
     Raises:
         ValueError: 当request_datas为空时
     """
@@ -162,7 +163,7 @@ def _convert_request_datas_format(request_datas: List[Tuple[List[Any], Dict[str,
 
 def _apply_default_config(module: nn.Module) -> None:
     """应用默认配置
-    
+
     Args:
         module: 要应用配置的模块
     """
@@ -172,7 +173,7 @@ def _apply_default_config(module: nn.Module) -> None:
 
 def _apply_config_to_module(module: nn.Module, config: Dict[str, Any]) -> None:
     """将配置应用到模块
-    
+
     Args:
         module: 要应用配置的模块
         config: 配置字典
@@ -183,15 +184,15 @@ def _apply_config_to_module(module: nn.Module, config: Dict[str, Any]) -> None:
 
 
 def _wrapper_block(
-        block: nn.Module,
-        enable_minmax_tuning: bool,
-        enable_round_tuning: bool,
-        enable_trainable_smooth: bool = False,
-        config: Optional[Dict[str, Any]] = None,
-        **kwargs: Any
+    block: nn.Module,
+    enable_minmax_tuning: bool,
+    enable_round_tuning: bool,
+    enable_trainable_smooth: bool = False,
+    config: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
 ) -> Tuple[List[str], List[str]]:
     """包装块中的层为自定义Wrapper模块
-    
+
     Args:
         block: 要包装的模块块
         enable_minmax_tuning: 是否启用最小最大值调优
@@ -199,7 +200,7 @@ def _wrapper_block(
         enable_trainable_smooth: 是否启用可训练平滑
         config: 配置字典
         **kwargs: 其他参数
-        
+
     Returns:
         量化层名称列表和未量化层名称列表的元组
     """
@@ -207,7 +208,11 @@ def _wrapper_block(
     unquantized_layers = []
 
     get_logger().debug(
-        f"Starting to wrap block with {enable_minmax_tuning=}, {enable_round_tuning=}, {enable_trainable_smooth=}")
+        "Starting to wrap block with enable_minmax_tuning=%s, enable_round_tuning=%s, enable_trainable_smooth=%s",
+        enable_minmax_tuning,
+        enable_round_tuning,
+        enable_trainable_smooth,
+    )
 
     for n, m in block.named_modules():
         if isinstance(m, SUPPORTED_LAYER_TYPES):
@@ -215,7 +220,7 @@ def _wrapper_block(
 
             if not _check_to_quantized(m):
                 unquantized_layers.append(n)
-                get_logger().debug(f"Layer '{n}' skipped quantization")
+                get_logger().debug("Layer '%s' skipped quantization", n)
                 continue
 
             new_m = WrapperLinear(
@@ -229,21 +234,24 @@ def _wrapper_block(
 
             block.set_submodule(n, new_m)
             quantized_layers.append(n)
-            get_logger().debug(f"Layer '{n}' wrapped for quantization")
+            get_logger().debug("Layer '%s' wrapped for quantization", n)
 
     get_logger().info(
-        f"Block wrapping completed: {len(quantized_layers)} quantized, {len(unquantized_layers)} unquantized")
+        "Block wrapping completed: %s quantized, %s unquantized",
+        len(quantized_layers),
+        len(unquantized_layers),
+    )
     return quantized_layers, unquantized_layers
 
 
 def _parse_dtype(dtype: QDType, default_bits: int, default_type: str) -> Tuple[int, str]:
     """解析数据类型，返回bits和data_type
-    
+
     Args:
         dtype: 数据类型
         default_bits: 默认位数
         default_type: 默认类型
-        
+
     Returns:
         (bits, data_type)元组
     """
@@ -258,13 +266,13 @@ def _parse_dtype(dtype: QDType, default_bits: int, default_type: str) -> Tuple[i
 
 def _parse_scale_dtype(dtype_str: str) -> torch.dtype:
     """解析scale数据类型
-    
+
     Args:
         dtype_str: 数据类型字符串
-        
+
     Returns:
         对应的torch数据类型
-        
+
     Raises:
         SchemaValidateError: 当数据类型不在支持范围内时抛出异常
     """
@@ -277,7 +285,7 @@ def _parse_scale_dtype(dtype_str: str) -> torch.dtype:
     if dtype_str not in support_scale_dtypes:
         raise SchemaValidateError(
             f"Unsupported scale dtype '{dtype_str}', supported types are: {list(support_scale_dtypes.keys())}",
-            action=f"Please use one of the supported scale dtypes: {list(support_scale_dtypes.keys())}"
+            action=f"Please use one of the supported scale dtypes: {list(support_scale_dtypes.keys())}",
         )
 
     return support_scale_dtypes[dtype_str]
@@ -285,10 +293,10 @@ def _parse_scale_dtype(dtype_str: str) -> torch.dtype:
 
 def _extract_activation_config(act_config: QConfig) -> Dict[str, Any]:
     """提取激活相关配置
-    
+
     Args:
         act_config: 激活配置对象
-        
+
     Returns:
         激活配置字典
     """
@@ -304,10 +312,10 @@ def _extract_activation_config(act_config: QConfig) -> Dict[str, Any]:
 
 def _extract_weight_config(weight_config: Any) -> Dict[str, Any]:
     """提取权重相关配置
-    
+
     Args:
         weight_config: 权重配置对象
-        
+
     Returns:
         权重配置字典
     """
@@ -323,10 +331,10 @@ def _extract_weight_config(weight_config: Any) -> Dict[str, Any]:
 
 def _create_layer_config(qconfig: LinearQConfig) -> Dict[str, Any]:
     """创建单层的配置
-    
+
     Args:
         qconfig: 线性量化配置
-        
+
     Returns:
         层配置字典
     """
@@ -348,19 +356,16 @@ def _create_layer_config(qconfig: LinearQConfig) -> Dict[str, Any]:
 
 
 def _should_apply_strategy(
-        layer_name: str,
-        include_set: ConfigSet,
-        exclude_set: ConfigSet,
-        layer_config: Dict[str, Any]
+    layer_name: str, include_set: ConfigSet, exclude_set: ConfigSet, layer_config: Dict[str, Any]
 ) -> bool:
     """检查是否应该对层应用策略
-    
+
     Args:
         layer_name: 层名称
         include_set: 包含集合
         exclude_set: 排除集合
         layer_config: 层配置字典
-        
+
     Returns:
         是否应该应用策略
     """
@@ -372,19 +377,25 @@ def _should_apply_strategy(
     if should_apply and layer_name in layer_config:
         original_config = layer_config[layer_name]
         get_logger().warning(
-            f"Layer '{layer_name}' configuration already exists, "
-            f"skipping to preserve original configuration: {original_config}")
+            "Layer '%s' configuration already exists, skipping to preserve original configuration: %s",
+            layer_name,
+            original_config,
+        )
         return False
 
     get_logger().debug(
-        f"Strategy application check for '{layer_name}': "
-        f"included={included}, excluded={excluded}, should_apply={should_apply}")
+        "Strategy application check for '%s': included=%s, excluded=%s, should_apply=%s",
+        layer_name,
+        included,
+        excluded,
+        should_apply,
+    )
     return should_apply
 
 
 def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
     """警告未匹配的模式
-    
+
     Args:
         name: 模式名称
         config_set: 配置集合
@@ -393,7 +404,10 @@ def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
     unmatched_keys = [key for key in unmatched_keys if key != "*"]
     if unmatched_keys:
         get_logger().warning(
-            f"These {name} patterns are not matched any module, please ensure this is as expected: {unmatched_keys}")
+            "These %s patterns are not matched any module, please ensure this is as expected: %s",
+            name,
+            unmatched_keys,
+        )
 
 
 def _create_fake_quantizer(orig_layer: torch.nn.Linear) -> qir.AutoFakeQuantLinear:
@@ -411,42 +425,38 @@ def _create_fake_quantizer(orig_layer: torch.nn.Linear) -> qir.AutoFakeQuantLine
     offset = torch.tensor(orig_layer.zp).squeeze(1)
 
     get_logger().debug(
-        f"Creating fake quantizer: group_size={group_size}, scale_shape={scale.shape}, offset_shape={offset.shape}")
-
-    w_q_param = QParam(
-        scheme=w_q_scheme,
-        ext={
-            "scale": scale,
-            "offset": offset,
-            "group_size": group_size
-        }
+        "Creating fake quantizer: group_size=%s, scale_shape=%s, offset_shape=%s",
+        group_size,
+        scale.shape,
+        offset.shape,
     )
+
+    w_q_param = QParam(scheme=w_q_scheme, ext={"scale": scale, "offset": offset, "group_size": group_size})
     x_q_scheme: QScheme = orig_layer.act_qconfig.to_scheme()
     x_q_param = QParam(scheme=x_q_scheme)
     w_q = QStorage(dtype=w_q_scheme.dtype, value=orig_layer.weight)
 
-    get_logger().debug(f"Fake quantizer parameters: weight_scheme={w_q_scheme}, activation_scheme={x_q_scheme}")
+    get_logger().debug("Fake quantizer parameters: weight_scheme=%s, activation_scheme=%s", w_q_scheme, x_q_scheme)
 
-    return qir.AutoFakeQuantLinear.create(
-        x_q_param,
-        w_q_param,
-        w_q,
-        orig_layer.bias
-    )
+    return qir.AutoFakeQuantLinear.create(x_q_param, w_q_param, w_q, orig_layer.bias)
 
 
 class QuantStrategyConfig(BaseModel):
     qconfig: LinearQConfig = Field(description="量化配置")
-    include: List[str] = Field(default_factory=lambda: ["*"], description="包含的模块名称")
-    exclude: List[str] = Field(default_factory=list, description="排除的模块名称")
+    include: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
+        default_factory=lambda: ["*"], description="包含的模块名称"
+    )
+    exclude: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
+        default_factory=list, description="排除的模块名称"
+    )
 
 
 def _validate_quantization_strategies(strategies: List[QuantStrategyConfig]) -> None:
     """校验量化策略配置
-    
+
     Args:
         strategies: 量化策略配置列表
-        
+
     Raises:
         SchemaValidateError: 当校验失败时抛出异常
     """
@@ -454,32 +464,26 @@ def _validate_quantization_strategies(strategies: List[QuantStrategyConfig]) -> 
     if not strategies:
         raise SchemaValidateError(
             "strategies field cannot be empty, at least one quantization strategy must be configured",
-            action="Please add at least one QuantStrategyConfig to the strategies field"
+            action="Please add at least one QuantStrategyConfig to the strategies field",
         )
 
     for i, strategy in enumerate(strategies):
         qconfig = strategy.qconfig
 
         # 校验权重配置
-        _validate_qconfig_group_size(
-            qconfig.weight,
-            f"strategies[{i}].qconfig.weight"
-        )
+        _validate_qconfig_group_size(qconfig.weight, f"strategies[{i}].qconfig.weight")
 
         # 校验激活配置
-        _validate_qconfig_group_size(
-            qconfig.act,
-            f"strategies[{i}].qconfig.act"
-        )
+        _validate_qconfig_group_size(qconfig.act, f"strategies[{i}].qconfig.act")
 
 
 def _validate_qconfig_group_size(qconfig: QConfig, field_path: str) -> None:
     """校验单个QConfig的group_size字段
-    
+
     Args:
         qconfig: 量化配置对象
         field_path: 字段路径，用于错误信息
-        
+
     Raises:
         SchemaValidateError: 当校验失败时抛出异常
     """
@@ -493,7 +497,7 @@ def _validate_qconfig_group_size(qconfig: QConfig, field_path: str) -> None:
                 f"When quantization config scope is per_group, "
                 f"ext field must contain group_size, "
                 f"but {field_path} does not have group_size field",
-                action=f"Please add group_size parameter to {field_path} ext field"
+                action=f"Please add group_size parameter to {field_path} ext field",
             )
 
         group_size = qconfig.ext["group_size"]
@@ -502,7 +506,7 @@ def _validate_qconfig_group_size(qconfig: QConfig, field_path: str) -> None:
                 f"When quantization config scope is per_group, "
                 f"group_size in ext field must be a positive integer, "
                 f"but {field_path} has group_size={group_size}",
-                action=f"Please set {field_path} ext.group_size to a positive integer"
+                action=f"Please set {field_path} ext.group_size to a positive integer",
             )
     else:
         # 当scope不为per_group时，不应该存在group_size
@@ -510,13 +514,13 @@ def _validate_qconfig_group_size(qconfig: QConfig, field_path: str) -> None:
             raise SchemaValidateError(
                 f"When quantization config scope is not per_group, "
                 f"ext field should not contain group_size, but {field_path} has group_size field",
-                action=f"Please remove group_size parameter from {field_path} ext field"
+                action=f"Please remove group_size parameter from {field_path} ext field",
             )
 
 
 class AutoroundProcessorConfig(AutoProcessorConfig):
     type: Literal["autoround_quant"] = Field(default="autoround_quant", description="处理器类型标识")
-    iters: int = Field(default=10, gt=0, description="迭代次数，必须大于0")
+    iters: Annotated[int, AfterValidator(greater_than_zero)] = Field(default=10, description="迭代次数，必须大于0")
     enable_minmax_tuning: bool = Field(default=True, description="是否启用最小最大值调优")
     enable_round_tuning: bool = Field(default=True, description="是否启用舍入调优")
     strategies: List[QuantStrategyConfig] = Field(default_factory=list, description="量化策略配置列表")
@@ -534,7 +538,7 @@ class AutoroundProcessorConfig(AutoProcessorConfig):
                 # 明确异常配置发生的位置
                 raise SchemaValidateError(
                     f"Configuration validation failed for strategies[{i}]: {str(e)}",
-                    action=f"Please check the configuration of strategies[{i}].qconfig and fix the error"
+                    action=f"Please check the configuration of strategies[{i}].qconfig and fix the error",
                 ) from e
 
         return self
@@ -544,12 +548,11 @@ class AutoroundProcessorConfig(AutoProcessorConfig):
 @logger_setter(prefix="msmodelslim.processor.autoround_quant")
 class AutoroundQuantProcessor(AutoSessionProcessor):
     def __init__(
-            self,
-            model: nn.Module,
-            config: AutoroundProcessorConfig,
-            adapter: Optional[object] = None,
+        self,
+        model: nn.Module,
+        config: AutoroundProcessorConfig,
+        adapter: Optional[object] = None,
     ) -> None:
-
         super().__init__(model)
         self.model = model
         self.config = config
@@ -587,15 +590,19 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
 
         self._run_forward_if_need(request)
         self.float_output = [output[0] for output in request.outputs]
-        get_logger().debug(f"Captured {len(self.float_output)} float outputs")
+        get_logger().debug("Captured %s float outputs", len(self.float_output))
 
         with torch.device(device=self.device):
             self.quantized_layer_names, self.unquantized_layer_names = _wrapper_block(
-                request.module, self.enable_minmax_tuning, self.enable_round_tuning, self.enable_trainable_smooth,
-                config=self.model.config)
+                request.module,
+                self.enable_minmax_tuning,
+                self.enable_round_tuning,
+                self.enable_trainable_smooth,
+                config=self.model.config,
+            )
 
     def process(self, request: BatchProcessRequest) -> None:
-        get_logger().info(f"Starting quantization training with {self.iters} iterations")
+        get_logger().info("Starting quantization training with %s iterations", self.iters)
 
         trainer = BlockQuantTrainer(
             iters=self.iters,
@@ -605,11 +612,13 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
             gradient_accumulate_steps=8,
         )
         get_logger().debug(
-            f"Trainer initialized with minmax_tuning={self.enable_minmax_tuning}, "
-            f"quanted_input={self.enable_quanted_input}")
+            "Trainer initialized with minmax_tuning=%s, quanted_input=%s",
+            self.enable_minmax_tuning,
+            self.enable_quanted_input,
+        )
 
         input_ids, input_others = _convert_request_datas_format(request.datas)
-        get_logger().debug(f"Converted input data: {len(input_ids)} input_ids, {len(input_others)} input_others")
+        get_logger().debug("Converted input data: %s input_ids, %s input_others", len(input_ids), len(input_others))
 
         if self.quantized_output is not None:
             input_ids = self.quantized_output
@@ -624,7 +633,6 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
         )
 
     def postprocess(self, request: BatchProcessRequest) -> None:
-
         if self.quantized_output is not None:  # 将输入替换为上一层的量化后的结果再跑前向
             get_logger().debug("Replacing input with quantized output from previous layer")
             for data, out_q in zip(request.datas, self.quantized_output):
@@ -635,7 +643,7 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
             self._run_forward_if_need(request)
             self.quantized_output = [output[0] for output in request.outputs]
             request.outputs = [(output_f,) + data[1:] for output_f, data in zip(self.float_output, request.outputs)]
-            get_logger().debug(f"Generated {len(self.quantized_output)} quantized outputs")
+            get_logger().debug("Generated %s quantized outputs", len(self.quantized_output))
 
         # 应用最佳参数
         get_logger().debug("Applying best parameters and unwrapping blocks...")
@@ -654,24 +662,26 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
 
         # 获取支持的层
         supported_layers = [
-            name
-            for name, module in self.model.named_modules()
-            if isinstance(module, SUPPORTED_LAYER_TYPES)
+            name for name, module in self.model.named_modules() if isinstance(module, SUPPORTED_LAYER_TYPES)
         ]
 
-        get_logger().info(f"Found {len(supported_layers)} supported layers for quantization")
-        get_logger().debug(f"Supported layers: {supported_layers}")
+        get_logger().info("Found %s supported layers for quantization", len(supported_layers))
+        get_logger().debug("Supported layers: %s", supported_layers)
 
         if not self.config.strategies:
             get_logger().warning("No quantization strategies configured, all layers will use default configuration")
             return layer_config
 
-        get_logger().info(f"Processing {len(self.config.strategies)} quantization strategies")
+        get_logger().info("Processing %s quantization strategies", len(self.config.strategies))
 
         # 处理每个策略
         for i, strategy_config in enumerate(self.config.strategies):
             get_logger().debug(
-                f"Processing strategy {i}: include={strategy_config.include}, exclude={strategy_config.exclude}")
+                "Processing strategy %s: include=%s, exclude=%s",
+                i,
+                strategy_config.include,
+                strategy_config.exclude,
+            )
             include_set = ConfigSet(strategy_config.include)
             exclude_set = ConfigSet(strategy_config.exclude)
 
@@ -680,13 +690,13 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
                 if _should_apply_strategy(layer_name, include_set, exclude_set, layer_config):
                     layer_config[layer_name] = _create_layer_config(strategy_config.qconfig)
                     strategy_applied_count += 1
-                    get_logger().debug(f"Applied strategy {i} to layer '{layer_name}'")
+                    get_logger().debug("Applied strategy %s to layer '%s'", i, layer_name)
 
-            get_logger().info(f"Strategy {i} applied to {strategy_applied_count} layers")
+            get_logger().info("Strategy %s applied to %s layers", i, strategy_applied_count)
             _warning_unmatched_pattern(f"{i}.include", include_set)
             _warning_unmatched_pattern(f"{i}.exclude", exclude_set)
 
-        get_logger().info(f"Layer configuration built: {len(layer_config)} layers configured")
+        get_logger().info("Layer configuration built: %s layers configured", len(layer_config))
         return layer_config
 
     def apply_layer_config(self) -> None:
@@ -700,13 +710,13 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
                 if config:
                     _apply_config_to_module(module, config)
                     configured_count += 1
-                    get_logger().debug(f"Applied custom config to layer '{name}': {config}")
+                    get_logger().debug("Applied custom config to layer '%s': %s", name, config)
                 else:
                     _apply_default_config(module)
                     default_count += 1
-                    get_logger().debug(f"Applied default config to layer '{name}'")
+                    get_logger().debug("Applied default config to layer '%s'", name)
 
-        get_logger().info(f"Layer configuration applied: {configured_count} custom, {default_count} default")
+        get_logger().info("Layer configuration applied: %s custom, %s default", configured_count, default_count)
 
     @torch.no_grad()
     def _unwrapper_block(self, block: nn.Module, best_params: Dict[str, Any]) -> None:
@@ -721,14 +731,14 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
         for n, m in block.named_modules():
             if hasattr(m, "orig_layer"):
                 best_param = best_params.get(n)
-                get_logger().debug(f"Unwrapping layer '{n}' with best_params: {best_param is not None}")
+                get_logger().debug("Unwrapping layer '%s' with best_params: %s", n, best_param is not None)
 
                 orig_layer: torch.nn.Linear = m.unwrapper(best_param)
 
                 # ir保存部分
                 with torch.device(device=self.device):
                     fake_quantizer = _create_fake_quantizer(orig_layer)
-                    get_logger().debug(f"Created fake quantizer for layer '{n}'")
+                    get_logger().debug("Created fake quantizer for layer '%s'", n)
 
                     # 应用hooks
                     hook_count = 0
@@ -738,9 +748,9 @@ class AutoroundQuantProcessor(AutoSessionProcessor):
                             hook_count += 1
 
                     if hook_count > 0:
-                        get_logger().debug(f"Applied {hook_count} hooks to layer '{n}'")
+                        get_logger().debug("Applied %s hooks to layer '%s'", hook_count, n)
 
                     block.set_submodule(n, fake_quantizer)
                     unwrapped_count += 1
 
-        get_logger().info(f"Unwrapped {unwrapped_count} layers")
+        get_logger().info("Unwrapped %s layers", unwrapped_count)

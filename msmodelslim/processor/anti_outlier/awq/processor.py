@@ -31,29 +31,31 @@ from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnsupportedError
 from msmodelslim.processor.anti_outlier.smooth_base import BaseSmoothProcessor
 from msmodelslim.core.graph.adapter_types import MappingConfig
-from msmodelslim.utils.validation.pydantic import is_string_list
+import msmodelslim.utils.validation.pydantic as pydtc
 from .awq_stats_collector import AWQStatsCollector
 from .interface import AWQInterface
 from .api import awq
 from .common import AWQConfig, AWQContext
 from .best_scales_search import AWQBestScalesSearcher
 
+
 class AWQProcessorConfig(AutoProcessorConfig):
     type: Literal["awq"] = "awq"
     weight_qconfig: QConfig
-    enable_subgraph_type: Annotated[list, AfterValidator(is_string_list)] = Field(
+    enable_subgraph_type: Annotated[list, AfterValidator(pydtc.is_string_list)] = Field(
         default_factory=lambda: ["norm-linear", "linear-linear", "ov", "up-down"]
     )
-    n_grid: Annotated[int, Field(gt=0)] = 20
-    include: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
+    n_grid: Annotated[int, AfterValidator(pydtc.greater_than_zero)] = 20
+    include: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
+    exclude: Optional[List[Annotated[str, AfterValidator(pydtc.validate_str_length())]]] = None
 
-    
+
 @QABCRegistry.register(dispatch_key=AWQProcessorConfig, abc_class=AutoSessionProcessor)
 class AWQProcessor(BaseSmoothProcessor):
     """
     AWQ (Activation-aware Weight Quantization) Processor
     """
+
     def __init__(self, model: nn.Module, config: AWQProcessorConfig, adapter: Any):
         super().__init__(model, config, adapter)
         self.stats_collector = AWQStatsCollector(model)
@@ -64,7 +66,7 @@ class AWQProcessor(BaseSmoothProcessor):
                 n_grid=config.n_grid,
             ),
         )
-    
+
     def _validate_adapter_interface(self, adapter: Any) -> None:
         if not isinstance(adapter, AWQInterface):
             raise UnsupportedError(
@@ -72,28 +74,23 @@ class AWQProcessor(BaseSmoothProcessor):
                 action=f"Please ensure {adapter.__class__.__name__} inherits from AWQInterface "
                 f"and implements get_adapter_config_for_subgraph()",
             )
-    
+
     def pre_run(self) -> None:
         self.global_adapter_config = self.adapter.get_adapter_config_for_subgraph()
         self._validate_parameters()
-    
+
     def support_distributed(self) -> bool:
         return False
-    
+
     def preprocess(self, request: BatchProcessRequest) -> None:
         if self.global_adapter_config is None:
             get_logger().warning("No global adapter config found for AWQProcessor, skipping preprocessing")
             return
 
         self.adapter_config = self._filter_adapter_configs_by_config(
-            self.global_adapter_config,
-            self.config,
-            request.name
+            self.global_adapter_config, self.config, request.name
         )
-        get_logger().debug(
-            "Processed %d subgraphs for submodule %s",
-            len(self.adapter_config), request.name
-        )
+        get_logger().debug("Processed %d subgraphs for submodule %s", len(self.adapter_config), request.name)
 
         for adapter_config in self.adapter_config:
             self._install_hooks(adapter_config.mapping)
@@ -106,7 +103,7 @@ class AWQProcessor(BaseSmoothProcessor):
         ancestor_name = self._find_lowest_common_ancestor(target_names)
         if ancestor_name is not None:
             self.stats_collector.observe_kwargs(ancestor_name)
-    
+
     def _find_lowest_common_ancestor(self, target_names: List[str]) -> Optional[str]:
         """Find the lowest common ancestor module name for a list of target module names.
         Examples:
@@ -115,7 +112,7 @@ class AWQProcessor(BaseSmoothProcessor):
 
             ["model.layers.0.mlp.gate_proj", "model.layers.0.mlp.up_proj"]
             -> "model.layers.0.mlp"
-            
+
             ["model.layers.0.mlp.down_proj"]
             -> "model.layers.0.mlp.down_proj" (single target, ancestor is itself)
 
@@ -127,10 +124,10 @@ class AWQProcessor(BaseSmoothProcessor):
 
         if len(target_names) == 1:
             return target_names[0]
-        
+
         split_names = [name.split(".") for name in target_names]
         mid_depth = min(len(parts) for parts in split_names)
-        
+
         common_parts = []
         for i in range(mid_depth):
             segment = split_names[0][i]
@@ -138,7 +135,7 @@ class AWQProcessor(BaseSmoothProcessor):
                 common_parts.append(segment)
             else:
                 break
-        
+
         if not common_parts:
             return None
         return ".".join(common_parts)
@@ -147,7 +144,7 @@ class AWQProcessor(BaseSmoothProcessor):
         self.stats_collector.stop_observing()
 
         self._process_subgraphs_by_priority()
-        
+
         self.stats_collector.clear_stats()
         self.adapter_config = None
 
@@ -161,43 +158,39 @@ class AWQProcessor(BaseSmoothProcessor):
         if ancestor_name is None:
             get_logger().warning("No name found for inspect module of subgraph with target %s, skipping", linear_names)
             return
-    
+
         context = self._build_awq_context(target_name, ancestor_name)
         if context is None:
             get_logger().warning("No statistics for subgraph with target %s, skipping", linear_names)
             return
         awq(subgraph_obj, self.awq_config, context)
-        
+
     def _build_awq_context(
-        self, target_name: str, ancestor_name: str,
+        self,
+        target_name: str,
+        ancestor_name: str,
     ) -> Optional[AWQContext]:
         act_mean = self.stats_collector.get_activation_mean(target_name)
         if act_mean is None:
-            get_logger().warning(
-                "No activation mean for target module %s, skipping", target_name
-            )
+            get_logger().warning("No activation mean for target module %s, skipping", target_name)
             return None
-        
+
         ancestor_args = self.stats_collector.get_block_kwargs(ancestor_name)
         if ancestor_args is None or len(ancestor_args) == 0:
-            get_logger().warning(
-                "No kwargs cache for parent module %s, skipping", ancestor_name
-            )
+            get_logger().warning("No kwargs cache for parent module %s, skipping", ancestor_name)
             return None
-        
+
         ancestor_module = self._resolve_module(ancestor_name)
         if ancestor_module is None:
-            get_logger().warning(
-                "Ancestor module %s not found in model, skipping", ancestor_name
-            )
+            get_logger().warning("Ancestor module %s not found in model, skipping", ancestor_name)
             return None
-        
+
         return AWQContext(
             act_mean=act_mean,
             inspect_module_args=ancestor_args,
             inspect_module=ancestor_module,
         )
-        
+
     def _resolve_module(self, module_name: str) -> Optional[nn.Module]:
         """Safely resolve module by name, return None if not found."""
         try:

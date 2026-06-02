@@ -19,9 +19,9 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
-from pydantic import Field
+from pydantic import Field, AfterValidator
 from torch import nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
@@ -31,6 +31,7 @@ from msmodelslim.processor.analysis.binary_operator_layer_wise.metrics.factory i
 from msmodelslim.processor.base import AutoProcessorConfig, AutoProcessorConfigList, AutoSessionProcessor
 from msmodelslim.utils.exception import UnexpectedError
 from msmodelslim.utils.logging import get_logger
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 
 logger = get_logger()
@@ -44,7 +45,7 @@ class BinaryOperatorLayerWiseProcessorConfig(AutoProcessorConfig):
         default="mse_layer_wise",
         description="Analysis method for model-wise sensitivity, e.g. 'layer_model_wise'.",
     )
-    quant_modules: List[str] = Field(
+    quant_modules: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
         default_factory=lambda: ["*"],
         description=(
             "Align with linear_quant.include and CLI --quant_modules "
@@ -60,7 +61,7 @@ class BinaryOperatorLayerWiseProcessorConfig(AutoProcessorConfig):
 
 @QABCRegistry.register(dispatch_key=BinaryOperatorLayerWiseProcessorConfig, abc_class=AutoSessionProcessor)
 class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
-    """Per-block float vs quant output comparison. """
+    """Per-block float vs quant output comparison."""
 
     def __init__(
         self,
@@ -71,10 +72,7 @@ class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
         super().__init__(model)
         self.config = config
         self.adapter = adapter
-        self.quant_processors = [
-            AutoSessionProcessor.from_config(model, cfg, adapter)
-            for cfg in config.configs
-        ]
+        self.quant_processors = [AutoSessionProcessor.from_config(model, cfg, adapter) for cfg in config.configs]
         self._analysis_method = LayerWiseMethodFactory.create_method(config.metrics, adapter=self.adapter)
 
         self._layer_scores: List[Dict[str, Any]] = []
@@ -88,10 +86,7 @@ class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
 
     def process(self, request: BatchProcessRequest) -> None:
         # Safer restore: snapshot float parameters/buffers on CPU to avoid device memory spike.
-        float_state = {
-            k: v.detach().cpu().clone()
-            for k, v in request.module.state_dict().items()
-        }
+        float_state = {k: v.detach().cpu().clone() for k, v in request.module.state_dict().items()}
 
         # Quant forward (same inputs)
         for processor in self.quant_processors:
@@ -123,7 +118,6 @@ class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
 
         del quant_outputs, float_outputs
 
-
     def post_run(self) -> None:
         for processor in self.quant_processors:
             processor.post_run()
@@ -139,7 +133,8 @@ class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
             self.config.quant_modules,
         )
 
-        if ctx is None or not ctx.get("layer_analysis") or not ctx["layer_analysis"].debug.get("layer_scores"):
+        layer_analysis = ctx.get("layer_analysis") if ctx is not None else None
+        if ctx is None or layer_analysis is None or not layer_analysis.debug.get("layer_scores"):
             get_logger().warning(
                 "No statistics collected. This may be caused by empty calibration data "
                 "or the processor not running on any blocks."
@@ -149,6 +144,7 @@ class BinaryOperatorLayerWiseProcessor(AutoSessionProcessor):
         ctx = get_current_context()
         if ctx is None:
             return
-        ctx["layer_analysis"].debug["layer_scores"] = layer_scores
-        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
-        ctx["layer_analysis"].debug["quant_modules"] = list(self.config.quant_modules)
+        layer_analysis = ctx["layer_analysis"]  # pylint: disable=unsubscriptable-object
+        layer_analysis.debug["layer_scores"] = layer_scores
+        layer_analysis.debug["method"] = self._analysis_method.name
+        layer_analysis.debug["quant_modules"] = list(self.config.quant_modules)

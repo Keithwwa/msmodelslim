@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details.
 from abc import abstractmethod
 
 import torch
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from pydantic import validate_call
 from torch import nn
 from typing_extensions import Self, Optional, Dict, Any, Tuple
@@ -41,15 +41,12 @@ class QConfig(BaseModel):
     method: str
     ext: Dict[str, Any] = Field(default_factory=dict, exclude_if=lambda v: not v)
 
-    model_config = ConfigDict(extra="forbid")
-
     def to_scheme(self):
         return QScheme(QScope(self.scope), QDType(self.dtype), self.symmetric)
 
 
 @QABCRegistry.register_abc(dispatch_key=Tuple[QScheme, str])
 class AutoActQuantizer(nn.Module):
-
     def __init__(self):
         super().__init__()
         self.sync = False  # 默认不启用同步操作
@@ -57,11 +54,7 @@ class AutoActQuantizer(nn.Module):
     @classmethod
     @validate_call(config=dict(arbitrary_types_allowed=True))
     def from_config(cls, config: QConfig) -> Self:
-        return QABCRegistry.create(
-            AutoActQuantizer,
-            (config.to_scheme(), config.method),
-            *(config,)
-        )
+        return QABCRegistry.create(AutoActQuantizer, (config.to_scheme(), config.method), *(config,))
 
     @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -77,7 +70,7 @@ class AutoActQuantizer(nn.Module):
     def support_distributed(self) -> bool:
         """
         判断是否支持分布式
-        
+
         Returns:
             bool: 是否支持分布式，默认为True
         """
@@ -86,7 +79,7 @@ class AutoActQuantizer(nn.Module):
     def is_data_free(self) -> bool:
         """
         判断是否data free场景
-        
+
         Returns:
             bool: 是否是否data free场景，默认为False
         """
@@ -108,7 +101,6 @@ class AutoActQuantizer(nn.Module):
 
 @QABCRegistry.register_abc(dispatch_key=Tuple[QScheme, str])
 class AutoWeightQuantizer(nn.Module, DTSMixin):
-
     def __init__(self):
         super().__init__()
         self.sync = False  # 默认不启用同步操作
@@ -120,7 +112,7 @@ class AutoWeightQuantizer(nn.Module, DTSMixin):
                 "distributed_sync with None input requires a data-free weight quantizer. "
                 "Non-data-free quantizers require calibration data.",
                 action="distributed_sync with None is only supported for data-free quantizers. "
-                        "Non-data-free quantizers must provide calibration data via the normal forward path.",
+                "Non-data-free quantizers must provide calibration data via the normal forward path.",
             )
         with torch.no_grad():
             _ = self.forward(None)
@@ -128,11 +120,7 @@ class AutoWeightQuantizer(nn.Module, DTSMixin):
     @classmethod
     @validate_call(config=dict(arbitrary_types_allowed=True))
     def from_config(cls, config: QConfig) -> Self:
-        return QABCRegistry.create(
-            AutoWeightQuantizer,
-            (config.to_scheme(), config.method),
-            *(config,)
-        )
+        return QABCRegistry.create(AutoWeightQuantizer, (config.to_scheme(), config.method), *(config,))
 
     @abstractmethod
     def init_weight(self, weight: QStorage, bias: Optional[torch.Tensor] = None) -> None:
@@ -180,7 +168,7 @@ class AutoWeightQuantizer(nn.Module, DTSMixin):
     def support_distributed(self) -> bool:
         """
         判断是否支持分布式
-        
+
         Returns:
             bool: 是否支持分布式，默认为True
         """
@@ -189,7 +177,7 @@ class AutoWeightQuantizer(nn.Module, DTSMixin):
     def is_data_free(self) -> bool:
         """
         判断是否data free场景
-        
+
         Returns:
             bool: 是否是否data free场景，默认为True
         """

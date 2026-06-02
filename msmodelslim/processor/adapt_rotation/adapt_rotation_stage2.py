@@ -16,15 +16,15 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import List, Literal
+from typing import Annotated, List, Literal
 
 import torch
-import torch.nn as nn
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from torch import nn
+from pydantic import BaseModel, Field, AfterValidator, field_validator
 
 from msmodelslim.core.context import get_current_context
-from msmodelslim.utils.exception import UnsupportedError
 from msmodelslim.utils.logging import get_logger, logger_setter
+from msmodelslim.utils.validation.pydantic import in_range
 from msmodelslim.processor.quarot.offline_quarot.quarot_interface import (
     QuaRotInterface,
     RotatePair,
@@ -37,7 +37,7 @@ from msmodelslim.utils.exception import SchemaValidateError
 
 class AdaptRotationStage2ProcessorConfig(BaseModel):
     """Internal config for stage2 (BaseModel, not in AutoProcessorConfig registry to avoid union recursion)."""
-    model_config = ConfigDict(extra="forbid")
+
     type: Literal["_adapt_rotation_stage2"] = "_adapt_rotation_stage2"
     online: bool = Field(default=False, description="是否启用在线旋转")
     block_size: int = Field(default=-1, description="块大小，-1 表示 hidden_dim")
@@ -45,7 +45,9 @@ class AdaptRotationStage2ProcessorConfig(BaseModel):
         default_factory=list,
         description="down_proj 在线层索引列表",
     )
-    max_tp_size: int = Field(default=4, ge=1, le=64, description="最大 TP 并行度")
+    max_tp_size: Annotated[int, AfterValidator(in_range(min_val=1, max_val=64))] = Field(
+        default=4, description="最大 TP 并行度"
+    )
 
     @field_validator('down_proj_online_layers')
     @classmethod
@@ -85,8 +87,11 @@ class AdaptRotationStage2Processor(QuaRotProcessor):
     replaced; rot_uv (head_dim) etc. remain as created by adapter.
     """
 
-    def __init__(self, model: nn.Module, config: AdaptRotationStage2ProcessorConfig, adapter: QuaRotInterface, **kwargs) -> None:
+    def __init__(
+        self, model: nn.Module, config: AdaptRotationStage2ProcessorConfig, adapter: QuaRotInterface, **kwargs
+    ) -> None:
         super().__init__(model, config, adapter, **kwargs)
+        self.rotate_pairs = None
 
     def _overlay_adapted_matrix(self, rotate_pairs: List[RotatePair], adapted_matrix: torch.Tensor) -> None:
         """
@@ -131,7 +136,7 @@ class AdaptRotationStage2Processor(QuaRotProcessor):
         # Overlay adapted matrix from context (hidden_size-dim only; rot_uv etc. unchanged)
         if adapted_matrix_from_ctx is not None:
             get_logger().info(
-                f"Overlaying stage1 adapted_matrix (shape={adapted_matrix_from_ctx.shape}) onto rotations"
+                "Overlaying stage1 adapted_matrix (shape=%s) onto rotations", adapted_matrix_from_ctx.shape
             )
             self._overlay_adapted_matrix(pre_run_pairs, adapted_matrix_from_ctx)
             self._overlay_adapted_matrix(self.rotate_pairs, adapted_matrix_from_ctx)

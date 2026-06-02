@@ -20,12 +20,12 @@ See the Mulan PSL v2 for more details.
 """
 
 import os
-from typing import Dict, Any, Optional, List, Literal
+from typing import Dict, Any, Optional, List, Literal, Annotated
 from unittest.mock import patch
 
 import torch
 import torch.distributed as dist
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, AfterValidator
 from torch import nn
 
 from msmodelslim import logger, ir as qir
@@ -37,6 +37,7 @@ from msmodelslim.utils.exception import ToDoError, SchemaValidateError
 from msmodelslim.utils.logging import logger_setter
 from msmodelslim.utils.security import safe_copy_file, get_write_directory
 from msmodelslim.utils.security import json_safe_load, json_safe_dump
+from msmodelslim.utils.validation.pydantic import in_range
 from .interface import AscendV1SaveInterface, AscendV1GlobalModelDtypeInterface
 from .saver import AutoSaverProcessor, AutoSaverBaseConfig, _convert_hookir_to_wrapper
 from .utils.deqscale import deqscale2int64_by_dtype
@@ -133,7 +134,7 @@ class AscendV1Config(AutoSaverBaseConfig):
 
     type: Literal['ascendv1_saver'] = "ascendv1_saver"
     save_directory: str = Field(default=".", exclude=True)
-    part_file_size: int = 4
+    part_file_size: Annotated[int, AfterValidator(in_range(min_val=0))] = 4
     ext: Dict[str, Any] = Field(default_factory=dict, exclude_if=lambda v: not v)
 
 
@@ -191,6 +192,7 @@ class AscendV1Saver(AutoSaverProcessor):
         self.group_size = 0
         # If global torch dtype is bfloat16, convert deq_scale to int64.
         self._global_torch_dtype_is_bf16 = self._resolve_is_bf16_from_adapter(adapter)
+        self.desc_quant: str = ''
 
     def support_distributed(self) -> bool:
         return True

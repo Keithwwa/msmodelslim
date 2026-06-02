@@ -19,9 +19,9 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Annotated
 
-from pydantic import Field, ConfigDict, model_validator
+from pydantic import Field, model_validator, AfterValidator
 import torch
 from torch import distributed as dist
 from torch import nn
@@ -33,15 +33,18 @@ from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.utils.config_map import ConfigSet
 from msmodelslim.utils.distributed import DistHelper, DistributedTaskScheduler
 from msmodelslim.utils.logging import get_logger, logger_setter
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 
 class LinearProcessorConfig(AutoProcessorConfig):
     type: Literal["linear_quant"] = "linear_quant"
     qconfig: LinearQConfig = Field(description="量化配置")
-    include: List[str] = Field(default_factory=lambda: ["*"], description="包含的模块名称")
-    exclude: List[str] = Field(default_factory=lambda: [], description="排除的模块名称")
-
-    model_config = ConfigDict(extra="forbid")
+    include: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
+        default_factory=lambda: ["*"], description="包含的模块名称"
+    )
+    exclude: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
+        default_factory=lambda: [], description="排除的模块名称"
+    )
 
     @model_validator(mode='after')
     def validate_qconfig(self) -> 'LinearProcessorConfig':
@@ -55,17 +58,18 @@ def _warning_unmatched_pattern(name: str, config_set: ConfigSet) -> None:
     unmatched_keys = list(filter(lambda x: x != "*", unmatched_keys))
     if unmatched_keys:
         get_logger().warning(
-            f"These {name} patterns are not matched any module, please ensure this is as expected: {unmatched_keys}")
+            "These %s patterns are not matched any module, please ensure this is as expected: %s", name, unmatched_keys
+        )
 
 
 @QABCRegistry.register(dispatch_key=LinearProcessorConfig, abc_class=AutoSessionProcessor)
 @logger_setter(prefix="msmodelslim.processor.linear_quant")
 class LinearQuantProcessor(AutoSessionProcessor):
     def __init__(
-            self,
-            model: nn.Module,
-            config: LinearProcessorConfig,
-            adapter: Optional[object] = None,
+        self,
+        model: nn.Module,
+        config: LinearProcessorConfig,
+        adapter: Optional[object] = None,
     ):
         super().__init__(model)
         self.config = config
@@ -78,7 +82,7 @@ class LinearQuantProcessor(AutoSessionProcessor):
         """
         判断是否是data free场景
         通过检查 LinearQuantizer 是否data free场景
-        
+
         Returns:
             bool: 是否data free场景
         """
@@ -88,7 +92,7 @@ class LinearQuantProcessor(AutoSessionProcessor):
         """
         判断是否支持分布式
         通过检查 LinearQuantizer 是否支持分布式来判断
-        
+
         Returns:
             bool: 是否支持分布式
         """
@@ -116,7 +120,6 @@ class LinearQuantProcessor(AutoSessionProcessor):
 
     def _install_quantizer(self, prefix: str, module: nn.Module) -> None:
         for name, submodule in module.named_modules(prefix=prefix):
-
             if not isinstance(submodule, nn.Linear):
                 continue
 
@@ -136,11 +139,11 @@ class LinearQuantProcessor(AutoSessionProcessor):
     def _process_linear(self, full_name: str, module: nn.Linear) -> None:
         """
         处理线性层，判断是否需要启用同步操作
-        
+
         同步操作的启用条件：
         1. 分布式已启动 (dist.is_initialized())
         2. 该模块是共享的 (is_shared)
-        
+
         Args:
             full_name: 模块全名
             module: 线性层模块
@@ -177,7 +180,9 @@ class LinearQuantProcessor(AutoSessionProcessor):
         world_size = dist.get_world_size()
         get_logger().debug(
             "LinearQuantProcessor DTS: submitting %s shared data-free tasks, rank=%s/%s",
-            len(candidates), rank, world_size,
+            len(candidates),
+            rank,
+            world_size,
         )
 
         with DistributedTaskScheduler(self.model) as dts:

@@ -14,10 +14,11 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 """
-from typing import Any, Dict, List, Literal, Optional, Tuple
+
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple
 
 import torch
-from pydantic import Field
+from pydantic import Field, AfterValidator
 from torch import nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
@@ -26,12 +27,14 @@ from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoProcessorConfigList, AutoSessionProcessor
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError, UnsupportedError
+from msmodelslim.utils.validation.pydantic import validate_str_length
 
 from .metrics.factory import ModelWiseMethodFactory
 
+
 def _extract_forward_args(obj: Any) -> Tuple[Any, ...]:
     """Extract layer forward positional args from common layer output shapes.
-    
+
     - Qwen/Transformers decoder layers often return a tuple whose first item is hidden_states.
       For these, we return ``(hidden_states,)``.
     - DeepSeekV3.2 decoder layers in this project return ``(hidden_states, residual)``.
@@ -42,11 +45,7 @@ def _extract_forward_args(obj: Any) -> Tuple[Any, ...]:
 
     if isinstance(obj, tuple) and obj:
         # DeepSeek style: (hidden_states, residual)
-        if (
-            len(obj) == 2
-            and isinstance(obj[0], torch.Tensor)
-            and isinstance(obj[1], torch.Tensor)
-        ):
+        if len(obj) == 2 and isinstance(obj[0], torch.Tensor) and isinstance(obj[1], torch.Tensor):
             return (obj[0], obj[1])
 
         head = obj[0]
@@ -70,12 +69,19 @@ def _require_hidden_tensor(
         if isinstance(head, torch.Tensor):
             t = head
         # (args, kwargs) row
-        elif rest and isinstance(rest[0], dict) and isinstance(head, tuple) and head and isinstance(head[0], torch.Tensor):
+        elif (
+            rest
+            and isinstance(rest[0], dict)
+            and isinstance(head, tuple)
+            and head
+            and isinstance(head[0], torch.Tensor)
+        ):
             t = head[0]
 
     if t is None:
         raise UnexpectedError("Failed to extract hidden_states tensor.")
     return t
+
 
 class BinaryOperatorModelWiseProcessorConfig(AutoProcessorConfig):
     """模型级敏感层分析配置（对比模型最终输出，支持多种 metrics 如 MSE）"""
@@ -85,7 +91,7 @@ class BinaryOperatorModelWiseProcessorConfig(AutoProcessorConfig):
         default="mse_model_wise",
         description="分析方法：mse",
     )
-    quant_modules: List[str] = Field(
+    quant_modules: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
         default_factory=lambda: ["*"],
         description=(
             "与 linear_quant.include、CLI --quant_modules 一致（YAML 占位 ${quant_modules}）；"
@@ -111,13 +117,8 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         super().__init__(model)
         self.config = config
         self.adapter = adapter
-        self.quant_processors = [
-            AutoSessionProcessor.from_config(model, cfg, adapter)
-            for cfg in config.configs
-        ]
-        self._analysis_method = ModelWiseMethodFactory.create_method(
-            config.metrics, adapter=adapter
-        )
+        self.quant_processors = [AutoSessionProcessor.from_config(model, cfg, adapter) for cfg in config.configs]
+        self._analysis_method = ModelWiseMethodFactory.create_method(config.metrics, adapter=adapter)
         self._base_data_count: int = 0
         self._block_names: List[str] = []
         self._float_outputs: List[Any] = []
@@ -153,8 +154,7 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         except UnsupportedError as e:
             self._skipped_request_names.append(request.name)
             get_logger().warning(
-                "BinaryOperatorModelWiseProcessor: enter skip mode at %s; "
-                "skip this and subsequent layers. reason=%s",
+                "BinaryOperatorModelWiseProcessor: enter skip mode at %s; skip this and subsequent layers. reason=%s",
                 request.name,
                 str(e),
             )
@@ -235,7 +235,7 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         ref_outputs: List[Any] = self._merged_outputs[:base_count]
         for layer_idx, layer_name in enumerate(self._block_names):
             block_base = base_count * (layer_idx + 1)
-            cand_outputs: List[Any] = self._merged_outputs[block_base:block_base + base_count]
+            cand_outputs: List[Any] = self._merged_outputs[block_base : block_base + base_count]
 
             score = self._analysis_method.compute_score(ref_outputs, cand_outputs)
             layer_scores.append(
@@ -250,9 +250,10 @@ class BinaryOperatorModelWiseProcessor(AutoSessionProcessor):
         ctx = get_current_context()
         if ctx is None:
             return
-        ctx["layer_analysis"].debug["layer_scores"] = layer_scores
-        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
-        ctx["layer_analysis"].debug["quant_modules"] = list(self.config.quant_modules)
+        layer_analysis = ctx["layer_analysis"]  # pylint: disable=unsubscriptable-object
+        layer_analysis.debug["layer_scores"] = layer_scores
+        layer_analysis.debug["method"] = self._analysis_method.name
+        layer_analysis.debug["quant_modules"] = list(self.config.quant_modules)
 
     def _replace_request_datas_with_merged_outputs_if_need(
         self, datas: Optional[List[Tuple[tuple, dict]]]

@@ -18,6 +18,8 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
+from decimal import Decimal
 from typing import Any, List
 
 from msmodelslim.utils.exception import SchemaValidateError, SecurityError
@@ -26,18 +28,20 @@ from msmodelslim.utils.security import validate_safe_host
 
 def at_least_one_element(v: Any, param_name: str = "value") -> Any:
     if not v:
-        raise SchemaValidateError(f"{param_name} must have at least one element",
-                                  action=f"Please provide a list {param_name} with at least one element")
+        raise SchemaValidateError(
+            f"{param_name} must have at least one element",
+            action=f"Please provide a list {param_name} with at least one element",
+        )
     return v
 
 
 def greater_than_zero(v: Any, param_name: str = "value") -> Any:
     """
-    校验数值是否大于 0，不强制区分类型（int/float 均可）。
+    校验数值是否大于 0，不强制区分类型（int/float/Decimal 均可）。
     """
-    if not isinstance(v, (float, int)) or v <= 0:
+    if not isinstance(v, (float, int, Decimal)) or v <= 0:
         raise SchemaValidateError(
-            f"{param_name} must be int or float, and value need greater than 0",
+            f"{param_name} must be int/float/Decimal, and value need greater than 0",
             action=f"Please check the numeric {param_name}",
         )
     return v
@@ -57,25 +61,20 @@ def int_greater_than_zero(v: Any, param_name: str = "value") -> Any:
 
 def validate_normalized_value(v: Any, param_name="value") -> float:
     if not isinstance(v, (float, type(None))):
-        raise SchemaValidateError(f"{param_name} must be a float or None type",
-                                  action=f"Please provide a float or None {param_name}")
+        raise SchemaValidateError(
+            f"{param_name} must be a float or None type", action=f"Please provide a float or None {param_name}"
+        )
     if v is not None and (v <= 0 or v >= 1):
-        raise SchemaValidateError(f"{param_name} must be in the range (0, 1)",
-                                  action=f"Please check the float {param_name} to ensure it is between 0 and 1")
-    return v
-
-
-def is_boolean(v: Any, param_name="value") -> bool:
-    if not isinstance(v, bool):
-        raise SchemaValidateError(f"{param_name} must be a boolean type",
-                                  action=f"Please provide a boolean {param_name} (True or False)")
+        raise SchemaValidateError(
+            f"{param_name} must be in the range (0, 1)",
+            action=f"Please check the float {param_name} to ensure it is between 0 and 1",
+        )
     return v
 
 
 def is_string_list(v: Any, param_name="value") -> List[str]:
     if not isinstance(v, list):
-        raise SchemaValidateError(f"{param_name} must be a list type",
-                                  action=f"Please provide a list {param_name}")
+        raise SchemaValidateError(f"{param_name} must be a list type", action=f"Please provide a list {param_name}")
 
     for item in v:
         if not isinstance(item, str):
@@ -89,17 +88,17 @@ def is_string_list(v: Any, param_name="value") -> List[str]:
     return v
 
 
-def validate_str_length(input_str, str_name="string", max_len=300):
+def validate_str_length(input_str, str_name="string", max_len=200):
     """
     校验输入字符串的长度是否在允许范围内
 
-    检查字符串长度是否超过指定的最大限制，默认最大长度为100字符。
+    检查字符串长度是否超过指定的最大限制，默认最大长度为200字符。
     支持自定义字符串名称，报错信息将动态显示该名称，适配各类使用场景。
 
     参数:
         input_str: 需要进行长度校验的字符串
         str_name: 字符串的自定义名称，用于生成精准报错信息
-        max_len: 允许的最大长度（正整数，默认300）
+        max_len: 允许的最大长度（正整数，默认200）
 
     异常:
         SecurityError: 当max_len不是正整数时抛出
@@ -111,8 +110,10 @@ def validate_str_length(input_str, str_name="string", max_len=300):
 
     # 检查字符串长度是否超限
     if len(input_str) > max_len:
-        raise SecurityError(f"The length of {str_name} should be less than {max_len}.",
-                            action=f"Please make sure the {str_name} is not longer than {max_len} characters.")
+        raise SecurityError(
+            f"The length of {str_name} should be less than {max_len}.",
+            action=f"Please make sure the {str_name} is not longer than {max_len} characters.",
+        )
 
 
 def is_port(v: Any, param_name: str = "port") -> int:
@@ -158,9 +159,75 @@ def non_empty_string(v: str, field_name: str = "value") -> str:
         SchemaValidateError: if the string is None or empty/whitespace
     """
     if v is None:
-        raise SchemaValidateError(f"{field_name} must not be null",
-                                  action=f"Please provide a non-empty string for {field_name}")
+        raise SchemaValidateError(
+            f"{field_name} must not be null", action=f"Please provide a non-empty string for {field_name}"
+        )
     if not str(v).strip():
-        raise SchemaValidateError(f"{field_name} must be a non-empty string",
-                                  action=f"Please provide a non-empty string for {field_name}")
+        raise SchemaValidateError(
+            f"{field_name} must be a non-empty string", action=f"Please provide a non-empty string for {field_name}"
+        )
+    return v
+
+
+def allow_empty_list(v: Any, param_name: str = "value") -> Any:
+    """
+    校验值是否为列表类型，允许空列表。
+    """
+    if not isinstance(v, list):
+        raise SchemaValidateError(
+            f"{param_name} must be a list type",
+            action=f"Please provide a list {param_name}",
+        )
+    return v
+
+
+def allow_empty_dict(v: Any, param_name: str = "value") -> Any:
+    """
+    校验值是否为字典类型，允许空字典。
+    """
+    if not isinstance(v, dict):
+        raise SchemaValidateError(
+            f"{param_name} must be a dict type",
+            action=f"Please provide a dict {param_name}",
+        )
+    return v
+
+
+def at_least_one_key(v: Any, param_name: str = "value") -> Any:
+    """
+    校验字典是否至少包含一个键值对，不允许空字典。
+    """
+    if not isinstance(v, dict):
+        raise SchemaValidateError(
+            f"{param_name} must be a dict type",
+            action=f"Please provide a dict {param_name}",
+        )
+    if not v:
+        raise SchemaValidateError(
+            f"{param_name} must have at least one key-value pair",
+            action=f"Please provide a non-empty dict {param_name}",
+        )
+    return v
+
+
+def in_range(v: Any, param_name: str = "value", min_val: Any = None, max_val: Any = None) -> Any:
+    """
+    校验数值是否在指定范围内 [min_val, max_val]。
+    min_val 或 max_val 为 None 时表示不限制该方向。
+    """
+    if not isinstance(v, (int, float, Decimal)):
+        raise SchemaValidateError(
+            f"{param_name} must be a number (int, float, Decimal), got {type(v).__name__}",
+            action=f"Please provide a numeric value for {param_name}",
+        )
+    if min_val is not None and v < min_val:
+        raise SchemaValidateError(
+            f"{param_name} must be greater than or equal to {min_val}, got {v}",
+            action=f"Please check the {param_name} to ensure it is >= {min_val}",
+        )
+    if max_val is not None and v > max_val:
+        raise SchemaValidateError(
+            f"{param_name} must be less than or equal to {max_val}, got {v}",
+            action=f"Please check the {param_name} to ensure it is <= {max_val}",
+        )
     return v

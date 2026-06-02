@@ -18,16 +18,18 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-import functools
-from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import Field
+import functools
+from typing import Annotated, Any, Dict, List, Literal, Optional
+
+from pydantic import Field, AfterValidator
 from torch import nn
 
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.core.context import get_current_context
 from msmodelslim.ir.qal.qregistry import QABCRegistry
 from msmodelslim.processor.base import AutoProcessorConfig, AutoSessionProcessor
+from msmodelslim.utils.validation.pydantic import validate_str_length
 from msmodelslim.processor.analysis.unary_operator.metrics.factory import UnaryAnalysisMethodFactory
 from msmodelslim.utils.logging import get_logger
 from msmodelslim.utils.exception import UnexpectedError
@@ -41,7 +43,7 @@ class UnaryAnalysisProcessorConfig(AutoProcessorConfig):
         default="kurtosis",
         description="Analysis method: quantile | std | kurtosis",
     )
-    patterns: List[str] = Field(
+    patterns: List[Annotated[str, AfterValidator(validate_str_length())]] = Field(
         default_factory=lambda: ["*"],
         description="Layer name patterns to analyze",
     )
@@ -77,9 +79,7 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         all_layers = self._analysis_method.get_target_layers(request.module, request.name)
-        self._target_layers = self._analysis_method.filter_layers_by_patterns(
-            all_layers, self.config.patterns
-        )
+        self._target_layers = self._analysis_method.filter_layers_by_patterns(all_layers, self.config.patterns)
         get_logger().debug(
             "UnaryAnalysisProcessor preprocess: %d target layers (metrics=%s)",
             len(self._target_layers),
@@ -88,9 +88,11 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
 
         if len(self._target_layers) == 0:
             get_logger().warning(
-                f"No target layers/modules found matching the specified patterns for {request.name}. "
-                f"Please check the patterns {self.config.patterns} and the model structure, to ensure it meets expectations."
-                )
+                "No target layers/modules found matching the specified patterns for %s. "
+                "Please check the patterns %s and the model structure, to ensure it meets expectations.",
+                request.name,
+                self.config.patterns,
+            )
 
         # Runner 按块下发 request（如 request.name='model.layers.0'），target_layers 是叶子 Linear 全名
         # 遍历当前块下属于 _target_layers 的 nn.Linear 子模块，逐个注册 hook
@@ -108,9 +110,6 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
             handle = sub_module.register_forward_hook(bound_hook)
             self._hook_handles[sub_name] = handle
 
-    def process(self, request: BatchProcessRequest) -> None:
-        super().process(request)
-
     def postprocess(self, request: BatchProcessRequest) -> None:
         # 移除当前块下所有已注册的 hook，并计算各叶子层的 score
         keys_to_remove = [k for k in self._hook_handles if k == request.name or k.startswith(request.name + ".")]
@@ -121,15 +120,18 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
             if k in self._layer_stats and k in self._target_layers:
                 score = self._analysis_method.compute_score(self._layer_stats[k])
                 self._layer_scores.append({"name": k, "score": score})
-                get_logger().debug(f"{k}: {score}")
+                get_logger().debug("%s: %s", k, score)
                 # 分数计算完成后删除激活状态，及时释放内存
                 del self._layer_stats[k]
 
     def post_run(self) -> None:
         ctx = get_current_context()
-        ctx["layer_analysis"].debug["layer_scores"] = self._layer_scores
-        ctx["layer_analysis"].debug["method"] = self._analysis_method.name
-        ctx["layer_analysis"].debug["patterns"] = self.config.patterns
+        if ctx is None:
+            return
+        layer_analysis = ctx["layer_analysis"]  # pylint: disable=unsubscriptable-object
+        layer_analysis.debug["layer_scores"] = self._layer_scores
+        layer_analysis.debug["method"] = self._analysis_method.name
+        layer_analysis.debug["patterns"] = self.config.patterns
 
         get_logger().info(
             "UnaryAnalysisProcessor post_run: %d layer scores computed (%s)",
@@ -137,11 +139,11 @@ class UnaryAnalysisProcessor(AutoSessionProcessor):
             self._analysis_method.name,
         )
 
-        if not ctx["layer_analysis"].debug["layer_scores"] or len(ctx["layer_analysis"].debug["layer_scores"]) == 0:
+        if not layer_analysis.debug["layer_scores"] or len(layer_analysis.debug["layer_scores"]) == 0:
             get_logger().warning(
-                f"No statistics collected. This may be caused by empty calibration data "
-                f"or incompatible patterns with the model structure."
-                )
+                "No statistics collected. This may be caused by empty calibration data "
+                "or incompatible patterns with the model structure."
+            )
 
     def get_layer_scores(self) -> List[Dict[str, Any]]:
         """Return the computed layer scores (for tests or when context is not used)."""

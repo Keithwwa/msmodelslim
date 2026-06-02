@@ -19,10 +19,9 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
 from typing import Any, Literal, Annotated, Optional, List
 
-import torch.nn as nn
+from torch import nn
 from pydantic import AfterValidator
 
 from msmodelslim.ir.qal.qregistry import QABCRegistry
@@ -31,7 +30,7 @@ from msmodelslim.ir.norm_bias import RMSNormBias
 from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfig
 from msmodelslim.utils.config_map import ConfigSet
 from msmodelslim.utils.logging import get_logger, logger_setter
-from msmodelslim.utils.validation.value import validate_normalized_value, is_boolean
+from msmodelslim.utils.validation.pydantic import validate_normalized_value, validate_str_length
 
 from ..common import (
     SmoothQuantConfig,
@@ -48,22 +47,23 @@ from .interface import SmoothQuantInterface
 class SmoothQuantProcessorConfig(AutoProcessorConfig):
     type: Literal["smooth_quant"] = "smooth_quant"
     alpha: Annotated[float, AfterValidator(validate_normalized_value)] = 0.5
-    symmetric: Annotated[bool, AfterValidator(is_boolean)] = True
-    include: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
+    symmetric: bool = True
+    include: Optional[List[Annotated[str, AfterValidator(validate_str_length())]]] = None
+    exclude: Optional[List[Annotated[str, AfterValidator(validate_str_length())]]] = None
 
 
 @QABCRegistry.register(dispatch_key=SmoothQuantProcessorConfig, abc_class=AutoSessionProcessor)
 @logger_setter(prefix="msmodelslim.processor.smooth_quant")
 class SmoothQuantProcessor(BaseSmoothProcessor):
     """SmoothQuant Processor - 仅支持 norm-linear 子图类型"""
+
     ENABLE_SUBGRAPH_TYPE = ["norm-linear"]
-    
+
     def __init__(self, model: nn.Module, config: SmoothQuantProcessorConfig, adapter: object, **kwargs):
         super().__init__(model, config, adapter)
         self._validate_parameters()
         self.stats_collector = IterStatsCollector(symmetric=config.symmetric)
-        
+
         # 初始化分布式辅助类（延迟到preprocess时创建，因为需要prefix信息）
         self.dist_helper = None
 
@@ -74,8 +74,7 @@ class SmoothQuantProcessor(BaseSmoothProcessor):
             get_logger().debug("Non-asym subgraph (%s), setting shift=False", subgraph_type)
         else:
             shift_value = not self.config.symmetric
-            get_logger().debug("Asym-capable subgraph (%s), setting shift=%s",
-                               subgraph_type, shift_value)
+            get_logger().debug("Asym-capable subgraph (%s), setting shift=%s", subgraph_type, shift_value)
 
         smooth_quant_cfg = SmoothQuantConfig(
             alpha=self.config.alpha,
@@ -84,27 +83,23 @@ class SmoothQuantProcessor(BaseSmoothProcessor):
         smooth_context = self._build_smooth_context(linear_names)
         if smooth_context is None:
             get_logger().warning(
-                "No statistics collected for %s subgraph, skipping. "
-                "This may happen for unused MOE experts.",
-                subgraph_type
+                "No statistics collected for %s subgraph, skipping. This may happen for unused MOE experts.",
+                subgraph_type,
             )
             return
 
         smooth_quant(subgraph_obj, smooth_quant_cfg, smooth_context)
-        get_logger().info(
-            "Successfully applied SmoothQuant to %s subgraph (shift=%s)", subgraph_type, shift_value
-        )
+        get_logger().info("Successfully applied SmoothQuant to %s subgraph (shift=%s)", subgraph_type, shift_value)
 
     def preprocess(self, request: BatchProcessRequest) -> None:
         super().preprocess(request)
         self._replace_norm_modules()
-        get_logger().debug("Processed %d subgraphs for submodule %s",
-                           len(self.adapter_config), request.name)
+        get_logger().debug("Processed %d subgraphs for submodule %s", len(self.adapter_config), request.name)
 
     def _validate_parameters(self) -> None:
         """SmoothQuant 使用固定的子图类型，无需验证相关配置"""
         pass
-    
+
     def _filter_adapter_configs_by_config(self, adapter_configs, config, scope):
         """重写过滤方法，使用固定的 ENABLE_SUBGRAPH_TYPE"""
         result = []
@@ -158,7 +153,7 @@ class SmoothQuantProcessor(BaseSmoothProcessor):
             else:
                 shift = None
         else:
-            get_logger().warning(f"Linear name {linear_name} not in act_stats")
+            get_logger().warning("Linear name %s not in act_stats", linear_name)
             return None
 
         # 检查是否成功获取到激活平滑尺度
@@ -170,41 +165,33 @@ class SmoothQuantProcessor(BaseSmoothProcessor):
             )
             return None
         # 创建 SmoothQuantContext
-        smooth_context = SmoothQuantContext(
-            version=1,
-            a_smooth_scale=a_smooth_scale,
-            shift=shift
-        )
+        smooth_context = SmoothQuantContext(version=1, a_smooth_scale=a_smooth_scale, shift=shift)
 
         return smooth_context
 
     def _replace_norm_modules(self) -> None:
         for adapter_config in self.adapter_config:
-            if adapter_config.subgraph_type == "norm-linear":
-                norm_name = adapter_config.mapping.source
-                norm_module = self.model.get_submodule(
-                    norm_name) if norm_name else None
-                if norm_name and norm_module is not None:
-                    try:
-                        if hasattr(norm_module, 'weight'):
-                            norm_bias = RMSNormBias(
-                                norm_module.weight.shape[-1])
-                            norm_bias.weight.data.copy_(
-                                norm_module.weight.data)
-                            norm_bias.weight.data = norm_bias.weight.data.type(
-                                norm_module.weight.data.dtype)
-                            if hasattr(norm_module, 'bias') and norm_module.bias is not None:
-                                norm_bias.bias.data.copy_(
-                                    norm_module.bias.data)
-                                norm_bias.bias.data = norm_bias.bias.data.type(
-                                    norm_module.weight.data.dtype)
-                            norm_bias.to(norm_module.weight.data.device)
-                            self.model.set_submodule(norm_name, norm_bias)
-                            get_logger().debug("%s: %s -> %s", norm_name, type(norm_module), type(norm_bias))
-                        else:
-                            get_logger().warning("Norm module %s does not have weight attribute", norm_name)
-                    except Exception as e:
-                        get_logger().warning("Failed to replace norm module %s: %s", norm_name, e)
+            if adapter_config.subgraph_type != "norm-linear":
+                continue
+            norm_name = adapter_config.mapping.source
+            norm_module = self.model.get_submodule(norm_name) if norm_name else None
+            if not norm_name or norm_module is None:
+                continue
+            try:
+                if not hasattr(norm_module, 'weight'):
+                    get_logger().warning("Norm module %s does not have weight attribute", norm_name)
+                    continue
+                norm_bias = RMSNormBias(norm_module.weight.shape[-1])
+                norm_bias.weight.data.copy_(norm_module.weight.data)
+                norm_bias.weight.data = norm_bias.weight.data.type(norm_module.weight.data.dtype)
+                if hasattr(norm_module, 'bias') and norm_module.bias is not None:
+                    norm_bias.bias.data.copy_(norm_module.bias.data)
+                    norm_bias.bias.data = norm_bias.bias.data.type(norm_module.weight.data.dtype)
+                norm_bias.to(norm_module.weight.data.device)
+                self.model.set_submodule(norm_name, norm_bias)
+                get_logger().debug("%s: %s -> %s", norm_name, type(norm_module), type(norm_bias))
+            except Exception as e:
+                get_logger().warning("Failed to replace norm module %s: %s", norm_name, e)
 
     def _validate_adapter_interface(self, adapter: object) -> None:
         """Validate that the adapter implements SmoothQuantInterface."""
@@ -213,6 +200,6 @@ class SmoothQuantProcessor(BaseSmoothProcessor):
                 '%s does not implement SmoothQuantInterface. Fallback to default model adapter logic (hook-based auto-detect). '
                 'To use model-specific config, ensure %s inherits from SmoothQuantInterface and implements the methods defined by the interface',
                 adapter.__class__.__name__,
-                adapter.__class__.__name__
+                adapter.__class__.__name__,
             )
             self.is_defalut_adapter = True
