@@ -19,16 +19,19 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+# pylint: disable=redefined-outer-name,too-many-lines,use-maxsplit-arg
 
 import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, MagicMock, patch
 import pytest
 import torch
 
 from msmodelslim.model.wan2_2.model_adapter import (
-    Wan2Point2Adapter, InvalidModelError,
-    SchemaValidateError, UnsupportedError
+    Wan2Point2Adapter,
+    InvalidModelError,
+    SchemaValidateError,
+    UnsupportedError,
 )
 
 
@@ -36,9 +39,14 @@ from msmodelslim.model.wan2_2.model_adapter import (
 def mock_wan_modules(monkeypatch):
     """统一模拟所有wan相关模块，所有测试类共用"""
     mock_modules = [
-        'wan', 'wan.configs', 'wan.utils.prompt_extend',
-        'wan.utils.utils', 'wan.distributed.parallel_mgr',
-        'wan.distributed.tp_applicator', 'wan.distributed', 'wan.utils'
+        'wan',
+        'wan.configs',
+        'wan.utils.prompt_extend',
+        'wan.utils.utils',
+        'wan.distributed.parallel_mgr',
+        'wan.distributed.tp_applicator',
+        'wan.distributed',
+        'wan.utils',
     ]
 
     original_modules = {mod: sys.modules.get(mod) for mod in mock_modules}
@@ -63,7 +71,7 @@ def mock_wan_modules(monkeypatch):
         '704*1280': (704, 1280),
         '1280*704': (1280, 704),
         '432*768': (432, 768),
-        '768*432': (768, 432)
+        '768*432': (768, 432),
     }
 
     wan_main = sys.modules['wan']
@@ -184,9 +192,10 @@ class TestLoadPipeline:
             Wan2Point2Adapter._load_pipeline(mock_self)
 
     @staticmethod
-    def test_load_pipeline_execution_order(mock_self):
+    def test_load_pipeline_calls_internal(mock_self):
+        mock_self._load_pipeline = Mock()
         Wan2Point2Adapter.load_pipeline(mock_self)
-        assert mock_self._load_pipeline.call_count == 1
+        mock_self._load_pipeline.assert_called_once()
 
     @pytest.fixture
     def mock_self(self):
@@ -213,9 +222,7 @@ class TestLoadPipeline:
         mock_mindiesd.CacheAgent = Mock()
 
         # 使用patch.dict模拟sys.modules
-        with patch.dict('sys.modules', {
-            'mindiesd': mock_mindiesd
-        }):
+        with patch.dict('sys.modules', {'mindiesd': mock_mindiesd}):
             yield
 
 
@@ -264,12 +271,9 @@ class TestValidateArgs:
     def test_i2v_missing_image(mock_self, base_args):
         base_args.task = "i2v-A14B"
         base_args.image = None
-        with patch.dict('msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT', {
-            "i2v-A14B": {
-                "prompt": "test",
-                "image": None
-            }
-        }):
+        with patch.dict(
+            'msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT', {"i2v-A14B": {"prompt": "test", "image": None}}
+        ):
             with pytest.raises(SchemaValidateError) as exc_info:
                 Wan2Point2Adapter._validate_args(mock_self, base_args)
             assert "Please specify the image path for i2v" in str(exc_info.value)
@@ -311,8 +315,7 @@ class TestValidateArgs:
     @staticmethod
     def test_base_seed_negative(mock_self, base_args):
         base_args.base_seed = -1
-        with patch('random.randint', return_value=999) as mock_randint, \
-             patch('sys.maxsize', 1000):
+        with patch('random.randint', return_value=999) as mock_randint, patch('sys.maxsize', 1000):
             Wan2Point2Adapter._validate_args(mock_self, base_args)
             assert base_args.base_seed == 999
             mock_randint.assert_called_once_with(0, 1000)
@@ -417,9 +420,8 @@ class TestValidateArgs:
         base_args.sample_guide_scale = None
         base_args.frame_num = None
         base_args.base_seed = -1
-        
-        with patch('random.randint', return_value=999), \
-             patch('sys.maxsize', 1000):
+
+        with patch('random.randint', return_value=999), patch('sys.maxsize', 1000):
             Wan2Point2Adapter._validate_args(mock_self, base_args)
 
             assert base_args.sample_steps == 50
@@ -460,37 +462,23 @@ class TestValidateArgs:
         """模拟所有必要的依赖"""
         # 模拟SUPPORTED_TASKS
         monkeypatch.setattr(
-            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS",
-            ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
+            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS", ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
         )
 
         # 模拟EXAMPLE_PROMPT
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT",
             {
-                "t2v-A14B": {
-                    "prompt": "test prompt for t2v",
-                    "image": None
-                },
-                "i2v-A14B": {
-                    "prompt": "test prompt for i2v", 
-                    "image": "test_image.jpg"
-                },
-                "ti2v-5B": {
-                    "prompt": "test prompt for ti2v",
-                    "image": None
-                }
-            }
+                "t2v-A14B": {"prompt": "test prompt for t2v", "image": None},
+                "i2v-A14B": {"prompt": "test prompt for i2v", "image": "test_image.jpg"},
+                "ti2v-5B": {"prompt": "test prompt for ti2v", "image": None},
+            },
         )
 
         # 模拟TASK_CONFIGS
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.TASK_CONFIGS",
-            {
-                "t2v-A14B": "t2v",
-                "i2v-A14B": "i2v", 
-                "ti2v-5B": "ti2v"
-            }
+            {"t2v-A14B": "t2v", "i2v-A14B": "i2v", "ti2v-5B": "ti2v"},
         )
 
         # 模拟wan.configs模块
@@ -498,7 +486,7 @@ class TestValidateArgs:
         mock_configs.SUPPORTED_SIZES = {
             "t2v-A14B": ["1280 * 720", "720 * 1280"],
             "i2v-A14B": ["1280 * 720", "832 * 480", "480 * 832"],
-            "ti2v-5B": ["1280 * 720", "832 * 480"]
+            "ti2v-5B": ["1280 * 720", "832 * 480"],
         }
 
         # 模拟WAN_CONFIGS
@@ -509,11 +497,7 @@ class TestValidateArgs:
         mock_cfg.sample_guide_scale = 7.5
         mock_cfg.frame_num = 81
 
-        mock_configs.WAN_CONFIGS = {
-            "t2v-A14B": mock_cfg,
-            "i2v-A14B": mock_cfg,
-            "ti2v-5B": mock_cfg
-        }
+        mock_configs.WAN_CONFIGS = {"t2v-A14B": mock_cfg, "i2v-A14B": mock_cfg, "ti2v-5B": mock_cfg}
 
         # 模拟wan模块及其子模块
         mock_wan = Mock()
@@ -555,18 +539,21 @@ class TestValidateArgs:
         mock_mindiesd.CacheAgent = Mock()
 
         # 使用patch.dict模拟sys.modules
-        with patch.dict('sys.modules', {
-            'wan': mock_wan,
-            'wan.configs': mock_configs,
-            'wan.distributed': mock_distributed,
-            'wan.distributed.util': mock_distributed_util,
-            'wan.utils': mock_utils,
-            'wan.utils.prompt_extend': mock_utils.prompt_extend,
-            'wan.utils.utils': mock_utils.utils,
-            'PIL': mock_pil,
-            'PIL.Image': mock_pil.Image,
-            'mindiesd': mock_mindiesd
-        }):
+        with patch.dict(
+            'sys.modules',
+            {
+                'wan': mock_wan,
+                'wan.configs': mock_configs,
+                'wan.distributed': mock_distributed,
+                'wan.distributed.util': mock_distributed_util,
+                'wan.utils': mock_utils,
+                'wan.utils.prompt_extend': mock_utils.prompt_extend,
+                'wan.utils.utils': mock_utils.utils,
+                'PIL': mock_pil,
+                'PIL.Image': mock_pil.Image,
+                'mindiesd': mock_mindiesd,
+            },
+        ):
             yield
 
 
@@ -575,6 +562,7 @@ class TestInitLogging:
     @staticmethod
     def test_rank_zero_config(mock_self, mocker):
         import logging
+
         mock_stream_handler = mocker.patch('msmodelslim.model.wan2_2.model_adapter.logging.StreamHandler')
         mock_basic_config = mocker.patch('msmodelslim.model.wan2_2.model_adapter.logging.basicConfig')
         Wan2Point2Adapter._init_logging(mock_self, rank=0)
@@ -583,12 +571,13 @@ class TestInitLogging:
         mock_basic_config.assert_called_once_with(
             level=logging.INFO,
             format="[%(asctime)s] %(levelname)s: %(message)s",
-            handlers=[mock_stream_handler.return_value]
+            handlers=[mock_stream_handler.return_value],
         )
 
     @staticmethod
     def test_non_zero_rank_logging_config(mock_self, mocker):
         import logging
+
         mock_basic_config = mocker.patch('msmodelslim.model.wan2_2.model_adapter.logging.basicConfig')
 
         for rank in [1, 2, -1]:
@@ -632,42 +621,28 @@ class TestCheckImportDependency:
     @pytest.fixture(autouse=True)
     def mock_all_dependencies(self, monkeypatch):
         monkeypatch.setattr(
-            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS",
-            ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
+            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS", ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT",
             {
-                "t2v-A14B": {
-                    "prompt": "test prompt for t2v",
-                    "image": None
-                },
-                "i2v-A14B": {
-                    "prompt": "test prompt for i2v", 
-                    "image": "test_image.jpg"
-                },
-                "ti2v-5B": {
-                    "prompt": "test prompt for ti2v",
-                    "image": None
-                }
-            }
+                "t2v-A14B": {"prompt": "test prompt for t2v", "image": None},
+                "i2v-A14B": {"prompt": "test prompt for i2v", "image": "test_image.jpg"},
+                "ti2v-5B": {"prompt": "test prompt for ti2v", "image": None},
+            },
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.TASK_CONFIGS",
-            {
-                "t2v-A14B": "t2v",
-                "i2v-A14B": "i2v", 
-                "ti2v-5B": "ti2v"
-            }
+            {"t2v-A14B": "t2v", "i2v-A14B": "i2v", "ti2v-5B": "ti2v"},
         )
 
         mock_configs = Mock()
         mock_configs.SUPPORTED_SIZES = {
             "t2v-A14B": ["1280 * 720", "720 * 1280"],
             "i2v-A14B": ["1280 * 720", "832 * 480", "480 * 832"],
-            "ti2v-5B": ["1280 * 720", "832 * 480"]
+            "ti2v-5B": ["1280 * 720", "832 * 480"],
         }
 
         mock_cfg = Mock()
@@ -677,11 +652,7 @@ class TestCheckImportDependency:
         mock_cfg.sample_guide_scale = 7.5
         mock_cfg.frame_num = 81
 
-        mock_configs.WAN_CONFIGS = {
-            "t2v-A14B": mock_cfg,
-            "i2v-A14B": mock_cfg,
-            "ti2v-5B": mock_cfg
-        }
+        mock_configs.WAN_CONFIGS = {"t2v-A14B": mock_cfg, "i2v-A14B": mock_cfg, "ti2v-5B": mock_cfg}
 
         mock_wan = Mock()
         mock_wan.configs = mock_configs
@@ -716,18 +687,21 @@ class TestCheckImportDependency:
         mock_mindiesd.CacheConfig = Mock()
         mock_mindiesd.CacheAgent = Mock()
 
-        with patch.dict('sys.modules', {
-            'wan': mock_wan,
-            'wan.configs': mock_configs,
-            'wan.distributed': mock_distributed,
-            'wan.distributed.util': mock_distributed_util,
-            'wan.utils': mock_utils,
-            'wan.utils.prompt_extend': mock_utils.prompt_extend,
-            'wan.utils.utils': mock_utils.utils,
-            'PIL': mock_pil,
-            'PIL.Image': mock_pil.Image,
-            'mindiesd': mock_mindiesd
-        }):
+        with patch.dict(
+            'sys.modules',
+            {
+                'wan': mock_wan,
+                'wan.configs': mock_configs,
+                'wan.distributed': mock_distributed,
+                'wan.distributed.util': mock_distributed_util,
+                'wan.utils': mock_utils,
+                'wan.utils.prompt_extend': mock_utils.prompt_extend,
+                'wan.utils.utils': mock_utils.utils,
+                'PIL': mock_pil,
+                'PIL.Image': mock_pil.Image,
+                'mindiesd': mock_mindiesd,
+            },
+        ):
             yield
 
 
@@ -735,11 +709,7 @@ class TestCheckImportDependency:
 class TestSetModelArgs:
     @staticmethod
     def test_valid_update(mock_self, base_override):
-        valid_config = base_override({
-            "sample_steps": 60,
-            "offload_model": True,
-            "use_attentioncache": True
-        })
+        valid_config = base_override({"sample_steps": 60, "offload_model": True, "use_attentioncache": True})
         mock_self.set_model_args(valid_config)
 
         assert mock_self.model_args.ckpt_dir == mock_self.model_path
@@ -748,10 +718,7 @@ class TestSetModelArgs:
 
     @staticmethod
     def test_illegal_attr_raise_error(mock_self, base_override):
-        invalid_config = base_override({
-            "sample_steps": 60,
-            "illegal_attr": "invalid"
-        })
+        invalid_config = base_override({"sample_steps": 60, "illegal_attr": "invalid"})
         with pytest.raises(SchemaValidateError) as exc:
             mock_self.set_model_args(invalid_config)
 
@@ -759,10 +726,7 @@ class TestSetModelArgs:
 
     @staticmethod
     def test_skip_none_value(mock_self, base_override):
-        none_config = base_override({
-            "sample_steps": 60,
-            "offload_model": None
-        })
+        none_config = base_override({"sample_steps": 60, "offload_model": None})
         mock_parser = mock_self._get_parser()
         mock_self.set_model_args(none_config)
         argv = mock_parser.parse_args.call_args[0][0]
@@ -772,11 +736,7 @@ class TestSetModelArgs:
 
     @staticmethod
     def test_bool_false_handling(mock_self, base_override):
-        false_bool_config = base_override({
-            "sample_steps": 60,
-            "offload_model": True,
-            "use_attentioncache": False
-        })
+        false_bool_config = base_override({"sample_steps": 60, "offload_model": True, "use_attentioncache": False})
         mock_parser = mock_self._get_parser()
         mock_self.set_model_args(false_bool_config)
         argv = mock_parser.parse_args.call_args[0][0]
@@ -806,42 +766,28 @@ class TestSetModelArgs:
     @pytest.fixture(autouse=True)
     def mock_all_dependencies(self, monkeypatch):
         monkeypatch.setattr(
-            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS",
-            ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
+            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS", ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT",
             {
-                "t2v-A14B": {
-                    "prompt": "test prompt for t2v",
-                    "image": None
-                },
-                "i2v-A14B": {
-                    "prompt": "test prompt for i2v", 
-                    "image": "test_image.jpg"
-                },
-                "ti2v-5B": {
-                    "prompt": "test prompt for ti2v",
-                    "image": None
-                }
-            }
+                "t2v-A14B": {"prompt": "test prompt for t2v", "image": None},
+                "i2v-A14B": {"prompt": "test prompt for i2v", "image": "test_image.jpg"},
+                "ti2v-5B": {"prompt": "test prompt for ti2v", "image": None},
+            },
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.TASK_CONFIGS",
-            {
-                "t2v-A14B": "t2v",
-                "i2v-A14B": "i2v", 
-                "ti2v-5B": "ti2v"
-            }
+            {"t2v-A14B": "t2v", "i2v-A14B": "i2v", "ti2v-5B": "ti2v"},
         )
 
         mock_configs = Mock()
         mock_configs.SUPPORTED_SIZES = {
             "t2v-A14B": ["1280*720", "720*1280"],
             "i2v-A14B": ["1280*720", "832*480", "480*832"],
-            "ti2v-5B": ["1280*720", "832*480"]
+            "ti2v-5B": ["1280*720", "832*480"],
         }
 
         mock_cfg = Mock()
@@ -850,12 +796,8 @@ class TestSetModelArgs:
         mock_cfg.sample_shift = 5.0
         mock_cfg.sample_guide_scale = 7.5
         mock_cfg.frame_num = 81
-        
-        mock_configs.WAN_CONFIGS = {
-            "t2v-A14B": mock_cfg,
-            "i2v-A14B": mock_cfg,
-            "ti2v-5B": mock_cfg
-        }
+
+        mock_configs.WAN_CONFIGS = {"t2v-A14B": mock_cfg, "i2v-A14B": mock_cfg, "ti2v-5B": mock_cfg}
 
         mock_configs.SIZE_CONFIGS = {
             '720*1280': (720, 1280),
@@ -865,7 +807,7 @@ class TestSetModelArgs:
             '704*1280': (704, 1280),
             '1280*704': (1280, 704),
             '432*768': (432, 768),
-            '768*432': (768, 432)
+            '768*432': (768, 432),
         }
 
         mock_wan = Mock()
@@ -901,18 +843,21 @@ class TestSetModelArgs:
         mock_mindiesd.CacheConfig = Mock()
         mock_mindiesd.CacheAgent = Mock()
 
-        with patch.dict('sys.modules', {
-            'wan': mock_wan,
-            'wan.configs': mock_configs,
-            'wan.distributed': mock_distributed,
-            'wan.distributed.util': mock_distributed_util,
-            'wan.utils': mock_utils,
-            'wan.utils.prompt_extend': mock_utils.prompt_extend,
-            'wan.utils.utils': mock_utils.utils,
-            'PIL': mock_pil,
-            'PIL.Image': mock_pil.Image,
-            'mindiesd': mock_mindiesd
-        }):
+        with patch.dict(
+            'sys.modules',
+            {
+                'wan': mock_wan,
+                'wan.configs': mock_configs,
+                'wan.distributed': mock_distributed,
+                'wan.distributed.util': mock_distributed_util,
+                'wan.utils': mock_utils,
+                'wan.utils.prompt_extend': mock_utils.prompt_extend,
+                'wan.utils.utils': mock_utils.utils,
+                'PIL': mock_pil,
+                'PIL.Image': mock_pil.Image,
+                'mindiesd': mock_mindiesd,
+            },
+        ):
             yield
 
     @pytest.fixture
@@ -941,7 +886,7 @@ class TestApplyQuantization:
         mock_self.high_noise_model.no_sync.return_value = mock_context
 
         mock_self.model_args.param_dtype = torch.float16
-        with patch('torch.cuda.amp.autocast') as mock_autocast:
+        with patch('torch.cuda.amp.autocast'):
             Wan2Point2Adapter.apply_quantization(mock_self, process_func)
 
         assert mock_self.low_noise_model.no_sync.call_count >= 1
@@ -958,11 +903,12 @@ class TestApplyQuantization:
         transformer.named_modules.return_value = [
             ('embedding', module_embedding),
             ('blocks.0', module_block),
-            ('norm', module_norm)
+            ('norm', module_norm),
         ]
         mock.transformer = transformer
         mock.low_noise_model = transformer
         mock.high_noise_model = transformer
+        mock.model_args = Mock(param_dtype=torch.float16)
         return mock
 
     @pytest.fixture
@@ -982,7 +928,7 @@ class TestRunCalibInference:
             mock_self.model_args.image = "/path/to/real/image.jpg"
             mock_self.model_args.task = "t2v-A14B"
             mock_self.model_args.prompt = "test prompt"
-      
+
             mock_self.model_args.base_seed = 42
             mock_self.model_args.size = "1280*720"
             mock_self.model_args.frame_num = 81
@@ -994,10 +940,11 @@ class TestRunCalibInference:
 
             mock_self.wan_t2v.generate.return_value = Mock()
 
-            with patch('msmodelslim.model.wan2_2.model_adapter.torch'), \
-                patch('msmodelslim.model.wan2_2.model_adapter.time') as mock_time, \
-                patch('msmodelslim.model.wan2_2.model_adapter.tqdm') as mock_tqdm:
-
+            with (
+                patch('msmodelslim.model.wan2_2.model_adapter.torch'),
+                patch('msmodelslim.model.wan2_2.model_adapter.time') as mock_time,
+                patch('msmodelslim.model.wan2_2.model_adapter.tqdm') as mock_tqdm,
+            ):
                 mock_time.time.side_effect = [1.0, 3.0]
                 mock_tqdm.return_value.__iter__.return_value = [1]
 
@@ -1019,7 +966,7 @@ class TestRunCalibInference:
             sample_steps=50,
             sample_guide_scale=7.5,
             offload_model=False,
-            prompt="test prompt"
+            prompt="test prompt",
         )
 
         mock.wan_t2v = Mock()
@@ -1032,42 +979,28 @@ class TestRunCalibInference:
     @pytest.fixture(autouse=True)
     def mock_all_dependencies(self, monkeypatch):
         monkeypatch.setattr(
-            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS",
-            ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
+            "msmodelslim.model.wan2_2.model_adapter.SUPPORTED_TASKS", ["t2v-A14B", "i2v-A14B", "ti2v-5B"]
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.EXAMPLE_PROMPT",
             {
-                "t2v-A14B": {
-                    "prompt": "test prompt for t2v",
-                    "image": None
-                },
-                "i2v-A14B": {
-                    "prompt": "test prompt for i2v", 
-                    "image": "test_image.jpg"
-                },
-                "ti2v-5B": {
-                    "prompt": "test prompt for ti2v",
-                    "image": None
-                }
-            }
+                "t2v-A14B": {"prompt": "test prompt for t2v", "image": None},
+                "i2v-A14B": {"prompt": "test prompt for i2v", "image": "test_image.jpg"},
+                "ti2v-5B": {"prompt": "test prompt for ti2v", "image": None},
+            },
         )
 
         monkeypatch.setattr(
             "msmodelslim.model.wan2_2.model_adapter.TASK_CONFIGS",
-            {
-                "t2v-A14B": "t2v",
-                "i2v-A14B": "i2v", 
-                "ti2v-5B": "ti2v"
-            }
+            {"t2v-A14B": "t2v", "i2v-A14B": "i2v", "ti2v-5B": "ti2v"},
         )
 
         mock_configs = Mock()
         mock_configs.SUPPORTED_SIZES = {
             "t2v-A14B": ["1280*720", "720*1280"],
             "i2v-A14B": ["1280*720", "832*480", "480*832"],
-            "ti2v-5B": ["1280*720", "832*480"]
+            "ti2v-5B": ["1280*720", "832*480"],
         }
 
         mock_cfg = Mock()
@@ -1077,11 +1010,7 @@ class TestRunCalibInference:
         mock_cfg.sample_guide_scale = 7.5
         mock_cfg.frame_num = 81
 
-        mock_configs.WAN_CONFIGS = {
-            "t2v-A14B": mock_cfg,
-            "i2v-A14B": mock_cfg,
-            "ti2v-5B": mock_cfg
-        }
+        mock_configs.WAN_CONFIGS = {"t2v-A14B": mock_cfg, "i2v-A14B": mock_cfg, "ti2v-5B": mock_cfg}
 
         mock_configs.SIZE_CONFIGS = {
             '720*1280': (720, 1280),
@@ -1091,7 +1020,7 @@ class TestRunCalibInference:
             '704*1280': (704, 1280),
             '1280*704': (1280, 704),
             '432*768': (432, 768),
-            '768*432': (768, 432)
+            '768*432': (768, 432),
         }
 
         mock_wan = Mock()
@@ -1127,16 +1056,19 @@ class TestRunCalibInference:
         mock_mindiesd.CacheConfig = Mock()
         mock_mindiesd.CacheAgent = Mock()
 
-        with patch.dict('sys.modules', {
-            'wan': mock_wan,
-            'wan.configs': mock_configs,
-            'wan.distributed': mock_distributed,
-            'wan.distributed.util': mock_distributed_util,
-            'wan.utils': mock_utils,
-            'wan.utils.prompt_extend': mock_utils.prompt_extend,
-            'wan.utils.utils': mock_utils.utils,
-            'PIL': mock_pil,
-            'PIL.Image': mock_pil.Image,
-            'mindiesd': mock_mindiesd
-        }):
+        with patch.dict(
+            'sys.modules',
+            {
+                'wan': mock_wan,
+                'wan.configs': mock_configs,
+                'wan.distributed': mock_distributed,
+                'wan.distributed.util': mock_distributed_util,
+                'wan.utils': mock_utils,
+                'wan.utils.prompt_extend': mock_utils.prompt_extend,
+                'wan.utils.utils': mock_utils.utils,
+                'PIL': mock_pil,
+                'PIL.Image': mock_pil.Image,
+                'mindiesd': mock_mindiesd,
+            },
+        ):
             yield
