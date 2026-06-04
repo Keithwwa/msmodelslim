@@ -24,6 +24,11 @@
 
 ## 🔥 最新消息
 
+### 🗓️ 2026年6月
+
+- msModelSlim 支持 InternVL3_5-38B W8A8 量化
+- msModelSlim 支持 InternVL3_5-241B-A28B W8A8 量化
+
 ### 🗓️ 2026年4月
 
 - msModelSlim 支持 DeepSeek-V4-Flash W8A8 量化
