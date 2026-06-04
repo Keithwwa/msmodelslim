@@ -28,9 +28,9 @@ from unittest.mock import MagicMock
 
 from testing_utils.mock import mock_init_config
 
-from msmodelslim.core.const import DeviceType, QuantType
+from msmodelslim.core.const import QuantType
 from msmodelslim.core.practice.interface import Metadata, PracticeConfig
-from msmodelslim.utils.exception import SchemaValidateError, ToDoError, UnsupportedError
+from msmodelslim.utils.exception import SchemaValidateError, ToDoError
 
 mock_init_config()
 
@@ -80,8 +80,16 @@ class TestNaiveQuantizationApplicationInit(TestNaiveQuantizationAppBase):
 class TestCheckConfig(TestNaiveQuantizationAppBase):
     """测试 check_config 静态方法"""
 
-    def _make_config(self, w_bit=8, a_bit=8, is_sparse=False, kv_cache=False, fa_quant=False,
-                     verified_model_types=None, verified_tags=None):
+    def _make_config(
+        self,
+        w_bit=8,
+        a_bit=8,
+        is_sparse=False,
+        kv_cache=False,
+        fa_quant=False,
+        verified_model_types=None,
+        verified_tags=None,
+    ):
         metadata = Metadata(
             config_id="test_config",
             score=90,
@@ -103,9 +111,7 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(w_bit=4)
-        result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8
-        )
+        result = NaiveQuantizationApplication.check_config(config, "Qwen2.5-7B", QuantType.W8A8)
         self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_label_mismatch_a_bit(self):
@@ -114,9 +120,7 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(a_bit=4)
-        result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8
-        )
+        result = NaiveQuantizationApplication.check_config(config, "Qwen2.5-7B", QuantType.W8A8)
         self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_verified_model_types_match(self):
@@ -125,9 +129,7 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(verified_model_types=["Qwen2.5-7B"])
-        result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8
-        )
+        result = NaiveQuantizationApplication.check_config(config, "Qwen2.5-7B", QuantType.W8A8)
         self.assertEqual(result, ScenarioTagMatch.MATCH)
 
     def test_check_config_verified_model_types_no_match(self):
@@ -136,9 +138,7 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
         config = self._make_config(verified_model_types=["Other-Model"])
-        result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8
-        )
+        result = NaiveQuantizationApplication.check_config(config, "Qwen2.5-7B", QuantType.W8A8)
         self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
     def test_check_config_scenario_tags_match(self):
@@ -146,11 +146,11 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
-        config = self._make_config(
-            verified_tags={"Qwen2.5-7B": [["mindie", "npu"], ["vllm", "cpu"]]}
-        )
+        config = self._make_config(verified_tags={"Qwen2.5-7B": [["mindie", "npu"], ["vllm", "cpu"]]})
         result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8,
+            config,
+            "Qwen2.5-7B",
+            QuantType.W8A8,
             scenario_tags=["mindie", "npu"],
         )
         self.assertEqual(result, ScenarioTagMatch.MATCH)
@@ -160,11 +160,11 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
         from msmodelslim.app.naive_quantization.application import NaiveQuantizationApplication
         from msmodelslim.core.practice.interface import ScenarioTagMatch
 
-        config = self._make_config(
-            verified_tags={"Qwen2.5-7B": [["mindie", "npu"]]}
-        )
+        config = self._make_config(verified_tags={"Qwen2.5-7B": [["mindie", "npu"]]})
         result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8,
+            config,
+            "Qwen2.5-7B",
+            QuantType.W8A8,
             scenario_tags=["vllm"],
         )
         self.assertEqual(result, ScenarioTagMatch.STANDBY)
@@ -176,7 +176,9 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
 
         config = self._make_config(verified_tags={"Qwen2.5-7B": [["mindie", "npu"]]})
         result = NaiveQuantizationApplication.check_config(
-            config, "Qwen2.5-7B", QuantType.W8A8,
+            config,
+            "Qwen2.5-7B",
+            QuantType.W8A8,
             scenario_tags=None,
         )
         self.assertEqual(result, ScenarioTagMatch.MATCH)
@@ -188,7 +190,9 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
 
         config = self._make_config(fa_quant=True, verified_model_types=["FLUX.1-dev"])
         result = NaiveQuantizationApplication.check_config(
-            config, "FLUX.1-dev", QuantType.W8A8F8,
+            config,
+            "FLUX.1-dev",
+            QuantType.W8A8F8,
         )
         self.assertEqual(result, ScenarioTagMatch.MATCH)
 
@@ -199,7 +203,9 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
 
         config = self._make_config(verified_model_types=["FLUX.1-dev"])
         result = NaiveQuantizationApplication.check_config(
-            config, "FLUX.1-dev", QuantType.W8A8F8,
+            config,
+            "FLUX.1-dev",
+            QuantType.W8A8F8,
         )
         self.assertEqual(result, ScenarioTagMatch.NO_MATCH)
 
@@ -210,7 +216,9 @@ class TestCheckConfig(TestNaiveQuantizationAppBase):
 
         config = self._make_config(kv_cache=True, verified_model_types=["Qwen3-32B"])
         result = NaiveQuantizationApplication.check_config(
-            config, "Qwen3-32B", QuantType.W8A8C8,
+            config,
+            "Qwen3-32B",
+            QuantType.W8A8C8,
         )
         self.assertEqual(result, ScenarioTagMatch.MATCH)
 
@@ -236,7 +244,7 @@ spec: {}
         old_umask = os.umask(0)
         try:
             os.umask(0o077)
-            config_file = Path(self.temp_dir) / "config.yaml"        
+            config_file = Path(self.temp_dir) / "config.yaml"
             config_file.write_text(config_yaml, encoding="utf-8")
         finally:
             os.umask(old_umask)
@@ -324,7 +332,9 @@ class TestQuantParameterValidation(TestNaiveQuantizationAppBase):
         try:
             os.umask(0o077)
             config_file = Path(self.temp_dir) / "config.yaml"
-            config_file.write_text("apiversion: modelslim_v1\nmetadata:\n  config_id: x\n  label: {}\nspec: {}", encoding="utf-8")
+            config_file.write_text(
+                "apiversion: modelslim_v1\nmetadata:\n  config_id: x\n  label: {}\nspec: {}", encoding="utf-8"
+            )
         finally:
             os.umask(old_umask)
 

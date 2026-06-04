@@ -23,7 +23,7 @@ import unittest
 from unittest.mock import MagicMock
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from msmodelslim.utils.exception import UnsupportedError
 
@@ -76,12 +76,9 @@ class TestAnalysisMethods(unittest.TestCase):
         self.assertEqual(method.name, 'quantile')
 
         # 测试compute_score方法
-        layer_data = {
-            'tensor': [torch.tensor([[1.0, 2.0, 3.0, 4.0]])],
-            'device': torch.device('cpu')
-        }
+        layer_data = {'tensor': [torch.tensor([[1.0, 2.0, 3.0, 4.0]])], 'device': torch.device('cpu')}
 
-        score = method.compute_score(layer_data)
+        method.compute_score(layer_data)
 
         # 测试get_hook方法
         hook = method.get_hook()
@@ -192,7 +189,7 @@ class TestAnalysisMethods(unittest.TestCase):
         # 验证两个层的数据都正确存储
         self.assertIn(layer_name1, stats_dict)
         self.assertIn(layer_name2, stats_dict)
-        
+
         layer1_data = stats_dict.get(layer_name1, {})
         layer2_data = stats_dict.get(layer_name2, {})
         self.assertEqual(len(layer1_data.get('tensor', [])), 1)
@@ -212,11 +209,7 @@ class TestAnalysisMethods(unittest.TestCase):
         self.assertEqual(method.name, 'std')
 
         # 测试compute_score方法
-        layer_data = {
-            't_max': torch.tensor(5.0),
-            't_min': torch.tensor(1.0),
-            'std': torch.tensor(2.0)
-        }
+        layer_data = {'t_max': torch.tensor(5.0), 't_min': torch.tensor(1.0), 'std': torch.tensor(2.0)}
 
         score = method.compute_score(layer_data)
         self.assertIsInstance(score, float)
@@ -277,7 +270,9 @@ class TestAnalysisMethods(unittest.TestCase):
         self.assertIn(layer_name, stats_dict)
         layer_data = stats_dict.get(layer_name, {})
         self.assertIn('shift', layer_data)
-        self.assertEqual(layer_data.get('shift', torch.tensor([])).shape, torch.Size([5]))  # 基于第一个tensor的hidden_dim
+        self.assertEqual(
+            layer_data.get('shift', torch.tensor([])).shape, torch.Size([5])
+        )  # 基于第一个tensor的hidden_dim
 
     def test_std_analysis_method_hook_data_accumulation(self):
         """测试StdAnalysisMethod.get_hook数据累积行为"""
@@ -300,7 +295,6 @@ class TestAnalysisMethods(unittest.TestCase):
         layer_data = stats_dict.get(layer_name, {})
         first_max = layer_data.get('t_max', torch.tensor(0.0)).clone()
         first_min = layer_data.get('t_min', torch.tensor(0.0)).clone()
-        first_std = layer_data.get('std', torch.tensor(0.0)).clone()
 
         # 第二次调用
         input_tensor2 = torch.tensor([[4.0, 5.0, 6.0]])
@@ -310,7 +304,6 @@ class TestAnalysisMethods(unittest.TestCase):
         layer_data = stats_dict.get(layer_name, {})
         second_max = layer_data.get('t_max', torch.tensor(0.0))
         second_min = layer_data.get('t_min', torch.tensor(0.0))
-        second_std = layer_data.get('std', torch.tensor(0.0))
 
         # 由于第二次输入包含更大的值，t_max应该更新
         self.assertTrue(second_max >= first_max)
@@ -345,7 +338,7 @@ class TestAnalysisMethods(unittest.TestCase):
 
         layer1_data = stats_dict.get(layer_name1, {})
         layer2_data = stats_dict.get(layer_name2, {})
-        
+
         # 验证每个层都有完整的统计数据
         for _, layer_data in [(layer_name1, layer1_data), (layer_name2, layer2_data)]:
             self.assertIn('shift', layer_data)
@@ -388,12 +381,9 @@ class TestAnalysisMethods(unittest.TestCase):
         self.assertEqual(method.name, 'kurtosis')
 
         # 测试compute_score方法
-        layer_data = {
-            'tensor': [torch.tensor([[1.0, 2.0, 3.0, 4.0]])],
-            'device': torch.device('cpu')
-        }
+        layer_data = {'tensor': [torch.tensor([[1.0, 2.0, 3.0, 4.0]])], 'device': torch.device('cpu')}
 
-        score = method.compute_score(layer_data)
+        method.compute_score(layer_data)
         # 测试get_hook方法
         hook = method.get_hook()
         self.assertTrue(callable(hook))
@@ -541,7 +531,9 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_set_name_and_hook_when_adapter_valid(self):
         """测试AttentionMSEAnalysisMethod"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.impl import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import (
+            AttentionMSEAnalysisInterface,
+        )
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -560,7 +552,6 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_raise_unsupported_error_when_adapter_invalid(self):
         """测试AttentionMSEAnalysisMethod要求adapter实现接口"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.utils.exception import UnsupportedError
 
         with self.assertRaises(UnsupportedError):
             AttentionMSEAnalysisMethod(adapter=object())
@@ -568,7 +559,9 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_return_score_when_inputs_valid(self):
         """测试AttentionMSEAnalysisMethod.compute_score"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import (
+            AttentionMSEAnalysisInterface,
+        )
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -580,22 +573,26 @@ class TestAnalysisMethods(unittest.TestCase):
         method = AttentionMSEAnalysisMethod(adapter=FakeAdapter())
 
         layer_data_before = {
-            'attn_output': [
-                torch.tensor([[1.0, 2.0], [3.0, 4.0]]),
-                torch.tensor([[0.0, 1.0], [2.0, 3.0]])
-            ]
+            'attn_output': [torch.tensor([[1.0, 2.0], [3.0, 4.0]]), torch.tensor([[0.0, 1.0], [2.0, 3.0]])]
         }
         layer_data_after = {
-            'attn_output': [
-                torch.tensor([[1.0, 1.0], [2.0, 5.0]]),
-                torch.tensor([[1.0, 1.0], [1.0, 1.0]])
-            ]
+            'attn_output': [torch.tensor([[1.0, 1.0], [2.0, 5.0]]), torch.tensor([[1.0, 1.0], [1.0, 1.0]])]
         }
 
-        expected = torch.stack([
-            torch.nn.functional.mse_loss(layer_data_before['attn_output'][0], layer_data_after['attn_output'][0]),
-            torch.nn.functional.mse_loss(layer_data_before['attn_output'][1], layer_data_after['attn_output'][1]),
-        ]).mean().item()
+        expected = (
+            torch.stack(
+                [
+                    torch.nn.functional.mse_loss(
+                        layer_data_before['attn_output'][0], layer_data_after['attn_output'][0]
+                    ),
+                    torch.nn.functional.mse_loss(
+                        layer_data_before['attn_output'][1], layer_data_after['attn_output'][1]
+                    ),
+                ]
+            )
+            .mean()
+            .item()
+        )
 
         score = method.compute_score(layer_data_before, layer_data_after)
 
@@ -605,7 +602,9 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_hook_accumulate_outputs_when_same_layer_called_twice(self):
         """测试AttentionMSEAnalysisMethod.get_hook数据累积行为"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import (
+            AttentionMSEAnalysisInterface,
+        )
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -639,7 +638,9 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_hook_store_outputs_when_multiple_layers_given(self):
         """测试AttentionMSEAnalysisMethod.get_hook多层处理"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import (
+            AttentionMSEAnalysisInterface,
+        )
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
@@ -668,7 +669,9 @@ class TestAnalysisMethods(unittest.TestCase):
     def test_attention_mse_return_match_result_when_module_class_name_checked(self):
         """测试AttentionMSEAnalysisMethod._matches按类名匹配attention模块"""
         from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.impl import AttentionMSEAnalysisMethod
-        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import AttentionMSEAnalysisInterface
+        from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interface import (
+            AttentionMSEAnalysisInterface,
+        )
 
         class FakeAdapter(AttentionMSEAnalysisInterface):
             def get_attention_module_cls(self) -> str:
