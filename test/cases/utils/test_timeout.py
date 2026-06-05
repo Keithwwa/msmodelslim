@@ -18,13 +18,14 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import importlib
 import sys
 import time
 
 import pytest
 
-from msmodelslim.utils.exception import TimeoutError, ToDoError
+from msmodelslim.utils.exception import ModelslimTimeoutError, ToDoError
 from msmodelslim.utils.timeout import timeout as timeout_decorator
 from msmodelslim.utils.timeout import with_timeout
 
@@ -50,20 +51,20 @@ def test_with_timeout_raise_timeout_error_when_seconds_non_positive():
 
 
 def test_with_timeout_raise_timeout_error_when_thread_timeout(monkeypatch):
-    """线程池分支：超时时抛出 TimeoutError"""
+    """线程池分支：超时时抛出 ModelslimTimeoutError"""
     monkeypatch.setattr(timeout_mod, "_is_signal_timeout_available", lambda: False)
 
     def slow_func():
         time.sleep(0.1)
         return "done"
 
-    with pytest.raises(TimeoutError, match="Execution timed out"):
+    with pytest.raises(ModelslimTimeoutError, match="Execution timed out"):
         with_timeout(0.01, slow_func)
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="Windows 不支持 SIGALRM 信号分支")
 def test_with_timeout_raise_timeout_error_when_signal_timeout(monkeypatch):
-    """signal 分支：超时时抛出 TimeoutError"""
+    """signal 分支：超时时抛出 ModelslimTimeoutError"""
     assert hasattr(timeout_mod.signal, "SIGALRM")
     monkeypatch.setattr(timeout_mod, "_is_signal_timeout_available", lambda: True)
 
@@ -71,12 +72,12 @@ def test_with_timeout_raise_timeout_error_when_signal_timeout(monkeypatch):
         time.sleep(0.1)
         return "done"
 
-    with pytest.raises(TimeoutError, match="Execution timed out"):
+    with pytest.raises(ModelslimTimeoutError, match="Execution timed out"):
         with_timeout(0.01, slow_func)
 
 
 def test_timeout_decorator_raise_timeout_error_when_timeout(monkeypatch):
-    """装饰器形式：超时时抛出 TimeoutError"""
+    """装饰器形式：超时时抛出 ModelslimTimeoutError"""
     monkeypatch.setattr(timeout_mod, "_is_signal_timeout_available", lambda: False)
 
     @timeout_decorator(0.01)
@@ -84,5 +85,5 @@ def test_timeout_decorator_raise_timeout_error_when_timeout(monkeypatch):
         time.sleep(0.1)
         return "done"
 
-    with pytest.raises(TimeoutError, match="Execution timed out"):
+    with pytest.raises(ModelslimTimeoutError, match="Execution timed out"):
         slow_func()

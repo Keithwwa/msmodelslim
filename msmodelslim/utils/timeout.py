@@ -18,7 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
-"""通用超时机制：基于 signal（Unix）或线程池（Windows/非主线程）。"""
+
 import signal
 import sys
 import threading
@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 from functools import wraps
 from typing import Callable, TypeVar
 
-from msmodelslim.utils.exception import TimeoutError, ToDoError
+from msmodelslim.utils.exception import ModelslimTimeoutError, ToDoError
 
 _F = TypeVar("_F", bound=Callable)
 
@@ -44,7 +44,7 @@ def _run_with_signal_timeout(seconds: float, func: Callable, *args, **kwargs):
     """在 Unix 主线程内使用 SIGALRM 执行带超时的调用。"""
 
     def _handler(signum, frame):
-        raise TimeoutError(f"Execution timed out after {seconds} seconds")
+        raise ModelslimTimeoutError(f"Execution timed out after {seconds} seconds")
 
     old_handler = signal.signal(signal.SIGALRM, _handler)
     try:
@@ -64,12 +64,12 @@ def _run_with_thread_timeout(seconds: float, func: Callable, *args, **kwargs):
         try:
             return future.result(timeout=seconds)
         except FuturesTimeoutError as e:
-            raise TimeoutError(f"Execution timed out after {seconds} seconds") from e
+            raise ModelslimTimeoutError(f"Execution timed out after {seconds} seconds") from e
 
 
 def with_timeout(seconds: float, func: Callable, *args, **kwargs):
     """
-    在限定秒数内执行 func(*args, **kwargs)，超时则抛出 TimeoutError。
+    在限定秒数内执行 func(*args, **kwargs)，超时则抛出 ModelslimTimeoutError
 
     - Unix 主线程：使用 signal.SIGALRM，超时后会中断当前执行。
     - Windows 或非主线程：使用线程池 + result(timeout)，超时后主流程返回并抛错，被调函数所在线程可能仍在运行。
@@ -84,7 +84,7 @@ def with_timeout(seconds: float, func: Callable, *args, **kwargs):
         func 的返回值
 
     Raises:
-        TimeoutError: 超过 seconds 未返回时抛出
+        ModelslimTimeoutError: 超过 seconds 未返回时抛出
         ToDoError: seconds <= 0 时抛出，表示调用方配置错误
     """
     if seconds <= 0:
@@ -97,7 +97,7 @@ def with_timeout(seconds: float, func: Callable, *args, **kwargs):
 
 def timeout(seconds: float) -> Callable[[_F], _F]:
     """
-    超时装饰器：被装饰函数在限定秒数内未返回则抛出 TimeoutError。
+    超时装饰器：被装饰函数在限定秒数内未返回则抛出 ModelslimTimeoutError
     可作为 utils 的通用机制，用于插件加载、外部调用等需要防止长时间占用的场景。
 
     - Unix 主线程：使用 signal 超时。

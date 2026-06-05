@@ -18,14 +18,15 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from msmodelslim.model.plugin_factory.base_loader import BaseModelAdapterLoader as DefaultModelAdapterLoader
-from msmodelslim.utils.exception import UnsupportedError, VersionError
+from msmodelslim.utils.exception import UnexpectedError, UnsupportedError, VersionError
 
 
 def test_precheck_should_merge_metadata_and_config_with_config_priority():
@@ -41,8 +42,10 @@ def test_precheck_should_merge_metadata_and_config_with_config_priority():
         "accelerate": ">=0.30",
     }
 
-    with patch("msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
-               SimpleNamespace(model_adapter_dependencies={plugin_name: config_requirements})):
+    with patch(
+        "msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
+        SimpleNamespace(model_adapter_dependencies={plugin_name: config_requirements}),
+    ):
         with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.set_plugin") as mock_set_plugin:
             with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin"):
                 loader.precheck(
@@ -59,8 +62,10 @@ def test_precheck_should_merge_metadata_and_config_with_config_priority():
 def test_precheck_should_fallback_when_metadata_missing():
     loader = DefaultModelAdapterLoader()
 
-    with patch("msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
-               SimpleNamespace(model_adapter_dependencies={})):
+    with patch(
+        "msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
+        SimpleNamespace(model_adapter_dependencies={}),
+    ):
         with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.set_plugin") as mock_set_plugin:
             with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin"):
                 loader.precheck(
@@ -110,8 +115,10 @@ def test_precheck_should_support_loader_class_decorator_requirements():
 
     loader = DecoratedLoader()
 
-    with patch("msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
-               SimpleNamespace(model_adapter_dependencies={})):
+    with patch(
+        "msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
+        SimpleNamespace(model_adapter_dependencies={}),
+    ):
         with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.set_plugin") as mock_set_plugin:
             with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin"):
                 loader.precheck(
@@ -124,19 +131,23 @@ def test_precheck_should_support_loader_class_decorator_requirements():
     assert requirements == {"numpy": ">=1.26"}
 
 
-def test_precheck_should_wrap_dependency_error_when_dependency_check_fails():
+def test_precheck_should_not_raise_error_when_dependency_check_fails():
     loader = DefaultModelAdapterLoader()
     loader._require_packages = {"numpy": ">=1.26"}
 
-    with patch("msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
-               SimpleNamespace(model_adapter_dependencies={})):
-        with patch("msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin",
-                   side_effect=VersionError("dependency mismatch")):
-            with pytest.raises(VersionError, match="Dependency check failed for plugin"):
-                loader.precheck(
-                    model_type="test-model",
-                    model_path=Path("/tmp/path"),
-                )
+    with patch(
+        "msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
+        SimpleNamespace(model_adapter_dependencies={}),
+    ):
+        with patch(
+            "msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin",
+            side_effect=VersionError("dependency mismatch"),
+        ):
+            loader.precheck(
+                model_type="test-model",
+                model_path=Path("/tmp/path"),
+            )
+    assert loader._is_match is False
 
 
 def test_load_should_raise_when_adapter_path_not_configured():
@@ -148,3 +159,38 @@ def test_load_should_raise_when_adapter_path_not_configured():
             model_type="missing-model",
             model_path=Path("/tmp/path"),
         )
+
+
+def test_load_should_decorate_when_adapter_dependency_check_fails():
+    loader = DefaultModelAdapterLoader()
+    loader.ADAPTER_CLASS_PATH = "fake.module:DummyAdapter"
+
+    class DummyAdapter:
+        def __init__(self, model_type, model_path, trust_remote_code):
+            self.model_type = model_type
+            self.model_path = model_path
+            self.trust_remote_code = trust_remote_code
+
+        def dummy_method(self):
+            raise RuntimeError("mock inner error")
+
+        _require_packages = {"einops": ">=0.8.0"}
+
+    with patch("msmodelslim.model.plugin_factory.base_loader.import_module") as mock_import_module:
+        mock_import_module.return_value = SimpleNamespace(DummyAdapter=DummyAdapter)
+        with patch(
+            "msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin",
+            side_effect=VersionError("mock error"),
+        ):
+            adapter_instance = loader.load(
+                model_type="test-model",
+                model_path=Path("/tmp/path"),
+                trust_remote_code=True,
+            )
+
+    # Check that dummy_method raises VersionError because the second validation failed
+    with pytest.raises(VersionError) as exc_info:
+        adapter_instance.dummy_method()
+    assert "Recommended dependencies: einops>=0.8.0" in str(exc_info.value)
+    assert UnexpectedError.tips
+    UnexpectedError.clear_tips()

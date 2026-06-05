@@ -7,7 +7,7 @@
 ## 使用前准备
 
 - 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
-- 需要安装 transformers 4.57.0 或更高版本：
+- 需要安装 transformers 4.57.1：
     - pip install transformers==4.57.1
 
 ## 昇腾AI处理器支持情况

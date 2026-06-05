@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+from typing import ClassVar, Iterable, Union
+
 from typing_extensions import Self, Type
 
 
@@ -58,25 +60,29 @@ class ModelslimError(Exception):
 
 
 # EnvironmentError
-EnvError: Type[ModelslimError] = ModelslimError.create_exception("EnvError", 100,
-                                                                 "Environment failed to meet the requirements.")
-VersionError: Type[ModelslimError] = EnvError.create_exception("VersionError", 101,
-                                                               "Version of dependencies mismatched.")
-EnvVarError: Type[ModelslimError] = EnvError.create_exception("EnvVarError", 102,
-                                                              "Environment variable not set right.")
-ConfigError: Type[ModelslimError] = EnvError.create_exception("ConfigError", 103,
-                                                              "Config file is invalid.")
+EnvError: Type[ModelslimError] = ModelslimError.create_exception(
+    "EnvError", 100, "Environment failed to meet the requirements."
+)
+VersionError: Type[ModelslimError] = EnvError.create_exception(
+    "VersionError", 101, "Version of dependencies mismatched."
+)
+EnvVarError: Type[ModelslimError] = EnvError.create_exception("EnvVarError", 102, "Environment variable not set right.")
+ConfigError: Type[ModelslimError] = EnvError.create_exception("ConfigError", 103, "Config file is invalid.")
 
 # MisbehaviorError
 MisbehaviorError: Type[ModelslimError] = ModelslimError.create_exception("MisbehaviorError", 200, "User misbehavior.")
-InvalidModelError: Type[ModelslimError] = MisbehaviorError.create_exception("InvalidModelError", 201,
-                                                                            "Invalid model to load or inference.")
-InvalidDatasetError: Type[ModelslimError] = MisbehaviorError.create_exception("InvalidDatasetError", 202,
-                                                                              "Invalid dataset to load.")
-SchemaValidateError: Type[ModelslimError] = MisbehaviorError.create_exception("SchemaValidateError", 203,
-                                                                              "Argument schema validation failed.")
-SecurityError: Type[ModelslimError] = MisbehaviorError.create_exception("SecurityError", 204,
-                                                                        "Potential security risk.")
+InvalidModelError: Type[ModelslimError] = MisbehaviorError.create_exception(
+    "InvalidModelError", 201, "Invalid model to load or inference."
+)
+InvalidDatasetError: Type[ModelslimError] = MisbehaviorError.create_exception(
+    "InvalidDatasetError", 202, "Invalid dataset to load."
+)
+SchemaValidateError: Type[ModelslimError] = MisbehaviorError.create_exception(
+    "SchemaValidateError", 203, "Argument schema validation failed."
+)
+SecurityError: Type[ModelslimError] = MisbehaviorError.create_exception(
+    "SecurityError", 204, "Potential security risk."
+)
 
 # TrivialError
 TrivialError: Type[ModelslimError] = ModelslimError.create_exception(
@@ -85,15 +91,56 @@ TrivialError: Type[ModelslimError] = ModelslimError.create_exception(
 UnsupportedError: Type[ModelslimError] = TrivialError.create_exception(
     "UnsupportedError", 301, "Unsupported operation."
 )
-SpecError: Type[ModelslimError] = TrivialError.create_exception(
-    "SpecError", 302, "Specific scenario error."
-)
-TimeoutError: Type[ModelslimError] = TrivialError.create_exception(
-    "TimeoutError", 303, "Timeout error."
+SpecError: Type[ModelslimError] = TrivialError.create_exception("SpecError", 302, "Specific scenario error.")
+ModelslimTimeoutError: Type[ModelslimError] = TrivialError.create_exception(
+    "ModelslimTimeoutError", 303, "Timeout error."
 )
 
 # ToDoError
 ToDoError: Type[ModelslimError] = ModelslimError.create_exception("ToDoError", 400, "Bug to be fixed soon.")
 
+
 # UnexpectedError
-UnexpectedError: Type[ModelslimError] = ModelslimError.create_exception("UnexpectedError", 500, "Unexpected error.")
+class UnexpectedError(ModelslimError):
+    code = 500
+    default_message = "Unexpected error."
+    tips: ClassVar[list[str]] = []
+
+    @classmethod
+    def inject_tips(cls, tips: Union[str, Iterable[str]]) -> None:
+        if isinstance(tips, str):
+            cls.tips.append(tips)
+        elif isinstance(tips, Iterable):
+            cls.tips.extend(tips)
+
+    @classmethod
+    def clear_tips(cls) -> None:
+        cls.tips.clear()
+
+    def _all_tips(self) -> list[str]:
+        all_tips = []
+        if self.action:
+            all_tips.append(self.action)
+        all_tips.extend(self.tips)
+        return all_tips
+
+    def __str__(self):
+        message_only = Exception.__str__(self)
+        if not message_only or message_only == "None":
+            message_only = self.default_message
+
+        desc = f"Code: {self.code}, Message: {message_only}"
+        for tip in self._all_tips():
+            desc += f"\nTIP: {tip}"
+        return desc
+
+    def __repr__(self):
+        error_type = self.__class__.__name__
+        message_only = Exception.__str__(self)
+        if not message_only or message_only == "None":
+            message_only = self.default_message
+
+        desc = f"[{error_type}] Code: {self.code}, Message: {message_only}"
+        for tip in self._all_tips():
+            desc += f", TIP: {tip}"
+        return desc

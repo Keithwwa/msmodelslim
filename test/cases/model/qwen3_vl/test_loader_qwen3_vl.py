@@ -147,8 +147,8 @@ class TestQwen3VlAdapterLoaderPrecheck(unittest.TestCase):
         plugin_name = mock_set.call_args[0][0]
         self.assertEqual(plugin_name, f"msmodelslim.model_adapter.plugins:{self.model_type}")
 
-    def test_precheck_when_dependency_check_fails_then_raise_version_error(self):
-        """异常：依赖检查失败时应抛出VersionError"""
+    def test_precheck_when_dependency_check_fails_then_set_is_match_false(self):
+        """异常：依赖检查失败时应设置 _is_match 为 False"""
         with patch(
             "msmodelslim.model.plugin_factory.base_loader.msmodelslim_config",
             SimpleNamespace(model_adapter_dependencies={}),
@@ -157,10 +157,9 @@ class TestQwen3VlAdapterLoaderPrecheck(unittest.TestCase):
                 "msmodelslim.model.plugin_factory.base_loader.DependencyChecker.check_plugin",
                 side_effect=VersionError("dependency mismatch"),
             ):
-                with self.assertRaises(VersionError) as context:
-                    self.loader.precheck(
-                        model_type=self.model_type,
-                        model_path=self.model_path,
-                    )
+                self.loader.precheck(
+                    model_type=self.model_type,
+                    model_path=self.model_path,
+                )
 
-                self.assertIn("Dependency check failed for plugin", str(context.exception))
+        self.assertFalse(self.loader._is_match)
