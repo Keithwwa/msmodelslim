@@ -375,7 +375,8 @@ class Qwen3_5MtpForCausalLM(nn.Module):
         # Find the layer prefix: e.g. "mtp.layers.0.mlp.experts.experts."
         # The model path has double "experts" because SparseMoeBlock.experts is a
         # Qwen3_5MtpExperts which itself has a ModuleList named .experts
-        prefix = name.replace("experts.gate_up_proj", "experts.experts.")
+        # prefix = name.replace("experts.gate_up_proj", "experts.experts.")
+        prefix = name.split("gate_up_proj", 1)[0]
 
         for expert_idx in range(num_experts):
             gate_up_weight = loaded_weight[expert_idx]  # (2 * intermediate, hidden)
@@ -415,7 +416,8 @@ class Qwen3_5MtpForCausalLM(nn.Module):
         num_experts = loaded_weight.shape[0]
 
         # Find the layer prefix: e.g. "mtp.layers.0.mlp.experts.experts."
-        prefix = name.replace("experts.down_proj", "experts.experts.")
+        # prefix = name.replace("experts.down_proj", "experts.experts.")
+        prefix = name.split("down_proj", 1)[0]
 
         for expert_idx in range(num_experts):
             down_weight = loaded_weight[expert_idx]  # (hidden, intermediate)
