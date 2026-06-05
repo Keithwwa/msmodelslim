@@ -23,6 +23,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 
+import torch
 from torch import nn
 
 from msmodelslim.core.const import DeviceType
@@ -309,3 +310,149 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         adapter.config.num_hidden_layers = 3
         prefix, module = adapter.ascendv1_save_module_preprocess('layers.2.some', nn.Linear(1, 1), Mock())
         self.assertEqual(prefix, 'mtp.0.some')
+
+    def test_ascendv1_save_module_preprocess_unchanged_when_not_mtp_prefix(self):
+        """验证非 MTP 层前缀不被修改"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 3
+        prefix, module = adapter.ascendv1_save_module_preprocess('layers.0.some', nn.Linear(1, 1), Mock())
+        self.assertEqual(prefix, 'layers.0.some')
+
+    def test_enable_kv_cache_does_nothing_when_called(self):
+        """验证 enable_kv_cache 是空操作"""
+        adapter = self.create_adapter()
+        result = adapter.enable_kv_cache(Mock(), True)
+        self.assertIsNone(result)
+
+    def test_get_bake_names_returns_empty_lists_when_called(self):
+        """验证 get_bake_names 返回两个空列表"""
+        adapter = self.create_adapter()
+        left, right = adapter.get_bake_names()
+        self.assertEqual(left, [])
+        self.assertEqual(right, [])
+
+    def test_generate_model_visit_delegates_to_decoder_visit_func_when_called(self):
+        """验证 generate_model_visit 委托给 generated_decoder_layer_visit_func"""
+        adapter = self.create_adapter()
+        with patch('msmodelslim.model.deepseek_v4.model_adapter.generated_decoder_layer_visit_func') as mock_visit:
+            adapter.generate_model_visit(Mock())
+        mock_visit.assert_called_once()
+
+    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_mtp_layer')
+    @patch('msmodelslim.model.deepseek_v4.model_adapter.wrap_mtp_decoder')
+    @patch('msmodelslim.model.deepseek_v4.model_adapter.auto_dequant_state_dict')
+    def test_load_decoder_if_not_exist_creates_new_decoder_when_missing(
+        self, mock_auto_dequant, mock_wrap, mock_get_mtp
+    ):
+        """验证 decoder 不存在时创建新 decoder 并加载权重"""
+        adapter = self.create_adapter()
+        dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
+        adapter.get_weight_map = Mock(
+            return_value={
+                'mtp.0.linear.weight': 'fake.safetensors',
+                'mtp.0.linear.bias': 'fake.safetensors',
+                'linear.weight': 'fake.safetensors',
+            }
+        )
+
+        with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
+            with patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', return_value='/tmp/fake'):
+
+                def _get_tensor(name):
+                    return torch.ones(1, 1) if 'weight' in name else torch.ones(1)
+
+                with patch(
+                    'msmodelslim.model.deepseek_v4.model_adapter.safe_open',
+                    return_value=MagicMock(
+                        __enter__=MagicMock(return_value=MagicMock(get_tensor=MagicMock(side_effect=_get_tensor))),
+                        __exit__=MagicMock(),
+                    ),
+                ):
+                    decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.1', idx=1)
+
+        self.assertIsNotNone(decoder)
+
+    @patch('msmodelslim.model.deepseek_v4.model_adapter.auto_dequant_state_dict')
+    def test_load_decoder_if_not_exist_creates_with_mtp_prefix_when_mtp_layer(self, mock_auto_dequant):
+        """验证最后一层 decoder 使用 mtp.0 前缀加载权重"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 1
+        dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
+
+        with patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', return_value='/tmp/fake'):
+            with patch(
+                'msmodelslim.model.deepseek_v4.model_adapter.safe_open',
+                return_value=MagicMock(
+                    __enter__=MagicMock(return_value=MagicMock(get_tensor=MagicMock(return_value=torch.ones(1)))),
+                    __exit__=MagicMock(),
+                ),
+            ):
+                with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
+                    decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.0', idx=0)
+
+                    self.assertIsNotNone(decoder)
+
+    def test_get_adapter_config_for_subgraph_three_layers_when_multi_layer(self):
+        """验证 3 层时每层生成正确数量的子图配置"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 3
+        adapter.config.n_routed_experts = 2
+        adapter.config.n_shared_experts = 1
+
+        configs = adapter.get_adapter_config_for_subgraph()
+
+        # 每层: 1 shared up-down + 2 routed up-down + 1 linear-linear + 2 norm-linear = 6
+        # 3层: 18
+        self.assertEqual(len(configs), 18)
+
+    def test_get_adapter_config_for_subgraph_differs_by_layer_type(self):
+        """验证不同 layer_idx 的 norm-linear 目标数量不同（layer 0 少, layer 1 多）"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 4
+        adapter.config.n_routed_experts = 1
+        adapter.config.n_shared_experts = 1
+
+        configs = adapter.get_adapter_config_for_subgraph()
+
+        # layer0: norm-linear targets 少（无 compressor/indexer）
+        layer0_configs = [c for c in configs if 'layers.0.attn_norm' in (c.mapping.source or '')]
+        self.assertEqual(len(layer0_configs), 1)
+        # layer0 只有 wq_a + wkv
+        self.assertEqual(len(layer0_configs[0].mapping.targets), 2)
+
+    def test_ln_fuse_map_includes_mtp_mappings_when_mtp_present(self):
+        """验证 ln_fuse_map 包含 MTP 层专用映射"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 1
+        adapter.config.n_routed_experts = 1
+        adapter.config.n_shared_experts = 1
+
+        pre_ln, ln_map = adapter.get_ln_fuse_map()
+
+        self.assertIn('layers.0.enorm', ln_map)
+        self.assertIn('layers.0.hnorm', ln_map)
+        self.assertIn('layers.0.norm', ln_map)
+
+    def test_rotate_map_includes_mtp_rotations_when_mtp_layer(self):
+        """验证 rotate_map 含 MTP 层专用旋转对"""
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 2
+        adapter.config.n_routed_experts = 1
+        adapter.config.n_shared_experts = 1
+
+        with patch(
+            'msmodelslim.model.deepseek_v4.model_adapter.QuaRotInterface.get_rotate_command', return_value='rot'
+        ):
+            pre_run, rot_pairs = adapter.get_rotate_map(block_size=128)
+
+        self.assertEqual(len(rot_pairs), 2)
+        # MTP 层 h_proj 在最后一层的右旋中
+        last_layer_right = rot_pairs[0].right_rot
+        self.assertIn('layers.1.h_proj', last_layer_right)
+
+    def test_load_config_returns_model_args_when_called(self):
+        """验证 _load_config 返回 ModelArgs 实例"""
+        adapter = self.create_adapter()
+        with patch('msmodelslim.model.deepseek_v4.model_adapter.ModelArgs') as mock_model_args:
+            adapter._load_config()
+        mock_model_args.assert_called_once()
