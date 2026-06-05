@@ -17,23 +17,18 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
-"""
 
-"""
-msmodelslim.utils.patch.torch 模块的单元测试
+msmodelslim.utils.security.model 模块的单元测试
 """
 
 import json
 import os
 from unittest.mock import patch, MagicMock, Mock
+
 import pytest
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from msmodelslim.utils.security.model import (
-    SafeGenerator,
-    InvalidModelError,
-    get_valid_read_path,
-    exception_handler,
-)
+
+from msmodelslim.utils.security.model import SafeGenerator, InvalidModelError
 
 
 def create_mock_model_dir(tmp_path):
@@ -77,6 +72,29 @@ def create_mock_jsonl(tmp_path, file_name="test_dataset.jsonl", is_humaneval=Fal
 
 
 class TestSafeGenerator:
+    @staticmethod
+    def test_load_jsonl_return_prompts_when_humaneval_filename(mock_self):
+        """humaneval_x.jsonl 应使用 prompt 字段"""
+        lines = [
+            json.dumps({"prompt": "def add():", "inputs_pretokenized": "ignored"}),
+        ]
+        mock_file = MagicMock()
+        mock_file.readlines.return_value = [line + "\n" for line in lines]
+        mock_cm = MagicMock()
+        mock_cm.__enter__ = Mock(return_value=mock_file)
+        mock_cm.__exit__ = Mock(return_value=False)
+        with patch("os.fdopen", return_value=mock_cm):
+            with patch("os.open", return_value=0):
+                dataset = mock_self.safe_gen.load_jsonl("humaneval_x.jsonl")
+        assert dataset == ["def add():"]
+
+    @staticmethod
+    def test_load_jsonl_return_line_when_key_missing(mock_self, tmp_path):
+        """缺少默认 key 时应回退为整行 JSON 文本"""
+        jsonl_path = tmp_path / "missing_key.jsonl"
+        jsonl_path.write_text('{"other": "val"}\n', encoding="utf-8")
+        dataset = mock_self.safe_gen.load_jsonl(str(jsonl_path))
+        assert len(dataset) == 1
 
     @staticmethod
     def test_load_jsonl_normal_success(mock_self, tmp_path):
@@ -113,9 +131,20 @@ class TestSafeGenerator:
         return mock
 
     @patch("msmodelslim.utils.security.model.get_valid_read_path")
-    def test_get_config_from_pretrained_fail_missing_config(
-        self, mock_get_valid, mock_self, tmp_path
-    ):
+    def test_get_config_from_pretrained_return_config_when_valid(self, mock_get_valid, mock_self, tmp_path):
+        """正常目录应返回 AutoConfig"""
+        mock_model_dir = create_mock_model_dir(tmp_path)
+        mock_get_valid.return_value = mock_model_dir
+        mock_config = MagicMock()
+
+        with patch("transformers.AutoConfig.from_pretrained", return_value=mock_config) as mock_from_pretrained:
+            result = mock_self.safe_gen.get_config_from_pretrained(mock_model_dir)
+
+        mock_from_pretrained.assert_called_once_with(mock_model_dir, local_files_only=True)
+        assert result is mock_config
+
+    @patch("msmodelslim.utils.security.model.get_valid_read_path")
+    def test_get_config_from_pretrained_fail_missing_config(self, mock_get_valid, mock_self, tmp_path):
         """测试加载缺失 config.json 的模型目录（异常场景）"""
         invalid_model_dir = tmp_path / "invalid_model"
         invalid_model_dir.mkdir(exist_ok=True)
@@ -128,35 +157,25 @@ class TestSafeGenerator:
         assert "ensure config files all exist" in str(excinfo.value)
 
     @patch("msmodelslim.utils.security.model.get_valid_read_path")
-    def test_get_model_from_pretrained_success(
-        self, mock_get_valid, mock_self, tmp_path
-    ):
+    def test_get_model_from_pretrained_success(self, mock_get_valid, mock_self, tmp_path):
         """测试正常加载预训练模型"""
         mock_model_dir = create_mock_model_dir(tmp_path)
         mock_get_valid.return_value = mock_model_dir
 
-        with patch.object(
-            AutoModelForCausalLM, "from_pretrained"
-        ) as mock_from_pretrained:
+        with patch.object(AutoModelForCausalLM, "from_pretrained") as mock_from_pretrained:
             mock_model = MagicMock()
             mock_from_pretrained.return_value = mock_model
 
             model = mock_self.safe_gen.get_model_from_pretrained(mock_model_dir)
 
-            mock_from_pretrained.assert_called_once_with(
-                mock_model_dir, local_files_only=True
-            )
+            mock_from_pretrained.assert_called_once_with(mock_model_dir, local_files_only=True)
             assert model is mock_model
 
     @patch("msmodelslim.utils.security.model.get_valid_read_path")
-    def test_get_model_from_pretrained_fail_corrupt_weight(
-        self, mock_get_valid, mock_self, tmp_path
-    ):
+    def test_get_model_from_pretrained_fail_corrupt_weight(self, mock_get_valid, mock_self, tmp_path):
         """测试加载权重损坏的模型（异常场景）"""
         mock_model_dir = create_mock_model_dir(tmp_path)
-        with open(
-            os.path.join(mock_model_dir, "pytorch_model.bin"), "w", encoding="utf-8"
-        ) as f:
+        with open(os.path.join(mock_model_dir, "pytorch_model.bin"), "w", encoding="utf-8") as f:
             f.write("corrupt_data")
         mock_get_valid.return_value = mock_model_dir
 
@@ -167,9 +186,7 @@ class TestSafeGenerator:
         assert "model weights files all exist and are valid" in str(excinfo.value)
 
     @patch("msmodelslim.utils.security.model.get_valid_read_path")
-    def test_get_tokenizer_from_pretrained_success(
-        self, mock_get_valid, mock_self, tmp_path
-    ):
+    def test_get_tokenizer_from_pretrained_success(self, mock_get_valid, mock_self, tmp_path):
         """测试正常加载分词器"""
         mock_model_dir = create_mock_model_dir(tmp_path)
         mock_get_valid.return_value = mock_model_dir
@@ -180,15 +197,11 @@ class TestSafeGenerator:
 
             tokenizer = mock_self.safe_gen.get_tokenizer_from_pretrained(mock_model_dir)
 
-            mock_from_pretrained.assert_called_once_with(
-                mock_model_dir, local_files_only=True
-            )
+            mock_from_pretrained.assert_called_once_with(mock_model_dir, local_files_only=True)
             assert tokenizer is mock_tokenizer
 
     @patch("msmodelslim.utils.security.model.get_valid_read_path")
-    def test_get_tokenizer_from_pretrained_fail_missing_vocab(
-        self, mock_get_valid, mock_self, tmp_path
-    ):
+    def test_get_tokenizer_from_pretrained_fail_missing_vocab(self, mock_get_valid, mock_self, tmp_path):
         """测试加载缺失 vocab.txt 的分词器（异常场景）"""
         mock_model_dir = tmp_path / "no_vocab_model"
         mock_model_dir.mkdir(exist_ok=True)

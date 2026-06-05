@@ -19,45 +19,47 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-import sys
 import argparse
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 
 import pytest
 import torch
+from torch import nn
 
+from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.model.flux1.model_adapter import FLUX1ModelAdapter, InvalidModelError, SchemaValidateError
 
 test_model_path = "."
 
 
-@pytest.fixture(autouse=True)
-def mock_diffusers_modules(monkeypatch):
-    """统一模拟所有diffusers相关模块"""
-    mock_modules = ['diffusers', 'diffusers.FluxPipeline']
-    original_modules = {mod: sys.modules.get(mod) for mod in mock_modules}
-    for module_path in mock_modules:
-        sys.modules[module_path] = MagicMock()
-    # 配置关键模块
-    diffusers_main = sys.modules['diffusers']
-    # 模拟FluxPipeline
-    mock_flux_pipeline = MagicMock()
-    mock_transformer = MagicMock()
-    mock_transformer.config = MagicMock()
-    mock_transformer.config.num_layers = 19
-    mock_transformer.config.num_single_layers = 38
-    mock_flux_pipeline.transformer = mock_transformer
-    mock_flux_pipeline.enable_model_cpu_offload = MagicMock()
-    mock_flux_pipeline.images = [MagicMock()]
-    diffusers_main.FluxPipeline.from_pretrained.return_value = mock_flux_pipeline
-    yield
-    # 恢复原始模块
-    for mod, original in original_modules.items():
-        if original is not None:
-            sys.modules[mod] = original
-        else:
-            del sys.modules[mod]
+class FluxTransformerBlock(nn.Module):
+    def forward(self, hidden_states, encoder_hidden_states=None):
+        return encoder_hidden_states, hidden_states
+
+
+class FluxModel(nn.Module):
+    def __init__(self, num_blocks=3):
+        super().__init__()
+        for i in range(num_blocks):
+            setattr(self, f"block{i}", FluxTransformerBlock())
+
+    def forward(self, hidden_states=None, encoder_hidden_states=None, **kwargs):
+        h = hidden_states
+        for i in range(self._num_blocks()):
+            block = getattr(self, f"block{i}")
+            enc, h = block(h, encoder_hidden_states=encoder_hidden_states)
+        return h
+
+    def _num_blocks(self):
+        return sum(1 for name in dir(self) if name.startswith("block"))
+
+
+class FluxAttention(nn.Module):
+    pass
+
+
+test_model_path = "."
 
 
 # ------------------------------ 适配器基础功能测试 ------------------------------
@@ -162,19 +164,84 @@ class TestGenerateModelForward:
             mock_block1.register_forward_pre_hook.return_value = mock_hook
             # 模拟输入
             mock_inputs = {'hidden_states': torch.randn(1, 10, 768)}
-            # 模拟输出（仅用于文档/占位，实际由 mock forward 驱动）
-            _ = [
-                (torch.randn(1, 10, 768), torch.randn(1, 10, 768)),  # block1输出
-                (torch.randn(1, 10, 768), torch.randn(1, 10, 768)),  # block2输出
-                torch.randn(1, 20, 768),  # block3输出（第20层）
-            ]
             with patch.object(adapter, 'generate_model_forward'):
-                # 这里我们直接测试生成器的逻辑
                 generator = adapter.generate_model_forward(mock_model, mock_inputs)
                 try:
                     next(generator)
                 except StopIteration:
                     pass
+
+    # 以下为 generate_model_forward 真实逻辑补充用例（不 mock 方法本身）
+    def test_generate_model_forward_call_barrier_when_dist_initialized(self, flux1_adapter):
+        """分布式已初始化时应调用 dist.barrier"""
+        model = FluxModel(num_blocks=1)
+        flux1_adapter.transformer_blocks_layers = 1
+        with patch("torch.distributed.is_initialized", return_value=True):
+            with patch("torch.distributed.barrier") as mock_barrier:
+                gen = flux1_adapter.generate_model_forward(model, {"hidden_states": torch.randn(1, 4, 8)})
+                next(gen)
+                mock_barrier.assert_called_once()
+        with pytest.raises(StopIteration):
+            gen.send((torch.randn(1, 2, 8), torch.randn(1, 2, 8)))
+
+    def test_generate_model_forward_yield_requests_when_dict_inputs(self, flux1_adapter):
+        """dict 输入时应逐块 yield ProcessRequest 并更新 hidden_states"""
+        model = FluxModel()
+        flux1_adapter.transformer_blocks_layers = 2
+        inputs = {
+            "hidden_states": torch.randn(1, 4, 8),
+            "encoder_hidden_states": torch.randn(1, 4, 8),
+        }
+
+        gen = flux1_adapter.generate_model_forward(model, inputs)
+        req0 = next(gen)
+        assert isinstance(req0, ProcessRequest)
+        assert req0.name == "block0"
+
+        req1 = gen.send((torch.randn(1, 4, 8), torch.randn(1, 4, 8)))
+        assert req1.name == "block1"
+
+        req2 = gen.send((torch.randn(1, 2, 8), torch.randn(1, 2, 8)))
+        assert req2.name == "block2"
+
+        with pytest.raises(StopIteration):
+            gen.send(torch.randn(1, 6, 8))
+
+    def test_generate_model_forward_yield_requests_when_list_inputs(self, flux1_adapter):
+        """list/tuple 输入时应走 model(*inputs) 分支"""
+        model = FluxModel(num_blocks=1)
+        flux1_adapter.transformer_blocks_layers = 1
+        gen = flux1_adapter.generate_model_forward(model, [torch.randn(1, 4, 8)])
+        assert next(gen).name == "block0"
+        with pytest.raises(StopIteration):
+            gen.send((torch.randn(1, 2, 8), torch.randn(1, 2, 8)))
+
+    def test_generate_model_forward_yield_requests_when_tensor_inputs(self, flux1_adapter):
+        """单 tensor 输入时应走 model(inputs) 分支"""
+        model = FluxModel(num_blocks=1)
+        flux1_adapter.transformer_blocks_layers = 1
+        gen = flux1_adapter.generate_model_forward(model, torch.randn(1, 4, 8))
+        assert next(gen).name == "block0"
+
+    def test_generate_model_forward_raise_invalid_model_when_no_hook_input(self, flux1_adapter):
+        """forward 未触发首块 hook 时应抛 InvalidModelError"""
+
+        class SkipBlockModel(nn.Module):
+            def named_modules(self):
+                yield "block0", FluxTransformerBlock()
+
+            def forward(self, **_kwargs):
+                return None
+
+        with pytest.raises(InvalidModelError, match="Can't get first block input"):
+            list(flux1_adapter.generate_model_forward(SkipBlockModel(), {"hidden_states": torch.randn(1, 4, 8)}))
+
+    def test_generate_model_forward_reraise_when_non_break_exception(self, flux1_adapter):
+        """非 TransformersForwardBreak 异常应原样抛出"""
+        model = FluxModel(num_blocks=1)
+        model.forward = lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("forward failed"))
+        with pytest.raises(RuntimeError, match="forward failed"):
+            list(flux1_adapter.generate_model_forward(model, {"hidden_states": torch.randn(1, 4, 8)}))
 
 
 # ------------------------------ generate_model_visit方法测试 ------------------------------
@@ -624,92 +691,22 @@ class TestInjectFA3Placeholders:
 
     @staticmethod
     def test_inject_fa3_placeholders_with_attention_modules():
-        """测试为 Attention 模块注入占位符"""
+        """为 Attention 模块注入 fa3 占位符"""
         with patch("msmodelslim.model.flux1.model_adapter.FLUX1ModelAdapter._get_default_model_args"):
             adapter = FLUX1ModelAdapter("flux1", Path(test_model_path))
-
-            # 创建模拟的 Attention 模块
-            class Attention:
-                pass
-
-            mock_attention1 = Attention()
-            mock_attention2 = Attention()
-
-            # 创建模拟的其他模块
-            class Linear:
-                pass
-
-            mock_linear = Linear()
-            # 创建模拟的 named_modules 返回结果
-            # 注意：我们需要创建一个固定的列表，而不是在运行时生成
-            modules_list = [
-                ("attention1", mock_attention1),
-                ("submodule.attention2", mock_attention2),
-                ("linear", mock_linear),
+            attn1 = FluxAttention()
+            attn2 = FluxAttention()
+            mock_root = Mock()
+            mock_root.named_modules.return_value = [
+                ("attention1", attn1),
+                ("sub.attention2", attn2),
+                ("linear", nn.Linear(4, 4)),
             ]
-            # 创建 root_module
-            mock_root_module = Mock()
-            # 关键修复：创建一个固定的 named_modules 返回值
-            # 使用列表而不是在迭代时生成
-            mock_root_module.named_modules.return_value = modules_list
-            # 记录 set_submodule 调用
-            set_submodule_calls = []
-
-            def mock_set_submodule(path, placeholder):
-                set_submodule_calls.append((path, placeholder))
-                # 这里不实际修改模块结构，只记录调用
-
-            mock_root_module.set_submodule = mock_set_submodule
-
-            # 模拟 should_inject 函数，对所有 Attention 模块返回 True
-            def mock_should_inject(name):
-                # 注意：原始代码中传递给 should_inject 的名称格式
-                # 是 f"{root_name}.{name}" if root_name else name
-                # 所以当 root_name="test_root" 时，名称应该是 "test_root.attention1" 等
-                return "attention" in name.lower()
-
-            # 执行方法
-            adapter.inject_fa3_placeholders("test_root", mock_root_module, mock_should_inject)
-            # 验证结果
-            # 检查 set_submodule 被调用了 6 次（2个Attention模块，每个3个占位符）
-            assert len(set_submodule_calls) == 6
-            # 验证每个 Attention 模块都注入了 3 个占位符
-            # 注意：路径格式是 "{prefix}fa3_q"，其中 prefix 是 "attention1." 或 "submodule.attention2."
-            attention1_q_found = False
-            attention1_k_found = False
-            attention1_v_found = False
-            attention2_q_found = False
-            attention2_k_found = False
-            attention2_v_found = False
-            for path, placeholder in set_submodule_calls:
-                # 注意：原始代码中 set_submodule 的路径是 f"{prefix}fa3_q"
-                # 其中 prefix 是 f"{name}."（如果 name 不为空）
-                # 或者 ""（如果 name 为空）
-                if path == "attention1.fa3_q":
-                    attention1_q_found = True
-                elif path == "attention1.fa3_k":
-                    attention1_k_found = True
-                elif path == "attention1.fa3_v":
-                    attention1_v_found = True
-                elif path == "submodule.attention2.fa3_q":
-                    attention2_q_found = True
-                elif path == "submodule.attention2.fa3_k":
-                    attention2_k_found = True
-                elif path == "submodule.attention2.fa3_v":
-                    attention2_v_found = True
-
-            assert attention1_q_found, "attention1.fa3_q 未注入"
-            assert attention1_k_found, "attention1.fa3_k 未注入"
-            assert attention1_v_found, "attention1.fa3_v 未注入"
-            assert attention2_q_found, "attention2.fa3_q 未注入"
-            assert attention2_k_found, "attention2.fa3_k 未注入"
-            assert attention2_v_found, "attention2.fa3_v 未注入"
-            # 验证非 Attention 模块没有注入占位符
-            linear_found = False
-            for path, _ in set_submodule_calls:
-                if "linear" in path:
-                    linear_found = True
-            assert not linear_found, "linear 模块不应被注入占位符"
+            calls = []
+            mock_root.set_submodule = lambda p, _ph: calls.append(p)
+            adapter.inject_fa3_placeholders("root", mock_root, lambda n: "attention" in n.lower())
+            assert len([c for c in calls if "fa3" in c]) == 6
+            assert not any("linear" in c for c in calls)
 
 
 # ------------------------------ get_online_rotation_configs方法测试 ------------------------------
@@ -890,3 +887,74 @@ class TestErrorHandling:
             with pytest.raises(Exception):
                 # 注意：实际的类型检查在_validate_args中
                 adapter.set_model_args(invalid_config)
+
+
+class TestSupplementary:
+    def test_set_model_args_bool_flag(self, flux1_adapter):
+        class M:
+            def __init__(self):
+                self.model_path = ""
+                self.prompt = "hello"
+                self.use_cache = True
+                self.skip_flag = False
+
+        flux1_adapter.model_args = M()
+        mock_parser = MagicMock()
+        mock_parser.parse_args.return_value = flux1_adapter.model_args
+        with (
+            patch.object(flux1_adapter, "_get_parser", return_value=mock_parser),
+            patch.object(flux1_adapter, "_validate_args"),
+        ):
+            flux1_adapter.set_model_args({"prompt": "hello", "use_cache": True, "skip_flag": False})
+        assert "--use_cache" in mock_parser.parse_args.call_args[0][0]
+        assert "--skip_flag" not in mock_parser.parse_args.call_args[0][0]
+
+    def test_apply_quantization_no_sync_fallback(self, flux1_adapter):
+        pf = Mock()
+        with patch("torch.cuda.amp.autocast"):
+            FLUX1ModelAdapter.apply_quantization(flux1_adapter, pf)
+        pf.assert_called_once()
+
+    def test_get_online_rotation_skip_non_attention(self, flux1_adapter):
+        m = MagicMock()
+        m.named_modules.return_value = [("linear", nn.Linear(4, 4))]
+        m.attention_head_dim, m.dtype = 64, torch.float32
+        assert flux1_adapter.get_online_rotation_configs(m) == {}
+
+    def test_get_online_rotation_register_warning(self, flux1_adapter):
+        attn = FluxAttention()
+        m = MagicMock()
+        m.named_modules.return_value = [("attn", attn)]
+        m.attention_head_dim, m.dtype = 32, torch.float16
+        with patch.object(attn, "register_module", side_effect=RuntimeError("register failed")):
+            with patch("msmodelslim.model.flux1.model_adapter.get_logger") as lg:
+                lg.return_value.warning = Mock()
+                flux1_adapter.get_online_rotation_configs(m)
+        lg.return_value.warning.assert_called()
+
+    def test_inject_fa3_empty_name(self, flux1_adapter):
+        root = MagicMock()
+        root.named_modules.return_value = [("", FluxAttention())]
+        calls = []
+        root.set_submodule = lambda p, _: calls.append(p)
+        flux1_adapter.inject_fa3_placeholders("", root, lambda _: True)
+        assert set(calls) == {"fa3_q", "fa3_k", "fa3_v"}
+
+    def test_validate_args_fill_defaults(self, flux1_adapter):
+        class A:
+            prompt = "test"
+            num_inference_steps = batch_size = seed = None
+            save_path = "./results"
+            save_path_suffix = task_config = ""
+
+        args = A()
+        with patch("os.makedirs"):
+            flux1_adapter._validate_args(args)
+        assert args.num_inference_steps == 50 and args.batch_size == 1 and args.seed == 42
+
+    @staticmethod
+    def test_get_default_model_args():
+        with patch("msmodelslim.model.flux1.model_adapter.FLUX1ModelAdapter._get_default_model_args"):
+            inst = FLUX1ModelAdapter("flux1", Path(test_model_path))
+        inst._get_default_model_args()
+        assert isinstance(inst.model_args, argparse.Namespace)
