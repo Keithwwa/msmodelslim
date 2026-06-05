@@ -23,6 +23,8 @@ Unit tests for msmodelslim.format.compressed_tensors_format.quantization.quant_s
 
 from __future__ import annotations
 
+# pylint: disable=no-name-in-module
+
 import pytest
 from torch import nn
 
@@ -56,7 +58,7 @@ class TestQuantizationScheme:
         assert scheme.input_activations.strategy == QuantizationStrategy.TENSOR
 
     def test_quantization_scheme_raise_value_error_when_input_actorder_set(self):
-        with pytest.raises(SchemaValidateError, match="actorder"):
+        with pytest.raises(SchemaValidateError, match="activation ordering"):
             QuantizationScheme(
                 targets=["Linear"],
                 weights=QuantizationArgs(
@@ -116,3 +118,75 @@ class TestSchemeForQirModule:
         module = nn.Linear(4, 2)
 
         assert scheme_for_qir_module(module) is None
+
+    def test_preset_name_to_scheme_return_dynamic_scheme_when_w8a8_dynamic(self):
+        scheme = preset_name_to_scheme("W8A8_DYNAMIC", ["Linear"])
+
+        assert scheme.input_activations.dynamic is True
+        assert scheme.input_activations.strategy == QuantizationStrategy.TOKEN
+
+    def test_quantization_scheme_raise_not_implemented_when_group_dynamic_activation(self):
+        with pytest.raises(NotImplementedError, match="group-wise activation quantization"):
+            QuantizationScheme(
+                targets=["Linear"],
+                weights=QuantizationArgs(
+                    num_bits=8,
+                    type=QuantizationType.INT,
+                    strategy=QuantizationStrategy.GROUP,
+                    group_size=128,
+                ),
+                input_activations=QuantizationArgs(
+                    num_bits=8,
+                    type=QuantizationType.INT,
+                    strategy=QuantizationStrategy.GROUP,
+                    group_size=128,
+                    dynamic=True,
+                ),
+            )
+
+    def test_quantization_scheme_raise_not_implemented_when_unsupported_activation_strategy(self):
+        with pytest.raises(NotImplementedError, match="not supported for activation quantization"):
+            QuantizationScheme(
+                targets=["Linear"],
+                input_activations=QuantizationArgs(
+                    num_bits=8,
+                    type=QuantizationType.INT,
+                    strategy=QuantizationStrategy.CHANNEL,
+                ),
+            )
+
+    def test_quantization_scheme_raise_value_error_when_output_actorder_set(self):
+        with pytest.raises(SchemaValidateError, match="actorder to output activations"):
+            QuantizationScheme(
+                targets=["Linear"],
+                output_activations=QuantizationArgs(
+                    num_bits=8,
+                    type=QuantizationType.INT,
+                    strategy=QuantizationStrategy.GROUP,
+                    group_size=128,
+                    actorder=True,
+                ),
+            )
+
+    def test_quantization_scheme_warn_when_group_sizes_differ(self, mocker):
+        warn_mock = mocker.patch(
+            "msmodelslim.format.compressed_tensors_format.quantization.quant_scheme.logger.warning"
+        )
+
+        QuantizationScheme(
+            targets=["Linear"],
+            weights=QuantizationArgs(
+                num_bits=8,
+                type=QuantizationType.INT,
+                strategy=QuantizationStrategy.GROUP,
+                group_size=128,
+            ),
+            input_activations=QuantizationArgs(
+                num_bits=8,
+                type=QuantizationType.INT,
+                strategy=QuantizationStrategy.GROUP,
+                group_size=64,
+            ),
+        )
+
+        assert any("different group sizes" in str(call.args[0]) for call in warn_mock.call_args_list)

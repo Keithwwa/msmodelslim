@@ -23,6 +23,8 @@ Unit tests for msmodelslim.format.compressed_tensors_format.quantization.quant_c
 
 from __future__ import annotations
 
+# pylint: disable=no-name-in-module
+
 import re
 
 from torch import nn
@@ -33,6 +35,7 @@ from msmodelslim.format.compressed_tensors_format.quantization.quant_args import
 )
 from msmodelslim.format.compressed_tensors_format.quantization.quant_config_builder import (
     _compress_module_names_to_regex,
+    _resolve_w_scheme,
     _resolve_weight_observer,
     _scheme_key,
     apply_runtime_overrides,
@@ -42,6 +45,7 @@ from msmodelslim.format.compressed_tensors_format.quantization.quant_config_buil
     infer_root_format,
     infer_targets,
 )
+from msmodelslim.ir.qal import QDType, QParam, QScheme, QScope
 from msmodelslim.format.compressed_tensors_format.quantization.quant_scheme import (
     preset_name_to_scheme,
 )
@@ -187,3 +191,48 @@ class TestCompressModuleNamesToRegex:
 
         assert len(patterns) == 1
         assert re.search(patterns[0][3:], "valid.layer") is not None
+
+
+class TestResolveWScheme:
+    """Tests for _resolve_w_scheme."""
+
+    def test_resolve_w_scheme_return_qscheme_when_module_has_qscheme(self):
+        module = make_w8a8_static_module()
+        scheme = QScheme(scope=QScope.PER_CHANNEL, dtype=QDType.INT8, symmetric=True)
+        module.w_scheme = scheme
+
+        assert _resolve_w_scheme(module) is scheme
+
+    def test_resolve_w_scheme_return_scheme_from_qparam_when_module_has_qparam(self):
+        module = make_w8a8_static_module()
+        inner_scheme = QScheme(scope=QScope.PER_CHANNEL, dtype=QDType.INT8, symmetric=True)
+        module.w_scheme = QParam(scheme=inner_scheme, ext={})
+
+        assert _resolve_w_scheme(module) is inner_scheme
+
+    def test_resolve_w_scheme_return_none_when_module_has_no_scheme(self):
+        module = nn.Linear(4, 2)
+
+        assert _resolve_w_scheme(module) is None
+
+
+class TestResolveWeightObserverExtended:
+    """Additional tests for _resolve_weight_observer."""
+
+    def test_resolve_weight_observer_return_method_when_qparam_has_method(self):
+        module = make_w8a8_static_module()
+        inner_scheme = QScheme(scope=QScope.PER_CHANNEL, dtype=QDType.INT8, symmetric=True)
+        qparam = QParam(scheme=inner_scheme, ext={})
+        qparam.method = "mse"
+        module.w_scheme = qparam
+
+        assert _resolve_weight_observer(module) == "mse"
+
+
+class TestInferTargetsExtended:
+    """Additional tests for infer_targets."""
+
+    def test_infer_targets_return_linear_when_auto_fake_quant_linear_present(self):
+        module = make_w8a8_static_module()
+
+        assert infer_targets(module) == ["Linear"]

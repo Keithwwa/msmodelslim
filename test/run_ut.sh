@@ -20,8 +20,8 @@ route=$(dirname "$script")
 rootdir=$(dirname "$route")
 kia_dir=$(dirname "$rootdir")/automl_kia
 
-ALL_CASES="pytorch app core ir mindspore common onnx processor quant utils model infra"
-MODELSlim_V1_CASES="app core ir infra processor utils"
+ALL_CASES="pytorch app core ir mindspore common onnx processor quant utils model infra format"
+MODELSlim_V1_CASES="app core ir infra processor utils format"
 
 run_tests() {
     local cases="$1"

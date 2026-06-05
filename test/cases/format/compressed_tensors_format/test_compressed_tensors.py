@@ -23,6 +23,8 @@ Unit tests for msmodelslim.format.compressed_tensors_format.compressed_tensors.
 
 from __future__ import annotations
 
+# pylint: disable=no-name-in-module
+
 import json
 import os
 from pathlib import Path
@@ -46,6 +48,7 @@ from msmodelslim.utils.exception import (
 )
 
 from test.cases.format.compressed_tensors_format.helpers import (
+    MixedQuantFloatModel,
     MockJsonReader,
     MockJsonReaderFactoryInfra,
     MockJsonWriterFactoryInfra,
@@ -341,3 +344,79 @@ class TestCompressedTensorsQuantFormatBuildModuleHandlerMap:
         assert qir.W8A8StaticFakeQuantLinear in handler_map
         assert qir.W8A8DynamicPerChannelFakeQuantLinear in handler_map
         assert nn.Linear in handler_map
+
+
+class TestCompressedTensorsQuantFormatOnW8A8StaticBias:
+    """Tests for bias export in on_w8a8_static."""
+
+    def test_on_w8a8_static_write_bias_when_bias_present(self, quant_format):
+        module = make_w8a8_static_module()
+        prefix = "layer"
+
+        quant_format.on_w8a8_static(prefix, module)
+
+        assert f"{prefix}.bias" in quant_format.safetensors_writer.tensors
+
+
+class TestCompressedTensorsQuantFormatOnW8A8DynamicBias:
+    """Tests for bias export in on_w8a8_dynamic_per_channel."""
+
+    def test_on_w8a8_dynamic_write_bias_when_bias_present(self, quant_format):
+        module = make_w8a8_dynamic_module()
+        prefix = "layer"
+
+        quant_format.on_w8a8_dynamic_per_channel(prefix, module)
+
+        assert f"{prefix}.bias" in quant_format.safetensors_writer.tensors
+
+
+class TestCompressedTensorsQuantFormatSweepUnprocessedModules:
+    """Tests for _sweep_unprocessed_modules."""
+
+    def test_sweep_unprocessed_modules_export_float_layer_when_not_visited(self, quant_format):
+        qm = QuantizedModel()
+        model = nn.Sequential(qm.linear, nn.Linear(8, 4, bias=False))
+        quant_format.process_module_tensors("", qm.linear)
+        quant_format.processed_modules.add(qm.linear)
+
+        quant_format._sweep_unprocessed_modules(model)
+
+        keys = quant_format.safetensors_writer.tensors
+        assert any("1.weight" in k for k in keys)
+
+
+class TestCompressedTensorsQuantFormatProcessModuleTensorsE2E:
+    """End-to-end tests for process_module_tensors."""
+
+    def test_process_module_tensors_export_qir_and_float_when_mixed_model(self, quant_format):
+        model = MixedQuantFloatModel()
+
+        quant_format.process_module_tensors("", model)
+
+        writer = quant_format.safetensors_writer.tensors
+        assert any("quant" in k for k in writer)
+        assert any("float_linear" in k for k in writer)
+
+
+class TestCompressedTensorsQuantFormatFinalizeExportWithSource:
+    """Tests for finalize_export with source_model_path."""
+
+    def test_finalize_export_copy_hf_files_when_source_model_path_set(self, temp_dir, writer_infra):
+        src_dir = os.path.join(temp_dir, "source")
+        os.makedirs(src_dir)
+        with open(os.path.join(src_dir, "config.json"), "w", encoding="utf-8") as f:
+            json.dump({"model_type": "test"}, f)
+        with open(os.path.join(src_dir, "tokenizer_config.json"), "w", encoding="utf-8") as f:
+            f.write("{}")
+
+        save_dir = os.path.join(temp_dir, "save")
+        os.makedirs(save_dir)
+        ctx = ExportContext(save_directory=Path(save_dir), source_model_path=Path(src_dir))
+        fmt = make_compressed_tensors_quant_format(ctx, writer_infra, prepare=True)
+
+        fmt.finalize_export(QuantizedModel())
+
+        assert os.path.isfile(os.path.join(save_dir, "tokenizer_config.json"))
+        with open(os.path.join(save_dir, "config.json"), encoding="utf-8") as f:
+            data = json.load(f)
+        assert QUANTIZATION_CONFIG_NAME in data

@@ -79,3 +79,29 @@ class TestCompressedTensorSafetensorsWriterFactoryInfra:
         writer = factory.create_safetensors_writer(4, "/tmp/save", "model")
 
         assert isinstance(writer, ConcreteWriter)
+
+
+class TestCompressedTensorSafetensorsInfraAbcBodies:
+    """Invoke ABC stub bodies for full line coverage."""
+
+    def test_writer_abc_bodies_when_super_called(self):
+        class Writer(CompressedTensorSafetensorsWriterInfra):
+            def write(self, key: str, value: torch.Tensor) -> None:
+                CompressedTensorSafetensorsWriterInfra.write(self, key, value)
+
+            def close(self) -> None:
+                CompressedTensorSafetensorsWriterInfra.close(self)
+
+        writer = Writer()
+        writer.write("key", torch.tensor([1]))
+        writer.close()
+
+    def test_factory_abc_body_when_super_called(self):
+        class Factory(CompressedTensorSafetensorsWriterFactoryInfra):
+            def create_safetensors_writer(self, part_file_size: int, save_directory: str, save_prefix: str):
+                CompressedTensorSafetensorsWriterFactoryInfra.create_safetensors_writer(
+                    self, part_file_size, save_directory, save_prefix
+                )
+                return ConcreteWriter()
+
+        Factory().create_safetensors_writer(4, "/tmp", "model")

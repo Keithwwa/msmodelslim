@@ -43,12 +43,12 @@ class TestAscendV1QuantFormatConfig:
 
         assert config.save_directory == "/tmp/save"
 
-    def test_model_dump_exclude_ext_when_ext_empty(self):
+    def test_model_dump_include_empty_ext_when_ext_default(self):
         config = AscendV1QuantFormatConfig()
 
         dumped = config.model_dump()
 
-        assert "ext" not in dumped
+        assert dumped["ext"] == {}
 
     def test_model_dump_include_ext_when_ext_nonempty(self):
         config = AscendV1QuantFormatConfig(ext={"key": "value"})
