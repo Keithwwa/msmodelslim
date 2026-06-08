@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-from typing import ClassVar, Iterable, Union
+from typing import Iterable, Union
 
 from typing_extensions import Self, Type
 
@@ -104,7 +104,7 @@ ToDoError: Type[ModelslimError] = ModelslimError.create_exception("ToDoError", 4
 class UnexpectedError(ModelslimError):
     code = 500
     default_message = "Unexpected error."
-    tips: ClassVar[list[str]] = []
+    tips = []
 
     @classmethod
     def inject_tips(cls, tips: Union[str, Iterable[str]]) -> None:
