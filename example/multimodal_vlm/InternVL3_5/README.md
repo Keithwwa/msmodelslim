@@ -11,7 +11,7 @@
 - 需安装依赖包：
 
   ```bash
-  pip install timm
+  pip install timm==1.0.27 transformers==4.57.6
   ```
 
 ## InternVL 3.5模型当前已验证的量化方法

@@ -20,8 +20,8 @@
 ## 使用前准备
 
 - 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
-- 对于DeepSeek-V3系列/DeepSeek-R1系列模型，由于模型比较大，请先完成"
-  运行前必检"（[DeepSeek-V3运行前必检](#deepseek-v3-运行前必检) / [DeepSeek-R1运行前必检](#deepseek-r1-运行前必检)）。
+- 对于DeepSeek-V3系列/DeepSeek-R1系列/DeepSeek-V4系列模型，由于模型比较大，请先完成"
+  运行前必检"（[DeepSeek-V3运行前必检](#deepseek-v3-运行前必检) / [DeepSeek-R1运行前必检](#deepseek-r1-运行前必检) / [deepseek-v4运行前必检](#deepseek-v4-运行前必检)）。
 - 由于模型量化对显存要求较高，请确保在单卡显存不低于64G的环境下执行。
 
 ## 支持的模型版本与量化策略
@@ -53,8 +53,8 @@
 
 ### quant_deepseek.py 量化参数说明
 
-| 参数名                 | 含义                             | 默认值                         | 使用方法                                                                                                                      | 
-|---------------------|--------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------| 
+| 参数名                 | 含义                             | 默认值                         | 使用方法                                                                                                                      |
+|---------------------|--------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------|
 | model_path          | 浮点权重路径                         | 无默认值                        | 必选参数；<br>输入DeepSeek权重目录路径。                                                                                                |
 | save_directory      | 量化权重路径                         | 无默认值                        | 必选参数；<br>输出量化结果目录路径。                                                                                                      |
 | part_file_size      | 生成量化权重文件大小，单位是GB               | 5                           | 可选参数；<br>生成量化权重文件大小，默认5GB。                                                                                                |
@@ -211,8 +211,6 @@ DeepSeek-V3模型较大，且存在需要手动适配的点，为了避免浪费
   python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_path} --batch_size 4 --fa_quant --trust_remote_code True
   ```
 
-### DeepSeek-V3.1系列
-
 #### <span id="deepseek-v31-w8a8-混合量化--mtp-量化">DeepSeek-V3.1 W8A8 混合量化 + MTP 量化</span>
 
 - 生成DeepSeek-V3.1 W8A8 混合量化 + MTP 量化
@@ -269,8 +267,6 @@ DeepSeek-V3模型较大，且存在需要手动适配的点，为了避免浪费
    --trust_remote_code True
   ```
 
-### DeepSeek-V3.2系列
-
 #### <span id="deepseek-v32-w8a8">DeepSeek-V3.2-Exp(含MTP层) W8A8 混合量化</span>
 
   ```shell
@@ -293,7 +289,7 @@ DeepSeek-V3模型较大，且存在需要手动适配的点，为了避免浪费
    --trust_remote_code True
   ```
 
-##### <span id="deepseek-v32-w8a8-quarot">DeepSeek-V3.2(含MTP层) W8A8 混合量化</span>
+#### <span id="deepseek-v32-w8a8-quarot">DeepSeek-V3.2(含MTP层) W8A8 混合量化</span>
 
   ```shell
   msmodelslim quant \
@@ -305,6 +301,14 @@ DeepSeek-V3模型较大，且存在需要手动适配的点，为了避免浪费
   ```
 
 ### DeepSeek-V4系列
+
+#### <span id="deepseek-v4-运行前必检">运行前必检</span>
+
+- 需安装4.48.2版本的transformers:
+
+  ```bash
+  pip install transformers==4.48.2
+  ```
 
 #### <span id="deepseek-v4-w8a8-quarot">DeepSeek-V4-Flash(含MTP层) W8A8 动态量化</span>
 
@@ -369,7 +373,7 @@ python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_pat
   ```shell
   # 下面命令默认使用 10 条校准集
   python3 quant_deepseek_w4a8.py --model_path ${model_path} --save_path ${save_path} --trust_remote_code True
-  
+
   # 如果想要获取更高的精度，可以使用 50 条校准集，如果显存够用可以尝试 16 batch_size 加载校准集
   python3 quant_deepseek_w4a8.py --model_path ${model_path} --save_path ${save_path} --anti_dataset ../common/deepseek_anti_prompt_50.json --calib_dataset ../common/deepseek_calib_prompt_50.json  --batch_size 16 --trust_remote_code True
   ```
@@ -381,8 +385,6 @@ python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_pat
   ```shell
   python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_path} --batch_size 4 --quant_mtp mix --trust_remote_code True
   ```
-
-### DeepSeek-R1-0528系列
 
 #### <span id="deepseek-r1-0528-w4a8-per-channel量化">DeepSeek-R1-0528(含MTP层) W4A8 per-channel量化(非MTP层的路由专家采用w4a8 per-channel动态量化，其他线性层均采用w8a8动态量化)</span>
 
@@ -441,7 +443,9 @@ python3 quant_deepseek_w8a8.py --model_path ${model_path} --save_path ${save_pat
   --trust_remote_code True
   ```
 
-#### DeepSeek-V3/R1量化QA
+## FAQ
+
+### DeepSeek-V3/R1量化QA
 
 - Q：报错 This modeling file requires the following packages that were not found in your environment： flash_attn. Run '
   pip install flash_attn'
