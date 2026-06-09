@@ -54,6 +54,8 @@ The algorithm possesses a memory function when traversing outlier suppression st
 
 **Inference engine support**: Pay close attention to the support for arbitrary fallback within the inference engine. Generally, vLLM-Ascend supports arbitrary fallback in single-operator mode, but it may not provide this support when hybrid operators are used. When using the Standing High algorithm, ensure the configured inference engine (such as vLLM-Ascend) supports the quantization fallback feature.
 
+**Model adapter**: The strategy **automatically runs layer sensitivity analysis** to build rollback candidates. The model adapter must implement **`ModelSlimPipelineInterfaceV1`** (`PipelineInterface` in `core/runner/pipeline_interface.py`). Analysis is performed by `PipelineAnalysisService` and `LayerWiseRunner`, which call the adapter's `init_model`, `handle_dataset`, and visit/forward pipeline methods. The strategy **does not** call `load_model` upfront. Consistent with [Sensitive Layer Analysis](../../feature_guide/sensitive_layer_analysis/usage.md) and the CLI `msmodelslim analyze` command. See [Integrating LLM Models](../../developer_guide/integrating_models.md#automatic-tuning-and-sensitivity-analysis).
+
 ## Function Description
 
 ### Usage Description
@@ -131,7 +133,7 @@ anti_outlier_strategies: [ ]
 ```yaml
 anti_outlier_strategies:
   - - type: "iter_smooth"  # Only a single outlier suppression strategy is used.
-      alpha: 0.5 
+      alpha: 0.5
   - - type: "iter_smooth"  # A mixture of strategies is used: iter_smooth and quarot.
       alpha: 0.5
     - type: "quarot"

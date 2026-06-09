@@ -17,7 +17,6 @@ See the Mulan PSL v2 for more details.
 """
 
 from abc import abstractmethod
-from typing import Any, List
 
 from torch import nn
 
@@ -29,20 +28,10 @@ from msmodelslim.utils.exception import UnsupportedError
 class StandingHighWithExperienceInterface(IModel):
     """
     Interface for standing high with experience strategy.
-    """
 
-    @abstractmethod
-    def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> List[Any]:
-        """
-        Handle the dataset for model inference.
-        The dataset should be converted into a List of data
-            that can be directly used for model inference(model(*data) or model(**data)).
-        Returns:
-            List[Any]: The processed dataset.
-        """
-        raise UnsupportedError(
-            "This model does not support handle dataset.",
-            action="Please implement handle_dataset in StandingHighWithExperienceInterface.")
+    Only ``load_model`` is required here (anti-outlier capability probe).
+    Sensitivity analysis uses ``PipelineInterface`` / ``ModelSlimPipelineInterfaceV1`` separately.
+    """
 
     @abstractmethod
     def load_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
@@ -55,4 +44,5 @@ class StandingHighWithExperienceInterface(IModel):
         """
         raise UnsupportedError(
             "This model does not support load model to specified device and torch dtype.",
-            action="Please implement load_model in StandingHighWithExperienceInterface.")
+            action="Please implement load_model in StandingHighWithExperienceInterface.",
+        )

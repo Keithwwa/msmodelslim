@@ -27,6 +27,12 @@ Standing High With Experience 的核心思想是**配置简化 + 专家经验填
 
 **推理引擎与回退支持**：与 Standing High 相同，需确保推理引擎（如 vLLM-Ascend）支持量化回退；使用混合算子时可能不支持任意回退，需根据实际环境确认。
 
+**模型适配**：
+
+- 须实现 **`ModelSlimPipelineInterfaceV1`**（自动敏感层分析，委托 Standing High 执行）及 **`StandingHighWithExperienceInterface`**（仅 `load_model`，用于过滤当前模型不支持的离群值抑制策略）。
+- 常见写法：模型适配器同时继承 **`StandingHighWithExperienceInterface`**（`load_model` 探测）与 **`ModelSlimPipelineInterfaceV1`**（敏感层分析与量化 pipeline）。
+- 敏感层分析不会在策略侧预先 `load_model`；详见 [自动调优配置协议说明](../../feature_guide/auto_precision_tuning/configuration_protocols.md#strategy---调优策略配置) 与 [LLM 大模型接入指南 — 自动调优与敏感层分析](../../developer_guide/integrating_models.md#自动调优与敏感层分析)。
+
 ## 功能介绍
 
 ### 使用说明

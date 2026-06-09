@@ -36,7 +36,7 @@ from ..interface_hub import (
     ModelInfoInterface,
     ModelSlimPipelineInterfaceV0,
     ModelSlimPipelineInterfaceV1,
-    AnalyzePipelineInterface,
+    StandingHighWithExperienceInterface,
     KVSmoothFusedInterface,
 )
 
@@ -47,7 +47,7 @@ class Qwen25ModelAdapter(  # pylint: disable=too-many-ancestors
     ModelInfoInterface,
     ModelSlimPipelineInterfaceV0,
     ModelSlimPipelineInterfaceV1,
-    AnalyzePipelineInterface,
+    StandingHighWithExperienceInterface,
     KVSmoothFusedInterface,
 ):
     def get_model_type(self) -> str:

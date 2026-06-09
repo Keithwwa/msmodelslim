@@ -33,9 +33,6 @@ from msmodelslim.core.tune_strategy.standing_high.strategy import (
     StandingHighStrategyConfig,
     get_plugin,
 )
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import (
-    StandingHighInterface,
-)
 from msmodelslim.core.quantizer.base import QConfig
 from msmodelslim.core.quantizer.linear import LinearQConfig
 from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
@@ -76,8 +73,8 @@ def _standing_high_default_template() -> ModelslimV1ServiceConfig:
     )
 
 
-class _MockModel(StandingHighInterface, PipelineInterface):
-    """Mock model implementing StandingHighInterface."""
+class _MockModel(PipelineInterface):
+    """Mock model implementing PipelineInterface."""
 
     @property
     def model_type(self):
@@ -94,12 +91,6 @@ class _MockModel(StandingHighInterface, PipelineInterface):
     def handle_dataset(self, dataset, device=DeviceType.NPU):
         return list(dataset) if dataset else []
 
-    def load_model(self, device=DeviceType.NPU):
-        m = MagicMock()
-        m.to = MagicMock(return_value=None)
-        return m
-
-    # PipelineInterface minimal implementations (not used in these unit tests).
     def init_model(self, device: DeviceType = DeviceType.NPU):
         return MagicMock()
 
@@ -178,10 +169,10 @@ class TestStandingHighStrategy:
         loader.get_dataset_by_name = MagicMock(return_value=[])
         return loader
 
-    def test_generate_practice_raises_UnsupportedError_when_model_not_implement_StandingHighInterface(self):
+    def test_generate_practice_raises_UnsupportedError_when_model_not_implement_PipelineInterface(self):
         """
-        场景：generate_practice 传入未实现 StandingHighInterface 的 model。
-        预期：抛出 UnsupportedError 且消息含 StandingHighInterface。
+        场景：generate_practice 传入未实现 PipelineInterface 的 model。
+        预期：抛出 UnsupportedError 且消息含 PipelineInterface。
         """
         config = self._make_config()
         loader = self._make_dataset_loader()
@@ -190,7 +181,7 @@ class TestStandingHighStrategy:
         gen = strategy.generate_practice(non_interface_model, device=DeviceType.NPU)
         with pytest.raises(UnsupportedError) as exc_info:
             next(gen)
-        assert "StandingHighInterface" in str(exc_info.value)
+        assert "PipelineInterface" in str(exc_info.value)
 
     def test_generate_practice_yields_zero_practice_then_stops_when_send_is_satisfied_true(self):
         """

@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from typing import Any, Dict, Generator, List, Optional, Literal, Annotated
 
 from pydantic import Field, model_validator, AfterValidator
@@ -35,7 +36,6 @@ from msmodelslim.core.tune_strategy import ITuningStrategy
 from msmodelslim.core.tune_strategy.base import BaseTuningStrategy
 from msmodelslim.core.tune_strategy.dataset_loader_infra import DatasetLoaderInfra
 from msmodelslim.core.tune_strategy.interface import StrategyConfig, EvaluateResult
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.infra.analysis_pipeline_loader import YamlAnalysisPipelineLoader
 from msmodelslim.ir.qal import QScope, QDType
 from msmodelslim.model import IModel
@@ -54,27 +54,17 @@ def _create_default_template() -> ModelslimV1ServiceConfig:
             LinearProcessorConfig(
                 type="linear_quant",
                 qconfig=LinearQConfig(
-                    act=QConfig(
-                        scope=QScope.PER_TENSOR,
-                        dtype=QDType.INT8,
-                        symmetric=False,
-                        method="minmax"
-                    ),
-                    weight=QConfig(
-                        scope=QScope.PER_CHANNEL,
-                        dtype=QDType.INT8,
-                        symmetric=True,
-                        method="minmax"
-                    )
+                    act=QConfig(scope=QScope.PER_TENSOR, dtype=QDType.INT8, symmetric=False, method="minmax"),
+                    weight=QConfig(scope=QScope.PER_CHANNEL, dtype=QDType.INT8, symmetric=True, method="minmax"),
                 ),
                 include=["*"],
-                exclude=[]
+                exclude=[],
             ),
         ],
         save=[
             AscendV1Config(type="ascendv1_saver", part_file_size=4),
         ],
-        dataset="mix_calib.jsonl"
+        dataset="mix_calib.jsonl",
     )
 
 
@@ -87,13 +77,14 @@ def _get_default_metadata():
 
 class StandingHighStrategyConfig(StrategyConfig):
     """摸高算法策略配置（V1框架）"""
+
     type: Literal["standing_high"] = "standing_high"
 
     anti_outlier_strategies: Annotated[List[AutoProcessorConfigList], AfterValidator(at_least_one_element)]
 
     template: ModelslimV1ServiceConfig = Field(
         default_factory=_create_default_template,
-        description="完整的PracticeConfig模板，用于提取所有配置（包括线性层量化）。如果未提供，将使用默认的V1模板"
+        description="完整的PracticeConfig模板，用于提取所有配置（包括线性层量化）。如果未提供，将使用默认的V1模板",
     )
 
     metadata: Metadata = Field(default_factory=_get_default_metadata)
@@ -101,11 +92,11 @@ class StandingHighStrategyConfig(StrategyConfig):
     @model_validator(mode='after')
     def validate_template_has_linear_quant(self):
         """校验template中至少有一个linear_quant配置"""
-        linear_quant_count = sum(
-            1 for proc in self.template.process if isinstance(proc, LinearProcessorConfig))
+        linear_quant_count = sum(1 for proc in self.template.process if isinstance(proc, LinearProcessorConfig))
         if linear_quant_count < 1:
-            raise SchemaValidateError(f"template_practice must contain at least one linear_quant processor, "
-                                      f"found {linear_quant_count}")
+            raise SchemaValidateError(
+                f"template_practice must contain at least one linear_quant processor, found {linear_quant_count}"
+            )
         return self
 
 
@@ -114,16 +105,16 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
     def __init__(self, config: StandingHighStrategyConfig, dataset_loader: DatasetLoaderInfra, **kwargs):
         self.config = config
         self.__counter = 0
+        self._current_index = 0
         self._analysis_layer_scores: List[Dict[str, Any]] = []
         super().__init__(config, dataset_loader, **kwargs)
 
-    def generate_practice(self,
-                          model: IModel,
-                          device: DeviceType = DeviceType.NPU,
-                          ) -> Generator[PracticeConfig, Optional[EvaluateResult], None]:
+    def generate_practice(
+        self,
+        model: IModel,
+        device: DeviceType = DeviceType.NPU,
+    ) -> Generator[PracticeConfig, Optional[EvaluateResult], None]:
         """生成实践配置（V1框架）"""
-        if not isinstance(model, StandingHighInterface):
-            raise UnsupportedError(f"model must be StandingHighInterface, got {type(model)}")
         if not isinstance(model, PipelineInterface):
             raise UnsupportedError(
                 f"model must implement PipelineInterface for sensitivity analysis, got {type(model)}"
@@ -132,12 +123,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         # 每次生成时重置计数器
         self.__counter = 0
 
-        loaded_model = model.load_model(device=device)
-
         self._run_sensitive_layer_analysis(model=model, device=device)
-
-        # 释放显存
-        loaded_model.to('meta')
 
         zero_evaluation = yield self._build_practice_config(self.config.anti_outlier_strategies[0], [])
 
@@ -187,12 +173,12 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         return [row["name"] for row in topk if "name" in row]
 
     def _build_practice_config(
-            self,
-            anti_outlier_processors: AutoProcessorConfigList,
-            linear_quant_exclude: List[str],
+        self,
+        anti_outlier_processors: AutoProcessorConfigList,
+        linear_quant_exclude: List[str],
     ) -> PracticeConfig:
         """构建PracticeConfig：离群值抑制processors放在最前面，然后拼接模板中的所有processors
-        
+
         将回退层写入所有 linear_quant 的 exclude。
         """
         process: AutoProcessorConfigList = list(anti_outlier_processors)
@@ -201,7 +187,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         # 回退层名改为通配符形式，敏感层分析结果："model.layers.2" 改为 "*model.layers.2.*"，
         wildcard_excludes = [f"*{name}.*" for name in linear_quant_exclude]
         wildcard_excludes = list(dict.fromkeys(wildcard_excludes))
-        
+
         # 为每个 linear_quant 分配回退层
         for proc in template.process:
             if isinstance(proc, LinearProcessorConfig):
@@ -213,13 +199,12 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
                 else:
                     to_add = wildcard_excludes
                 exclude_list.extend(to_add)
-                
-                process.append(LinearProcessorConfig(
-                    type="linear_quant",
-                    qconfig=proc.qconfig,
-                    include=proc.include,
-                    exclude=exclude_list
-                ))
+
+                process.append(
+                    LinearProcessorConfig(
+                        type="linear_quant", qconfig=proc.qconfig, include=proc.include, exclude=exclude_list
+                    )
+                )
             else:
                 process.append(proc)
 
@@ -230,10 +215,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         return PracticeConfig(
             apiversion="modelslim_v1",
             spec=ModelslimV1ServiceConfig(
-                runner=template.runner,
-                process=process,
-                save=template.save,
-                dataset=template.dataset
+                runner=template.runner, process=process, save=template.save, dataset=template.dataset
             ),
             metadata=Metadata(
                 config_id=new_config_id,
@@ -242,7 +224,7 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
         )
 
     def _find_satisfied_disable_level(
-            self,
+        self,
     ) -> Generator[PracticeConfig, Optional[EvaluateResult], int]:
         """二分搜索找到满足需求的最小disable level（zero_evaluation一定不满足，所以从level 1开始）"""
         min_level, max_level = 1, len(self._analysis_layer_scores)
@@ -253,8 +235,8 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
             get_logger().debug("Trying disable level: %r, exclude: %r", mid, exclude_names)
 
             evaluation: EvaluateResult = yield self._build_practice_config(
-                self.config.anti_outlier_strategies[0],
-                exclude_names)
+                self.config.anti_outlier_strategies[0], exclude_names
+            )
 
             if evaluation.is_satisfied:
                 max_level = mid
@@ -266,17 +248,14 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
 
     def _permute(self) -> Generator[AutoProcessorConfigList, None, None]:
         """排列离群值抑制策略，具有记忆功能：从上次成功的策略开始遍历"""
-        if not hasattr(self, '_current_index'):
-            self._current_index = 0
-
         choices = self.config.anti_outlier_strategies
         for _ in range(len(choices)):
             yield choices[self._current_index]
             self._current_index = (self._current_index + 1) % len(choices)
 
     def _stand_high(
-            self,
-            init_disable_level: int,
+        self,
+        init_disable_level: int,
     ) -> Generator[PracticeConfig, Optional[EvaluateResult], None]:
         """执行摸高算法：逐步减少disable level，尝试不同的离群值抑制策略"""
         # 获得最小回退层级的量化配置
@@ -290,12 +269,14 @@ class StandingHighStrategy(BaseTuningStrategy, ITuningStrategy):
 
         while current_disable_level - reduce_level >= 0:
             exclude_names = self.select_layers_by_disable_level(current_disable_level - reduce_level)
-            get_logger().info("Current disable level: %r, try to reduce: %r",
-                              current_disable_level, reduce_level)
+            get_logger().info("Current disable level: %r, try to reduce: %r", current_disable_level, reduce_level)
 
             for anti_outlier_processors in self._permute():
-                get_logger().debug("Trying config: exclude=%r, anti_outlier=%r", exclude_names,
-                                   [p.type for p in anti_outlier_processors])
+                get_logger().debug(
+                    "Trying config: exclude=%r, anti_outlier=%r",
+                    exclude_names,
+                    [p.type for p in anti_outlier_processors],
+                )
                 practice = self._build_practice_config(anti_outlier_processors, exclude_names)
                 evaluation: EvaluateResult = yield practice
 

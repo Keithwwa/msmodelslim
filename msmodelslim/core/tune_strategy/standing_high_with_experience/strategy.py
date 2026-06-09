@@ -15,6 +15,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from typing import List, Literal, Optional, Generator
 
 from pydantic import Field, field_validator
@@ -30,14 +31,10 @@ from msmodelslim.core.tune_strategy.common.config_builder.expert_experience impo
     StructureConfig,
 )
 from msmodelslim.core.tune_strategy.interface import StrategyConfig, EvaluateResult
-from msmodelslim.core.tune_strategy.standing_high.strategy import (
-    StandingHighStrategy,
-    StandingHighStrategyConfig
-)
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
+from msmodelslim.core.tune_strategy.standing_high.strategy import StandingHighStrategy, StandingHighStrategyConfig
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface
 from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_with_experience_interface import (
-    StandingHighWithExperienceInterface
+    StandingHighWithExperienceInterface,
 )
 from msmodelslim.model import IModel
 from msmodelslim.processor.base import AutoSessionProcessor, AutoProcessorConfigList
@@ -47,14 +44,14 @@ from msmodelslim.utils.logging import logger_setter, get_logger
 
 class StandingHighWithExperienceStrategyConfig(StrategyConfig):
     """基于专家经验的摸高算法策略配置"""
+
     type: Literal["standing_high_with_experience"] = "standing_high_with_experience"
 
     structure_configs: List[StructureConfig] = Field(
         description="结构配置列表，每个配置包含结构类型和对应的 include/exclude，例如 [{'type': 'GQA', 'include': ['*self_attn*'], 'exclude': ['*kv_b_proj']}]（必填，无默认配置）"
     )
     quant_type: QuantType = Field(
-        default=QuantType.W8A8,
-        description="量化类型（QuantType 枚举），须在专家经验 supported_quant_types 范围内。"
+        default=QuantType.W8A8, description="量化类型（QuantType 枚举），须在专家经验 supported_quant_types 范围内。"
     )
 
     @field_validator("quant_type", mode="before")
@@ -75,13 +72,13 @@ class StandingHighWithExperienceStrategyConfig(StrategyConfig):
 class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
     """
     基于专家经验的摸高算法策略
-    
+
     使用组合关系，内部使用 StandingHighStrategy 来执行摸高算法。
     职责：
     1. 根据简化的配置利用专家经验生成完整的 StandingHighStrategyConfig
     2. 委托 StandingHighStrategy 执行实际的摸高算法
     """
-    
+
     def __init__(self, config: StrategyConfig, dataset_loader: DatasetLoaderInfra):
         super().__init__(config, dataset_loader)
 
@@ -90,9 +87,9 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
                 f"StandingHighWithExperienceStrategy requires StandingHighWithExperienceStrategyConfig, "
                 f"got {type(config)}"
             )
-        
+
         self.config: StandingHighWithExperienceStrategyConfig = config
-    
+
     def generate_practice(
         self,
         model: IModel,
@@ -100,23 +97,16 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
     ) -> Generator[PracticeConfig, Optional[EvaluateResult], None]:
         """
         生成实践配置
-        
+
         在首次调用时，根据原始配置生成完整的 StandingHighStrategyConfig，
         然后创建 StandingHighStrategy 实例并委托其执行摸高算法。
-        
+
         Note:
-        - 模型适配器需要实现 StandingHighWithExperienceInterface（本策略要求）
-        - 同时需要实现 StandingHighInterface + PipelineInterface（内部委托给 StandingHighStrategy，
-          且 standing_high 会执行敏感层分析 pipeline）
+        - 模型适配器需要实现 StandingHighWithExperienceInterface（离群值抑制能力探测需 load_model）
+        - 同时需要实现 PipelineInterface（敏感层分析 pipeline，与 ModelSlimPipelineInterfaceV1 相同）
         """
         if not isinstance(model, StandingHighWithExperienceInterface):
-            raise UnsupportedError(
-                f"model must be StandingHighWithExperienceInterface, got {type(model)}"
-            )
-        if not isinstance(model, StandingHighInterface):
-            raise UnsupportedError(
-                f"model must be StandingHighInterface (delegated by StandingHighWithExperienceStrategy), got {type(model)}"
-            )
+            raise UnsupportedError(f"model must be StandingHighWithExperienceInterface, got {type(model)}")
         if not isinstance(model, PipelineInterface):
             raise UnsupportedError(
                 f"model must implement PipelineInterface for sensitivity analysis, got {type(model)}"
@@ -125,26 +115,22 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
         structure_configs = self.config.structure_configs
         if structure_configs is None:
             get_logger().info("structure_configs not provided, attempting to auto-detect model structure from model")
-            structure_configs = self._auto_detect_structure_configs(model)
-            if structure_configs is None:
+            auto_detected = self._auto_detect_structure_configs(model)  # pylint: disable=assignment-from-none
+            if auto_detected is not None:
+                get_logger().info("Successfully auto-detected model structure")
+                structure_configs = auto_detected
+                self.config.structure_configs = structure_configs
+            else:
                 get_logger().warning(
                     "Auto-detect not implemented yet (interface reserved), using default structure configs."
                 )
                 structure_configs = self._get_default_structure_configs()
-            else:
-                get_logger().info("Successfully auto-detected model structure")
-                self.config.structure_configs = structure_configs
-        
+
         # 生成完整的基础配置
-        base_config = self._generate_base_config(
-            self.config, structure_configs, model=model
-        )
+        base_config = self._generate_base_config(self.config, structure_configs, model=model)
 
         # 创建 StandingHighStrategy 实例并委托其执行摸高算法
-        standing_high_strategy = StandingHighStrategy(
-            config=base_config,
-            dataset_loader=self.dataset_loader
-        )
+        standing_high_strategy = StandingHighStrategy(config=base_config, dataset_loader=self.dataset_loader)
 
         yield from standing_high_strategy.generate_practice(model, device)
 
@@ -169,9 +155,9 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
         quant_type_str = config.quant_type.value
 
         get_logger().info(
-            "Generating full config for standing_high_with_experience with "
-            "structure_configs=%s, quant_type=%s",
-            structure_configs, quant_type_str
+            "Generating full config for standing_high_with_experience with structure_configs=%s, quant_type=%s",
+            structure_configs,
+            quant_type_str,
         )
 
         builder = ExpertExperienceConfigBuilder()
@@ -193,15 +179,11 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
             len(search_space.anti_outlier_strategies or []),
         )
 
-        get_logger().info(
-            "Tuning search space (anti_outlier_strategies): %s", 
-            search_space.anti_outlier_strategies)
+        get_logger().info("Tuning search space (anti_outlier_strategies): %s", search_space.anti_outlier_strategies)
 
         anti_outlier_strategies = search_space.anti_outlier_strategies
         if model is not None:
-            anti_outlier_strategies = self._filter_supported_anti_outlier_strategies(
-                anti_outlier_strategies, model
-            )
+            anti_outlier_strategies = self._filter_supported_anti_outlier_strategies(anti_outlier_strategies, model)
             if not anti_outlier_strategies:
                 raise SchemaValidateError(
                     "No supported anti_outlier strategy left after filtering. "
@@ -212,13 +194,13 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
             type="standing_high",
             anti_outlier_strategies=anti_outlier_strategies,
             template=quant_config.spec,
-            metadata=quant_config.metadata
+            metadata=quant_config.metadata,
         )
 
     def _filter_supported_anti_outlier_strategies(
         self,
         strategies: List[AutoProcessorConfigList],
-        model: IModel,
+        model: StandingHighWithExperienceInterface,
     ) -> List[AutoProcessorConfigList]:
         """
         过滤出当前模型支持的离群值抑制策略。
@@ -262,24 +244,24 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
     def _auto_detect_structure_configs(self, model: IModel) -> Optional[List[StructureConfig]]:
         """
         自动检测模型结构配置
-        
+
         根据模型适配器自动识别结构类型并生成对应的配置。
-        
+
         Args:
             model: 模型适配器对象，可以通过 model.load_model() 等方法访问模型结构
-            
+
         Returns:
             如果成功检测到模型结构，返回结构配置列表；否则返回 None
         """
         # 暂未实现，保留接口
         return None
-    
+
     def _get_default_structure_configs(self) -> List[StructureConfig]:
         """
         获取默认的结构配置
-        
+
         默认配置不区分模型结构，对所有层统一应用量化配置。
-        
+
         Returns:
             默认结构配置列表
         """
@@ -287,7 +269,7 @@ class StandingHighWithExperienceStrategy(BaseTuningStrategy, ITuningStrategy):
             StructureConfig(
                 type="MHA",  # 使用MHA作为通用结构类型，对所有层应用w8a8量化
                 include=["*"],  # 匹配所有层
-                exclude=[]  # 不排除任何层
+                exclude=[],  # 不排除任何层
             )
         ]
 

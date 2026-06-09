@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from typing import Any, List, Generator
 
 from torch import nn
@@ -32,20 +33,26 @@ from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.utils.security.model import SafeGenerator
 from ..common.layer_wise_forward import generated_decoder_layer_visit_func, transformers_generated_forward_func
 from ..default.model_adapter import DefaultModelAdapter
-from ..interface_hub import ModelInfoInterface, ModelSlimPipelineInterfaceV0, ModelSlimPipelineInterfaceV1, \
-    AnalyzePipelineInterface, IterSmoothInterface
+from ..interface_hub import (
+    ModelInfoInterface,
+    ModelSlimPipelineInterfaceV0,
+    ModelSlimPipelineInterfaceV1,
+    StandingHighWithExperienceInterface,
+    IterSmoothInterface,
+)
 
 
 @logger_setter()
-class QwqModelAdapter(DefaultModelAdapter,
-                      ModelInfoInterface,
-                      ModelSlimPipelineInterfaceV0,
-                      ModelSlimPipelineInterfaceV1,
-                      AnalyzePipelineInterface,
-                      IterSmoothInterface,
-                      QuaRotInterface,
-                      LAOSOnlineRotationInterface,
-                      ):
+class QwqModelAdapter(  # pylint: disable=too-many-ancestors
+    DefaultModelAdapter,
+    ModelInfoInterface,
+    ModelSlimPipelineInterfaceV0,
+    ModelSlimPipelineInterfaceV1,
+    StandingHighWithExperienceInterface,
+    IterSmoothInterface,
+    QuaRotInterface,
+    LAOSOnlineRotationInterface,
+):
     def get_model_type(self) -> str:
         return self.model_type
 
@@ -61,20 +68,16 @@ class QwqModelAdapter(DefaultModelAdapter,
             use_fast=False,
             legacy=False,
             padding_side='left',
-            pad_token='<|extra_0|>',
-            eos_token='<|endoftext|>',
-            trust_remote_code=trust_remote_code)
+            pad_token='<|extra_0|>',  # nosec B106
+            eos_token='<|endoftext|>',  # nosec B106
+            trust_remote_code=trust_remote_code,
+        )
 
     def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> List[Any]:
         return self._get_tokenized_data(dataset, device)
 
-    def handle_dataset_by_batch(self,
-                                dataset: Any,
-                                batch_size: int,
-                                device: DeviceType = DeviceType.NPU) -> List[Any]:
-        return self._get_batch_tokenized_data(calib_list=dataset,
-                                              batch_size=batch_size,
-                                              device=device)
+    def handle_dataset_by_batch(self, dataset: Any, batch_size: int, device: DeviceType = DeviceType.NPU) -> List[Any]:
+        return self._get_batch_tokenized_data(calib_list=dataset, batch_size=batch_size, device=device)
 
     def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
         return self._load_model(device)
@@ -82,8 +85,11 @@ class QwqModelAdapter(DefaultModelAdapter,
     def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
         yield from generated_decoder_layer_visit_func(model)
 
-    def generate_model_forward(self, model: nn.Module, inputs: Any,
-                               ) -> Generator[ProcessRequest, Any, None]:
+    def generate_model_forward(
+        self,
+        model: nn.Module,
+        inputs: Any,
+    ) -> Generator[ProcessRequest, Any, None]:
         yield from transformers_generated_forward_func(model, inputs)
 
     def enable_kv_cache(self, model: nn.Module, need_kv_cache: bool) -> None:
@@ -98,20 +104,26 @@ class QwqModelAdapter(DefaultModelAdapter,
 
         get_logger().warning('head_dim is not found in config.json, use hidden_size // num_attention_heads instead')
         if not hasattr(self.config, 'hidden_size'):
-            raise InvalidModelError("hidden_size is not found in config.json",
-                                    action="Please check the model config.json")
+            raise InvalidModelError(
+                "hidden_size is not found in config.json", action="Please check the model config.json"
+            )
         if not hasattr(self.config, 'num_attention_heads'):
-            raise InvalidModelError("num_attention_heads is not found in config.json",
-                                    action="Please check the model config.json")
+            raise InvalidModelError(
+                "num_attention_heads is not found in config.json", action="Please check the model config.json"
+            )
         if self.config.num_attention_heads == 0:
-            raise InvalidModelError("num_attention_heads is 0 in config.json, which should be greater than 0",
-                                    action="Please check the model config.json")
+            raise InvalidModelError(
+                "num_attention_heads is 0 in config.json, which should be greater than 0",
+                action="Please check the model config.json",
+            )
         return self.config.hidden_size // self.config.num_attention_heads
 
     def get_num_attention_heads(self):
         if not hasattr(self.config, 'num_attention_heads'):
-            raise InvalidModelError("num_attention_heads is not found in config.json",
-                                    action=f"Please check config.json in {self.model_path}")
+            raise InvalidModelError(
+                "num_attention_heads is not found in config.json",
+                action=f"Please check config.json in {self.model_path}",
+            )
         return self.config.num_attention_heads
 
     def get_layer_wise_ov_pair(self, decoder_module: nn.Module):
@@ -153,25 +165,27 @@ class QwqModelAdapter(DefaultModelAdapter,
                 targets=[f"model.layers.{layer_idx}.mlp.down_proj"],
             )
 
-            adapter_config.extend([
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=norm_linear_mapping_config1,
-                ),
-                AdapterConfig(
-                    subgraph_type="norm-linear",
-                    mapping=norm_linear_mapping_config2,
-                ),
-                AdapterConfig(
-                    subgraph_type="up-down",
-                    mapping=up_down_mapping_config,
-                ),
-            ])
+            adapter_config.extend(
+                [
+                    AdapterConfig(
+                        subgraph_type="norm-linear",
+                        mapping=norm_linear_mapping_config1,
+                    ),
+                    AdapterConfig(
+                        subgraph_type="norm-linear",
+                        mapping=norm_linear_mapping_config2,
+                    ),
+                    AdapterConfig(
+                        subgraph_type="up-down",
+                        mapping=up_down_mapping_config,
+                    ),
+                ]
+            )
         return adapter_config
 
     def get_rotate_map(self, block_size):
         pre_run, rot_pairs, _, _ = qwq_get_rotate_map(self.config, block_size)
-        return [pre_run], [pair for pair in rot_pairs.values()]
+        return [pre_run], list(rot_pairs.values())
 
 
 def qwq_get_ln_fuse_map(config):
@@ -180,12 +194,11 @@ def qwq_get_ln_fuse_map(config):
         ln_linear_map[f"model.layers.{layer_idx}.input_layernorm"] = [
             f"model.layers.{layer_idx}.self_attn.q_proj",
             f"model.layers.{layer_idx}.self_attn.k_proj",
-            f"model.layers.{layer_idx}.self_attn.v_proj"
+            f"model.layers.{layer_idx}.self_attn.v_proj",
         ]
 
         ln_linear_map[f"model.layers.{layer_idx}.post_attention_layernorm"] = [
-            f"model.layers.{layer_idx}.mlp.{proj}"
-            for proj in ["gate_proj", "up_proj"]
+            f"model.layers.{layer_idx}.mlp.{proj}" for proj in ["gate_proj", "up_proj"]
         ]
     ln_linear_map["model.norm"] = ['lm_head']
     return ln_linear_map

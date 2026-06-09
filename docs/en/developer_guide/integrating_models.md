@@ -2,9 +2,9 @@
 
 ## Overview
 
-This document is for developers who need to integrate custom models into msModelSlim. 
-msModelSlim recognizes that quantization mechanisms and algorithms each have their own applicable scope and limitations, and that new model architectures keep emerging, so no quantization method works in every case. 
-To simplify quantization for custom models as much as possible, msModelSlim extracts the model conditions required by quantization mechanisms and algorithms and expresses them as interfaces. 
+This document is for developers who need to integrate custom models into msModelSlim.
+msModelSlim recognizes that quantization mechanisms and algorithms each have their own applicable scope and limitations, and that new model architectures keep emerging, so no quantization method works in every case.
+To simplify quantization for custom models as much as possible, msModelSlim extracts the model conditions required by quantization mechanisms and algorithms and expresses them as interfaces.
 A model adapter describes the model. It combines interface implementations and enables quantization for a custom model by implementing the interfaces required by different mechanisms and algorithms.
 
 ## Concepts
@@ -32,7 +32,7 @@ You are advised to place it in [`msmodelslim/model/`](https://gitcode.com/Ascend
 ### Identifying the Components Involved in the Quantization Process and Define the Adapter Class by Combining Component Interfaces
 
 The model adapter class must inherit from [`BaseModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/base.py).
-   
+
 Based on experience, W8A8 dynamic quantization usually causes only a small accuracy loss, so it does not need an outlier suppression algorithm and rarely requires fallback. Therefore, in the scenario example, we only need to support quantization scheduling. We do not need outlier quantization, sensitive-layer analysis, or other extra functions. If you need to integrate other algorithms, refer to [`Algorithm Overview`](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/quantization_algorithms/)
 
 ```python
@@ -120,6 +120,23 @@ qwen3_next = msmodelslim.model.qwen3_next.model_adapter:Qwen3NextModelAdapter
 wan2_2 = msmodelslim.model.wan2_2.model_adapter:Wan2Point2Adapter
 ```
 
+## Automatic Tuning and Sensitivity Analysis
+
+When using [automatic tuning](../feature_guide/auto_precision_tuning/usage.md) and the strategy must **automatically build rollback candidates** (`standing_high` always; `standing_high_with_experience` delegates to Standing High), the model adapter must implement **`ModelSlimPipelineInterfaceV1`**:
+
+```python
+from msmodelslim.model.interface_hub import ModelSlimPipelineInterfaceV1
+```
+
+This is the same protocol as the CLI **`msmodelslim analyze`** command and `PipelineAnalysisService`. Implement `init_model`, `handle_dataset`, `generate_model_visit`, `generate_model_forward`, and related pipeline methods. Tuning strategies invoke them via `PipelineAnalysisService`; the strategy **does not** call `load_model` upfront.
+
+| Tuning strategy | Sensitivity analysis | Extra interface |
+|-----------------|----------------------|-----------------|
+| `standing_high` | Always automatic | None |
+| `standing_high_with_experience` | Delegated to Standing High | **`StandingHighWithExperienceInterface`** (`load_model`, outlier suppression probe); inherit **`ModelSlimPipelineInterfaceV1`** separately |
+
+See [Automatic Tuning Configuration Protocol](../feature_guide/auto_precision_tuning/configuration_protocols.md) and each strategy algorithm document.
+
 ## Quantization of Self-Owned Models
 
 After you finish writing and registering the model adapter, you can use quick quantization to quantize the model.
@@ -134,14 +151,14 @@ spec:
       qconfig:
         act: # Activation quantization
           scope: "per_token" # Dynamic quantization
-          dtype: "int8" # 8-bit integer quantization     
+          dtype: "int8" # 8-bit integer quantization
           symmetric: True # Symmetric quantization
           method: "minmax" # Use the minmax algorithm.
         weight: # Weight quantization
           scope: "per_channel" # per_channel quantization
           dtype: "int8" # 8-bit integer quantization
-          symmetric: True # Symmetric quantization     
-          method: "minmax" # Use the minmax algorithm.    
+          symmetric: True # Symmetric quantization
+          method: "minmax" # Use the minmax algorithm.
       include: [ "*" ] # Global W8A8 dynamic quantization
       exclude: [ "down_proj" ] # Fall back to the down_proj layer.
 

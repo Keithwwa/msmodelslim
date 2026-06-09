@@ -40,7 +40,6 @@ from msmodelslim.core.quant_service.multimodal_sd_v1.legacy_pipeline_interface i
 from msmodelslim.core.quant_service.multimodal_sd_v1.pipeline_interface import MultimodalPipelineInterface
 from msmodelslim.core.runner.optional_interface import LayerWiseOffloadOptionalInterface
 from msmodelslim.core.runner.pipeline_interface import PipelineInterface as ModelSlimPipelineInterfaceV1
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_with_experience_interface import (
     StandingHighWithExperienceInterface,
 )
@@ -55,9 +54,6 @@ from msmodelslim.processor.anti_outlier.smooth_quant.interface import SmoothQuan
 from msmodelslim.processor.kv_smooth import KVSmoothFusedInterface
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface, FA3QuantPlaceHolder
 from msmodelslim.processor.quarot import LAOSOnlineRotationInterface, OnlineQuaRotInterface, QuaRotInterface
-
-
-class AnalyzePipelineInterface(StandingHighInterface, StandingHighWithExperienceInterface): ...
 
 
 class ModelInfoInterface(nami, atmi): ...
@@ -75,7 +71,6 @@ __all__ = [
     'IModel',  # Necessary, including model_type, model_path, trust_remote_code, etc.
     # app interface
     'ModelInfoInterface',  # For Naive Quantization, get model info from model.
-    'AnalyzePipelineInterface',  # For Analysis, describing the pipeline of model inference.
     # analysis_method interface
     'AttentionAnalysisInterface',  # For Attention Analysis, describing the attention structure of model.
     # algorithm interface
@@ -90,8 +85,7 @@ __all__ = [
     'MultimodalPipelineInterface',  # 多模态生成量化 pipeline（当前标准接口）。
     'ModelSlimPipelineInterfaceV1',  # For ModelSlim V1 quant service, describing the pipeline of model inference.
     'LayerWiseOffloadOptionalInterface',  # Optional interface for layer-wise runner offload customization.
-    'StandingHighInterface',  # For Standing High strategy, describing the pipeline of model inference.
-    'StandingHighWithExperienceInterface',  # For Standing High with Experience strategy, describing the pipeline of model inference.
+    'StandingHighWithExperienceInterface',  # For standing_high_with_experience anti_outlier capability probe.
     # FA3 activation quantization interface
     'FA3QuantAdapterInterface',  # For FA3 activation quantization, inject placeholders.
     'FA3QuantPlaceHolder',  # For FA3 activation quantization, placeholders.

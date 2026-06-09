@@ -41,7 +41,6 @@ from msmodelslim.core.tune_strategy.standing_high_with_experience.standing_high_
     StandingHighWithExperienceInterface,
 )
 from msmodelslim.format.ascendV1_format.ascendV1 import AscendV1QuantFormatConfig
-from msmodelslim.core.tune_strategy.standing_high.standing_high_interface import StandingHighInterface
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 
 
@@ -59,8 +58,8 @@ def _patch_expert_builder_spec_save(monkeypatch):
     )
 
 
-class _MockModel(StandingHighWithExperienceInterface, StandingHighInterface, PipelineInterface):
-    """Mock model implementing StandingHighWithExperienceInterface."""
+class _MockModel(StandingHighWithExperienceInterface, PipelineInterface):
+    """Mock model implementing StandingHighWithExperienceInterface and PipelineInterface."""
 
     @property
     def model_type(self):

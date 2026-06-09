@@ -27,6 +27,12 @@ Standing High With Experience combines **configuration simplification** with **e
 
 **Inference engine and fallback support**: Consistent with Standing High, ensure the inference engine (such as vLLM-Ascend) supports quantization fallback. When hybrid operators are used, arbitrary fallback may not be supported. Please confirm based on the actual environment.
 
+**Model adapter**:
+
+- Implement **`ModelSlimPipelineInterfaceV1`** (automatic sensitivity analysis, delegated to Standing High) and **`StandingHighWithExperienceInterface`** (`load_model` only, to filter unsupported outlier suppression strategies).
+- Typical adapter declaration: inherit **`StandingHighWithExperienceInterface`** (`load_model` probe) **and** **`ModelSlimPipelineInterfaceV1`** (sensitivity analysis and quantization pipeline).
+- Sensitivity analysis does not call `load_model` in the strategy layer; see [Automatic Tuning Configuration Protocol](../../feature_guide/auto_precision_tuning/configuration_protocols.md#strategy---tuning-strategy-configuration) and [Integrating LLM Models — Automatic Tuning and Sensitivity Analysis](../../developer_guide/integrating_models.md#automatic-tuning-and-sensitivity-analysis).
+
 ## Function Description
 
 ### Usage Description

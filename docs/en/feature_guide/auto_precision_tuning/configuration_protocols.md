@@ -44,7 +44,20 @@ evaluation:
 
 **Type**: `string`
 
-**Value**: Determined by the currently implemented tuning strategy. Valid values: `standing_high` or `standing_high_with_experience`.
+**Value**: Determined by the currently implemented tuning strategy. Valid values: `standing_high`, `standing_high_with_experience`.
+
+**Model adapter (by strategy)**
+
+When a tuning strategy needs **automatic layer sensitivity analysis** (to build rollback candidates), the model adapter must implement **`ModelSlimPipelineInterfaceV1`** (`PipelineInterface` in `core/runner/pipeline_interface.py`, consistent with the CLI `msmodelslim analyze` command and [Sensitive Layer Analysis](../sensitive_layer_analysis/usage.md)). The strategy calls `PipelineAnalysisService`, which invokes `init_model`, `handle_dataset`, and visit/forward pipeline methods; the strategy **does not** call `load_model` upfront.
+
+**Additional** requirements per strategy:
+
+| Strategy | Model adapter requirement |
+|----------|-------------------------|
+| `standing_high` | **`ModelSlimPipelineInterfaceV1`** (always runs automatic sensitivity analysis) |
+| `standing_high_with_experience` | Above + **`StandingHighWithExperienceInterface`** (`load_model`, outlier suppression capability probe) |
+
+See each strategy document and [Integrating LLM Models](../../developer_guide/integrating_models.md#automatic-tuning-and-sensitivity-analysis).
 
 **Strategy-specific Fields**
 

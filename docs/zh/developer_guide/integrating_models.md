@@ -2,9 +2,9 @@
 
 ## 简介
 
-本文档面向需要将自有模型接入 msModelSlim 的开发者。  
-msModelSlim认识到量化机制和算法都有适用范围和局限性，而新的模型结构层出不穷，不存在一劳永逸的模型量化方法。  
-为了尽可能简化自有模型量化流程，msModelSlim将量化机制和算法生效所依赖的模型条件抽取出来，以接口形式描述。  
+本文档面向需要将自有模型接入 msModelSlim 的开发者。
+msModelSlim认识到量化机制和算法都有适用范围和局限性，而新的模型结构层出不穷，不存在一劳永逸的模型量化方法。
+为了尽可能简化自有模型量化流程，msModelSlim将量化机制和算法生效所依赖的模型条件抽取出来，以接口形式描述。
 模型则以模型适配器描述，模型适配器是接口实现的组合，通过实现各式各样的机制和算法等组件的接口打通自有模型的量化过程。
 
 ## 概念说明
@@ -32,7 +32,7 @@ msModelSlim认识到量化机制和算法都有适用范围和局限性，而新
 ### 理清量化过程涉及的组件，以组件接口组合定义适配器类
 
 模型适配器类必须继承自[`BaseModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/base.py)。
-   
+
 根据经验，W8A8动态量化的精度损失很小，无需搭配离群值抑制算法，也很少需要回退；因此，在场景示例中，我们仅需支持量化调度，无需支持离群值量化、敏感层分析等额外功能。需要接入其他算法可以参考[`算法总览`](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/quantization_algorithms/)
 
 ```python
@@ -120,6 +120,23 @@ qwen3_next = msmodelslim.model.qwen3_next.model_adapter:Qwen3NextModelAdapter
 wan2_2 = msmodelslim.model.wan2_2.model_adapter:Wan2Point2Adapter
 ```
 
+## 自动调优与敏感层分析
+
+使用 [自动调优](../feature_guide/auto_precision_tuning/usage.md) 且策略需**自动生成回退候选**时（`standing_high` 始终；`standing_high_with_experience` 委托 Standing High 执行），模型适配器须实现 **`ModelSlimPipelineInterfaceV1`**：
+
+```python
+from msmodelslim.model.interface_hub import ModelSlimPipelineInterfaceV1
+```
+
+该接口与 CLI **`msmodelslim analyze`** 及 `PipelineAnalysisService` 的模型协议相同，需实现 `init_model`、`handle_dataset`、`generate_model_visit`、`generate_model_forward` 等方法。调优策略内由 `PipelineAnalysisService` 调用上述方法，**不会在策略侧预先 `load_model`**。
+
+| 调优策略 | 敏感层分析 | 额外接口 |
+|----------|------------|----------|
+| `standing_high` | 始终自动运行 | 无 |
+| `standing_high_with_experience` | 委托 Standing High | **`StandingHighWithExperienceInterface`**（`load_model`，离群值抑制能力探测）；**`ModelSlimPipelineInterfaceV1` 须单独继承** |
+
+详见 [自动调优配置协议说明](../feature_guide/auto_precision_tuning/configuration_protocols.md) 及各策略算法文档。
+
 ## 量化自有模型
 
 当完成模型适配器的编写与注册后，即可使用一键量化能力对自有模型进行量化。
@@ -134,14 +151,14 @@ spec:
       qconfig:
         act: # 激活值量化
           scope: "per_token" # 动态量化
-          dtype: "int8" # 8比特整数量化      
+          dtype: "int8" # 8比特整数量化
           symmetric: True # 对称量化
           method: "minmax" # 使用minmax算法
         weight: # 权重量化
           scope: "per_channel" # per_channel量化
           dtype: "int8" # 8比特整数量化
-          symmetric: True # 对称量化      
-          method: "minmax" # 使用minmax算法     
+          symmetric: True # 对称量化
+          method: "minmax" # 使用minmax算法
       include: [ "*" ] # 全局w8a8动态量化
       exclude: [ "*down_proj*" ] # 回退down_proj层
 

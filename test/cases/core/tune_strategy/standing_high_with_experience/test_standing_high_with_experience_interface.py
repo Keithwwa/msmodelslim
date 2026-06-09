@@ -42,20 +42,12 @@ class _StandingHighWithExperienceModel(StandingHighWithExperienceInterface):
     def trust_remote_code(self):
         return False
 
-    def handle_dataset(self, dataset, device=DeviceType.NPU):
-        return list(dataset) if dataset else []
-
     def load_model(self, device=DeviceType.NPU):
         return pytest.importorskip("torch").nn.Linear(2, 2)
 
 
 class TestStandingHighWithExperienceInterface:
     """Tests for StandingHighWithExperienceInterface abstract contract."""
-
-    def test_handle_dataset_returns_list_when_implemented(self):
-        """场景：子类实现 handle_dataset。预期：返回处理后的列表。"""
-        model = _StandingHighWithExperienceModel()
-        assert model.handle_dataset([1, 2]) == [1, 2]
 
     def test_load_model_returns_module_when_implemented(self):
         """场景：子类实现 load_model。预期：返回 nn.Module。"""
@@ -82,7 +74,7 @@ class TestStandingHighWithExperienceInterface:
         with pytest.raises(TypeError):
             IncompleteModel()  # pylint: disable=abstract-class-instantiated
 
-    def test_declares_handle_dataset_and_load_model_as_abstract(self):
-        """场景：检查接口定义。预期：handle_dataset 与 load_model 为抽象方法。"""
-        assert "handle_dataset" in StandingHighWithExperienceInterface.__abstractmethods__
+    def test_declares_load_model_as_abstract(self):
+        """场景：检查接口定义。预期：load_model 为抽象方法。"""
         assert "load_model" in StandingHighWithExperienceInterface.__abstractmethods__
+        assert "handle_dataset" not in StandingHighWithExperienceInterface.__abstractmethods__
