@@ -28,7 +28,7 @@ from typing import Dict
 import torch
 from safetensors.torch import save_file
 
-from msmodelslim.utils.security import get_valid_write_path, SafeWriteUmask, get_write_directory, json_safe_dump
+from msmodelslim.utils.security import get_valid_write_path, get_write_directory, json_safe_dump
 
 ONE_GB_FILE_BYTES = 1073741824  # 1G, 1 * 1024 * 1024 * 1024
 FILE_TMP_SUFFIX = '-of-00000.safetensors'
@@ -50,8 +50,7 @@ class SafetensorsWriter:
         self.safetensors_weight[key] = value.cpu().contiguous()
 
     def close(self):
-        with SafeWriteUmask(umask=0o377):
-            save_file(self.safetensors_weight, self.file_path)
+        save_file(self.safetensors_weight, self.file_path)
         self.logger.info(f'Save safetensors to {self.file_path} successfully')
 
 
@@ -76,7 +75,7 @@ class BufferedSafetensorsWriter(SafetensorsWriter):
 
     @save_directory.setter
     def save_directory(self, value: str) -> None:
-        self._save_directory = get_write_directory(value, write_mode=0o750)
+        self._save_directory = get_write_directory(value)
 
     def save_index(self):
         # process safetensors index json
@@ -136,8 +135,7 @@ class BufferedSafetensorsWriter(SafetensorsWriter):
         full_save_file_name = get_valid_write_path(full_save_file_name, extensions=[".safetensors"])
 
         self.logger.debug(f"Start save {full_save_file_name}")
-        with SafeWriteUmask(umask=0o377):
-            save_file(tensors_to_save, full_save_file_name)
+        save_file(tensors_to_save, full_save_file_name)
         self.saved_keys_map.update({key: save_file_name for key in self.wait_save_keys})
         self.wait_save_keys.clear()
         self._wait_save_size = 0

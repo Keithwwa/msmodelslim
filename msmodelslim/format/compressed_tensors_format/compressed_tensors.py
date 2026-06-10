@@ -46,7 +46,6 @@ from msmodelslim.format.compressed_tensors_format.quantization.quant_config impo
 from msmodelslim.format.interface import ExportContext
 from msmodelslim.utils.exception import ConfigError, InvalidModelError, SchemaValidateError
 from msmodelslim.utils.security import (
-    SafeWriteUmask,
     get_valid_read_path,
     get_valid_write_path,
     safe_copy_file,
@@ -188,8 +187,7 @@ class CompressedTensorsQuantFormat(QuantFormatBase):
             ori_file = os.path.join(input_path, file)
             dest_file = os.path.join(output_path, file)
             set_file_stat(dest_file, "600")
-            with SafeWriteUmask(umask=_WRITE_UMASK):
-                safe_copy_file(src_path=ori_file, dest_path=dest_file)
+            safe_copy_file(src_path=ori_file, dest_path=dest_file)
             set_file_stat(dest_file, "600")
 
     def _update_config_json(self, model: nn.Module) -> None:

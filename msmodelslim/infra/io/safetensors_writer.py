@@ -35,7 +35,7 @@ from msmodelslim.format.compressed_tensors_format.compressed_tensors_safetensors
 from msmodelslim.format.mindie_format.mindie_tensors_writer_factory_infra import (
     MindIESafetensorsWriterInfra,
 )
-from msmodelslim.utils.security import SafeWriteUmask, get_valid_write_path
+from msmodelslim.utils.security import get_valid_write_path
 
 
 class SafetensorsWriter(
@@ -53,8 +53,7 @@ class SafetensorsWriter(
         self.safetensors_weight[key] = value.cpu().contiguous()
 
     def close(self) -> None:
-        with SafeWriteUmask(umask=0o377):
-            save_file(self.safetensors_weight, self.file_path)
+        save_file(self.safetensors_weight, self.file_path)
         self.logger.info(f"Save safetensors to {self.file_path} successfully")
 
 

@@ -18,12 +18,13 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from datetime import timedelta
 from pathlib import Path
 from typing import Union
 import re
 
-from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
+from msmodelslim.utils.exception import SchemaValidateError
 from msmodelslim.utils.security import get_valid_read_path, get_write_directory
 
 
@@ -74,19 +75,23 @@ def convert_to_readable_dir(obj: Union[str, Path], param_name="A readable dir") 
     if isinstance(obj, Path):
         obj = get_valid_read_path(str(obj), is_dir=True)
         return Path(obj)
-    raise SchemaValidateError(f"{param_name} must be a string or Path, but got {type(obj)}",
-                           action=f"Please ensure the input is a string or Path")
+    raise SchemaValidateError(
+        f"{param_name} must be a string or Path, but got {type(obj)}",
+        action="Please ensure the input is a string or Path",
+    )
 
 
 def convert_to_writable_dir(obj: Union[str, Path], param_name="A writable dir") -> Path:
     if isinstance(obj, str):
-        obj = get_write_directory(obj, write_mode=0o750)
+        obj = get_write_directory(obj)
         return Path(obj)
     if isinstance(obj, Path):
-        obj = get_write_directory(str(obj), write_mode=0o750)
+        obj = get_write_directory(str(obj))
         return Path(obj)
-    raise SchemaValidateError(f"{param_name} must be a string or Path, but got {type(obj)}",
-                           action=f"Please ensure the input is a string or Path")
+    raise SchemaValidateError(
+        f"{param_name} must be a string or Path, but got {type(obj)}",
+        action="Please ensure the input is a string or Path",
+    )
 
 
 def convert_to_readable_file(obj: Union[str, Path], param_name="A readable file") -> Path:
@@ -96,5 +101,7 @@ def convert_to_readable_file(obj: Union[str, Path], param_name="A readable file"
     if isinstance(obj, Path):
         obj = get_valid_read_path(str(obj), is_dir=False)
         return Path(obj)
-    raise SchemaValidateError(f"{param_name} must be a string or Path, but got {type(obj)}",
-                           action=f"Please ensure the input is a string or Path")
+    raise SchemaValidateError(
+        f"{param_name} must be a string or Path, but got {type(obj)}",
+        action="Please ensure the input is a string or Path",
+    )

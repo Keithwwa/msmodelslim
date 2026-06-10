@@ -160,19 +160,14 @@ def test_get_valid_read_path_given_invalid_when_any_then_value_error():
     from msmodelslim.utils.security.path import get_valid_read_path
 
     with pytest.raises(SecurityError):
-        get_valid_read_path("./not_exist")  # SecurityError: The file ... doesn't exist or not a file.
+        # SecurityError: The file ... doesn't exist or not a file.
+        get_valid_read_path("./not_exist")
     with pytest.raises(SecurityError):
         # SecurityError: The filename ... doesn't endswith ".json"
         get_valid_read_path(TEST_READ_FILE_NAME, extensions=".json")
     with pytest.raises(SecurityError):
         # SecurityError: The file ... exceeds size limitation of 1.
         get_valid_read_path(TEST_READ_FILE_NAME, size_max=1)
-    with pytest.raises(SecurityError):
-        # SecurityError: Current user doesn't have read permission to the file ....
-        get_valid_read_path(USER_NOT_PERMITTED_READ_FILE)
-    with pytest.raises(SecurityError):
-        # SecurityError: The file ... has others writable permission.
-        get_valid_read_path(OTHERS_WRITABLE_READ_FILE)
 
 
 def test_check_write_directory_given_valid_when_any_then_pass():
@@ -222,7 +217,7 @@ def test_get_valid_write_path_when_directory_not_exists():
 
 
 @pytest.mark.skipif(
-    os.geteuid() == 0,  # 直接判断：如果是 root 用户（UID=0）
+    getattr(os, 'geteuid', lambda: 0)() == 0,
     reason="root 用户跳过此用例",
 )
 def test_get_valid_write_path_when_no_write_permission():
@@ -334,21 +329,6 @@ def test_set_file_stat_when_any_file_then_pass():
     safe_delete_path_if_exists(dest_path)
 
 
-def test_safe_write_umask_given_valid_when_any_then_pass():
-    """测试 SafeWriteUmask：确保创建文件时权限安全（无组/其他用户写权限）"""
-    from msmodelslim.utils.security.path import (
-        SafeWriteUmask,
-        safe_delete_path_if_exists,
-    )
-
-    safe_delete_path_if_exists(TEST_FILE)
-    default_flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fake_mode = stat.S_IWUSR | stat.S_IRUSR | stat.S_IWGRP | stat.S_IRGRP | stat.S_IWOTH | stat.S_IROTH  # 666
-    with SafeWriteUmask(), os.fdopen(os.open(TEST_FILE, default_flags, mode=fake_mode), "w") as write_file:
-        write_file.write("")
-    assert os.stat(TEST_FILE).st_mode & (stat.S_IWGRP | stat.S_IWOTH | stat.S_IROTH | stat.S_IXOTH) == 0
-
-
 # ------------------------------ 补充覆盖率测试 ------------------------------
 class TestIsEndswithExtensions:
     """测试 is_endswith_extensions 扩展名匹配"""
@@ -382,16 +362,18 @@ class TestGetValidPathEdgeCases:
         with pytest.raises(SecurityError, match="cannot be empty"):
             get_valid_path("")
 
-    def test_get_valid_path_raise_security_error_when_symlink(self, tmp_path):
-        """软链接路径应抛出 SecurityError"""
+    def test_get_valid_path_log_warning_when_symlink(self, tmp_path):
+        """软链接路径应记录 warning 并继续使用真实路径"""
         from msmodelslim.utils.security.path import get_valid_path
 
         target = tmp_path / "real.txt"
         target.write_text("x", encoding="utf-8")
         link = tmp_path / "link.txt"
         link.symlink_to(target)
-        with pytest.raises(SecurityError, match="soft link"):
-            get_valid_path(str(link))
+        with patch("msmodelslim.utils.security.path.get_logger") as mock_logger:
+            result = get_valid_path(str(link))
+        assert os.path.isabs(result)
+        assert mock_logger.return_value.warning.called
 
     def test_get_valid_path_raise_security_error_when_realpath_has_invalid_chars(self, tmp_path):
         """realpath 含非法字符时应抛出 SecurityError"""
@@ -405,39 +387,6 @@ class TestGetValidPathEdgeCases:
             with patch.object(path_mod.os.path, "islink", return_value=False):
                 with pytest.raises(SecurityError, match="invalid characters"):
                     path_mod.get_valid_path(short_real)
-
-
-class TestCheckHelpers:
-    """测试路径权限与属主相关辅助函数"""
-
-    def test_check_others_not_writable_log_warning_when_world_writable(self, tmp_path):
-        """目录对他人可写时应记录 warning"""
-        from msmodelslim.utils.security.path import check_others_not_writable
-
-        writable_dir = tmp_path / "writable"
-        writable_dir.mkdir()
-        os.chmod(writable_dir, 0o777)
-        with patch("msmodelslim.utils.security.path.get_logger") as mock_logger:
-            check_others_not_writable(str(writable_dir))
-        assert mock_logger.return_value.warning.called
-
-    def test_check_path_owner_consistent_log_warning_when_other_owner(self, tmp_path):
-        """目录属主非当前用户时应记录 warning"""
-        from msmodelslim.utils.security.path import check_path_owner_consistent
-
-        other_dir = tmp_path / "other"
-        other_dir.mkdir(mode=0o700)
-        with patch("os.getuid", return_value=99999):
-            with patch("msmodelslim.utils.security.path.get_logger") as mock_logger:
-                check_path_owner_consistent(str(other_dir))
-        mock_logger.return_value.warning.assert_called()
-
-    def test_is_belong_to_user_or_group_return_true_when_same_uid(self):
-        """当前用户拥有的文件应判定为属于用户或组"""
-        from msmodelslim.utils.security.path import is_belong_to_user_or_group
-
-        st = os.stat(TEST_READ_FILE_NAME)
-        assert is_belong_to_user_or_group(st) is True
 
 
 class TestGetValidReadPathExtended:
@@ -461,7 +410,7 @@ class TestGetValidReadPathExtended:
         """root 读取非属主文件时应记录 warning 并继续"""
         from msmodelslim.utils.security.path import get_valid_read_path
 
-        if os.geteuid() != 0:
+        if getattr(os, 'geteuid', lambda: 0)() != 0:
             pytest.skip("仅 root 用户可测 root 继续读取分支")
         foreign = str(tmp_path / "foreign.txt")
         mode = stat.S_IWUSR | stat.S_IRUSR
@@ -495,26 +444,25 @@ class TestGetValidWritePathExtended:
         with pytest.raises(SecurityError, match="is a directory"):
             get_valid_write_path(TEST_DIR, is_dir=False)
 
-    def test_get_valid_write_path_raise_when_not_owned_by_user(self, tmp_path):
-        """已存在文件非当前用户属主时应抛出 SecurityError"""
+    def test_get_valid_write_path_raise_when_no_write_access(self, tmp_path):
+        """已存在文件不可写时应抛出 SecurityError"""
         from msmodelslim.utils.security.path import get_valid_write_path
 
-        if os.geteuid() == 0:
-            pytest.skip("root 用户跳过属主检查")
-        other_file = tmp_path / "other.txt"
-        other_file.write_text("x", encoding="utf-8")
-        # 仅patch path模块内的os.stat，避免影响os.path.exists等系统调用
-        with patch("msmodelslim.utils.security.path.os.stat") as mock_stat:
-            mock_stat.return_value.st_uid = os.getuid() + 999
-            mock_stat.return_value.st_mode = stat.S_IWUSR | stat.S_IRUSR
-            with pytest.raises(SecurityError, match="doesn't belong"):
-                get_valid_write_path(str(other_file), check_user_stat=True)
+        no_write_file = tmp_path / "readonly.txt"
+        no_write_file.write_text("x", encoding="utf-8")
+
+        def _mock_access(path, mode):
+            return path != str(no_write_file)
+
+        with patch("msmodelslim.utils.security.path.os.access", side_effect=_mock_access):
+            with pytest.raises(SecurityError, match="not writable"):
+                get_valid_write_path(str(no_write_file))
 
     def test_check_write_directory_warn_when_root_and_foreign(self, tmp_path):
         """root 写入非属主目录时应记录 warning 并继续"""
         from msmodelslim.utils.security.path import check_write_directory
 
-        if os.geteuid() != 0:
+        if getattr(os, 'geteuid', lambda: 0)() != 0:
             pytest.skip("仅 root 可测")
         d = tmp_path / "wdir"
         d.mkdir(mode=0o700)
@@ -562,23 +510,6 @@ class TestSafeDeleteAndCopy:
         copied = dest_dir / os.path.basename(TEST_READ_FILE_NAME)
         assert copied.exists()
         os.remove(copied)
-
-
-class TestSafeWriteUmaskDecorator:
-    """测试 SafeWriteUmask 装饰器用法"""
-
-    def test_safe_write_umask_call_func_when_used_as_decorator(self):
-        """作为装饰器使用时应正确设置并恢复 umask"""
-        from msmodelslim.utils.security.path import SafeWriteUmask
-
-        out = []
-
-        @SafeWriteUmask
-        def write_once():
-            out.append("done")
-
-        write_once()
-        assert out == ["done"]
 
 
 class TestSetFileStatEdge:

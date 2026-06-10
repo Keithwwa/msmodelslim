@@ -19,14 +19,6 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-"""
-msmodelslim.utils.validation.conversion 模块的单元测试
-
-要求：
-- 单测类继承 unittest.TestCase
-- 单测方法命名：test_xxx_return_yyy_when_zzzz
-"""
-
 from datetime import timedelta
 from pathlib import Path
 from unittest import TestCase
@@ -160,7 +152,7 @@ class TestConvertToWritableDir(TestCase):
 
         self.assertIsInstance(result, Path)
         self.assertTrue(result.as_posix().endswith("test/dir"))
-        mock_get_write_directory.assert_called_once_with("/test/dir", write_mode=0o750)
+        mock_get_write_directory.assert_called_once_with("/test/dir")
 
     @patch("msmodelslim.utils.validation.conversion.get_write_directory")
     def test_convert_to_writable_dir_return_path_when_input_is_path_object(self, mock_get_write_directory):
@@ -170,7 +162,7 @@ class TestConvertToWritableDir(TestCase):
 
         self.assertIsInstance(result, Path)
         self.assertTrue(result.as_posix().endswith("test/dir"))
-        mock_get_write_directory.assert_called_once_with(str(path_obj), write_mode=0o750)
+        mock_get_write_directory.assert_called_once_with(str(path_obj))
 
     def test_convert_to_writable_dir_raise_schema_validate_error_when_input_is_invalid_type(self):
         with self.assertRaises(SchemaValidateError) as cm:
@@ -215,5 +207,3 @@ class TestConvertToReadableFile(TestCase):
         msg = str(cm.exception)
         self.assertIn("A readable file must be a string or Path", msg)
         self.assertIn("<class 'dict'>", msg)
-
-

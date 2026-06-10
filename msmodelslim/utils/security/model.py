@@ -23,7 +23,7 @@ import json
 import os
 
 
-from msmodelslim.utils.exception import InvalidModelError, InvalidDatasetError
+from msmodelslim.utils.exception import InvalidModelError
 from msmodelslim.utils.exception_decorator import exception_handler
 from msmodelslim.utils.security import get_valid_read_path
 
@@ -37,44 +37,50 @@ class SafeGenerator:
 
     @staticmethod
     def get_config_from_pretrained(model_path, **kwargs):
-        model_path = get_valid_read_path(model_path, is_dir=True, check_user_stat=True)
-        with exception_handler(f'Get config from pretrained failed in {model_path}.',
-                               err_cls=Exception,
-                               ms_err_cls=InvalidModelError,
-                               action=f"Please ensure config files all exist and are valid. "
-                                      f"Otherwise, the transformers version is not compatible with the model."
-                                      f"Before using msModelSlim, please make sure the model load and infer properly.",
-                               ):
+        model_path = get_valid_read_path(model_path, is_dir=True)
+        with exception_handler(
+            f'Get config from pretrained failed in {model_path}.',
+            err_cls=Exception,
+            ms_err_cls=InvalidModelError,
+            action="Please ensure config files all exist and are valid. "
+            "Otherwise, the transformers version is not compatible with the model."
+            "Before using msModelSlim, please make sure the model load and infer properly.",
+        ):
             from transformers import AutoConfig
-            config = AutoConfig.from_pretrained(model_path, local_files_only=True, **kwargs)
+
+            config = AutoConfig.from_pretrained(model_path, local_files_only=True, **kwargs)  # nosec
             return config
 
     @staticmethod
     def get_model_from_pretrained(model_path, **kwargs):
-        model_path = get_valid_read_path(model_path, is_dir=True, check_user_stat=True)
-        with exception_handler(f'Get model from pretrained failed in {model_path}.',
-                               err_cls=Exception,
-                               ms_err_cls=InvalidModelError,
-                               action=f"Please ensure the model weights files all exist and are valid. "
-                                      f"Otherwise, the transformers version is not compatible with the model."
-                                      f"Before using msModelSlim, please make sure the model load and infer properly.",
-                               ):
+        model_path = get_valid_read_path(model_path, is_dir=True)
+        with exception_handler(
+            f'Get model from pretrained failed in {model_path}.',
+            err_cls=Exception,
+            ms_err_cls=InvalidModelError,
+            action="Please ensure the model weights files all exist and are valid. "
+            "Otherwise, the transformers version is not compatible with the model."
+            "Before using msModelSlim, please make sure the model load and infer properly.",
+        ):
             from transformers import AutoModelForCausalLM
-            model = AutoModelForCausalLM.from_pretrained(model_path, local_files_only=True, **kwargs)
+
+            model = AutoModelForCausalLM.from_pretrained(model_path, local_files_only=True, **kwargs)  # nosec
             return model
 
     @staticmethod
     def get_tokenizer_from_pretrained(model_path, **kwargs):
-        model_path = get_valid_read_path(model_path, is_dir=True, check_user_stat=True)
-        with exception_handler(f'Get tokenizer from pretrained failed in {model_path}.',
-                               err_cls=Exception,
-                               ms_err_cls=InvalidModelError,
-                               action=f"Please ensure the tokenizer files all exist and are valid. "
-                                      f"Otherwise, the transformers version is not compatible with the model."
-                                      f"Before using msModelSlim, please make sure the model load and infer properly.",
-                               ):
+        model_path = get_valid_read_path(model_path, is_dir=True)
+        with exception_handler(
+            f'Get tokenizer from pretrained failed in {model_path}.',
+            err_cls=Exception,
+            ms_err_cls=InvalidModelError,
+            action="Please ensure the tokenizer files all exist and are valid. "
+            "Otherwise, the transformers version is not compatible with the model."
+            "Before using msModelSlim, please make sure the model load and infer properly.",
+        ):
             from transformers import AutoTokenizer
-            tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True, **kwargs)
+
+            tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True, **kwargs)  # nosec
             return tokenizer
 
     @staticmethod
@@ -82,8 +88,7 @@ class SafeGenerator:
         dataset = []
         if dataset_path == "humaneval_x.jsonl":
             key_name = 'prompt'
-        with os.fdopen(os.open(dataset_path, os.O_RDONLY, 0o600),
-                       'r', encoding='utf-8') as file:
+        with os.fdopen(os.open(dataset_path, os.O_RDONLY, 0o600), 'r', encoding='utf-8') as file:
             lines = file.readlines()
             for line in lines:
                 data = json.loads(line)

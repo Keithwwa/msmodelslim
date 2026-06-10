@@ -18,6 +18,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -37,7 +38,7 @@ class YamlDatabase:
         if read_only:
             get_valid_read_path(str(config_dir), is_dir=True)
         else:
-            get_write_directory(str(config_dir), write_mode=0o750)
+            get_write_directory(str(config_dir))
         self.config_dir = config_dir
         self.read_only = read_only
 
@@ -47,25 +48,31 @@ class YamlDatabase:
     def __getitem__(self, item):
         """Load value from a YAML file"""
         if not isinstance(item, str):
-            raise SchemaValidateError(f"yaml database key must be a string, but got {type(item)}",
-                                      action='Please make sure the key is a string')
+            raise SchemaValidateError(
+                f"yaml database key must be a string, but got {type(item)}",
+                action='Please make sure the key is a string',
+            )
 
         try:
             value_file = self.config_dir / f"{item}.yaml"
             return yaml_safe_load(str(value_file))
         except FileNotFoundError as e:
-            raise UnsupportedError(f"yaml database key {item} not found",
-                                   action='Please check the yaml database') from e
+            raise UnsupportedError(
+                f"yaml database key {item} not found", action='Please check the yaml database'
+            ) from e
 
     def __setitem__(self, key, value):
         """Save value to a YAML file"""
         if self.read_only:
-            raise SecurityError(f"yaml database {self.config_dir} is read-only",
-                                action='Writing operation is forbidden')
+            raise SecurityError(
+                f"yaml database {self.config_dir} is read-only", action='Writing operation is forbidden'
+            )
 
         if not isinstance(key, str):
-            raise SchemaValidateError(f"yaml database key must be a string, but got {type(key)}",
-                                      action='Please make sure the key is a string')
+            raise SchemaValidateError(
+                f"yaml database key must be a string, but got {type(key)}",
+                action='Please make sure the key is a string',
+            )
 
         if isinstance(value, BaseModel):
             # mode='json'：Decimal 等在 PyYAML safe_dump 中会 RepresenterError

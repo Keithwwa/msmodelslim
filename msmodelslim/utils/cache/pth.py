@@ -18,16 +18,17 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import os
 from typing import Any, List, Dict, Callable
 import functools
 import inspect
 import contextvars
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ascend_utils.common.security.pytorch import safe_torch_load
-from msmodelslim.utils.security import get_valid_read_path, get_write_directory, SafeWriteUmask
+from msmodelslim.utils.security import get_valid_read_path, get_write_directory
 from msmodelslim.utils.exception import SchemaValidateError, SecurityError
 from msmodelslim.utils.exception_decorator import exception_handler
 from msmodelslim.utils.logging import get_logger
@@ -72,10 +73,9 @@ def load_cached_data(pth_file_path, generate_func, model, dump_config):
 
 
 @exception_handler("", err_cls=SecurityError, ms_err_cls=SecurityError)
-def load_cached_data_for_models(pth_file_path_list: Dict[str, str],
-                                generate_func: Callable,
-                                models: Dict[str, nn.Module],
-                                dump_config) -> Dict[str, Any]:
+def load_cached_data_for_models(
+    pth_file_path_list: Dict[str, str], generate_func: Callable, models: Dict[str, nn.Module], dump_config
+) -> Dict[str, Any]:
     """内部缓存加载函数，兼容MoE结构模型"""
     calib_data = {}
     to_regenerate = False
@@ -83,12 +83,12 @@ def load_cached_data_for_models(pth_file_path_list: Dict[str, str],
     for expert_name, _ in models.items():
         if os.path.exists(pth_file_path_list[expert_name]):
             calib_data[expert_name] = safe_torch_load(pth_file_path_list[expert_name])
-            get_logger().info(f"Loaded calib data from {pth_file_path_list[expert_name]}")
+            get_logger().info("Loaded calib data from %s", pth_file_path_list[expert_name])
         else:
             calib_data[expert_name] = None
             to_regenerate = True
             break
-    
+
     #  如果任一缓存不存在，重新生成
     if to_regenerate:
         get_logger().info("======== Calib data missing, regenerating... ========")
@@ -101,9 +101,9 @@ def load_cached_data_for_models(pth_file_path_list: Dict[str, str],
 
         for expert_name, _ in models.items():
             calib_data[expert_name] = dumper[expert_name].save(pth_file_path_list[expert_name])
-        
+
         get_logger().info("======== Calib data generated successfully ========")
-    
+
     return calib_data
 
 
@@ -131,9 +131,9 @@ class InputCapture:
 
     @classmethod
     def capture_forward_inputs(
-            cls,
-            func: Callable,
-            capture_mode: str = 'args',
+        cls,
+        func: Callable,
+        capture_mode: str = 'args',
     ) -> Callable:
         """
         Decorator to capture inputs to a forward function.
@@ -185,9 +185,9 @@ class DumperManager(nn.Module):
     """Module that listens to and captures forward pass inputs and outputs."""
 
     def __init__(
-            self,
-            module: nn.Module,
-            capture_mode: str = 'args',
+        self,
+        module: nn.Module,
+        capture_mode: str = 'args',
     ):
         """
         Initialize a listener for the given module.
@@ -209,8 +209,7 @@ class DumperManager(nn.Module):
     def save(self, path: str = '__output.pth') -> List[Dict[str, Any]]:
         """Save captured data and restore original forward method."""
         data = InputCapture.get_all()
-        with SafeWriteUmask():
-            torch.save(data, path)
+        torch.save(data, path)
 
         # Restore original forward method
         if self.old_forward:
@@ -236,7 +235,7 @@ class DumperManager(nn.Module):
 
 
 def to_device(data, device, depth=0):
-    """ recursive function to move data to the specified device """
+    """recursive function to move data to the specified device"""
     if depth > MAX_RECURSION_DEPTH:
         raise RecursionError(f"Maximum recursion depth {MAX_RECURSION_DEPTH} exceeded")
 
