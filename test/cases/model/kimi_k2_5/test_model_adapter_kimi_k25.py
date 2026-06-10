@@ -39,9 +39,9 @@ def _init_fake_model(mm_projector=object(), with_heads=True):
 
     class FakeModel:
         def __init__(self):
-            self.vision_tower = object()
+            self.vision_tower = ["vision_tower"]
             self.mm_projector = mm_projector
-            self.language_model = SimpleNamespace(lm_head=object())
+            self.language_model = SimpleNamespace(lm_head=["language_model.lm_head"])
             self.config = SimpleNamespace(text_config=text_config)
 
         def load_state_dict(self, _state_dict, **_kwargs):
@@ -113,8 +113,8 @@ def test_handle_dataset_given_item_missing_modality_then_raise_unsupported_error
 @pytest.mark.parametrize(
     "tokenizer_factory",
     [
-        lambda: (_ for _ in ()).throw(RuntimeError("t")),  # pylint: disable=unnecessary-lambda
-        lambda: object(),  # pylint: disable=unnecessary-lambda
+        lambda: (_ for _ in ()).throw(RuntimeError("t")),
+        object,
     ],
 )
 def test_handle_dataset_given_processor_fails_then_raise_unsupported_error(monkeypatch, tokenizer_factory):
@@ -173,6 +173,7 @@ def test_get_adapter_config_for_subgraph_given_layers_when_called_then_return_co
                 num_key_value_heads=4,
                 qk_nope_head_dim=128,
                 v_head_dim=128,
+                first_k_dense_replace=3,
             )
         )
     )
@@ -181,9 +182,9 @@ def test_get_adapter_config_for_subgraph_given_layers_when_called_then_return_co
     ov = [cfg for cfg in out if cfg.subgraph_type == "ov"]
     norm = [cfg for cfg in out if cfg.subgraph_type == "norm-linear"]
 
-    assert len(out) == 6
-    assert len(ov) == 2
-    assert len(norm) == 4
+    assert len(out) == 12
+    assert len(ov) == 3
+    assert len(norm) == 6
     assert ov[0].mapping.source == "language_model.model.layers.0.self_attn.kv_b_proj"
     assert ov[0].mapping.targets == ["language_model.model.layers.0.self_attn.o_proj"]
     assert ov[0].fusion.num_attention_heads == 8
@@ -428,7 +429,7 @@ def test_generate_model_visit_given_model_when_called_then_yield_vision_mm_and_d
     "mm_projector, config, with_heads, expected_replace_calls, expected_layers",
     [
         (
-            object(),
+            ["mm_projector"],
             SimpleNamespace(
                 text_config=SimpleNamespace(num_hidden_layers=4, num_attention_heads=16, num_key_value_heads=8),
                 vision_config=SimpleNamespace(vt_num_hidden_layers=2),
@@ -667,3 +668,205 @@ def test_inject_fa3_placeholders_selectively_injects_based_on_should_inject(monk
 
     assert hasattr(root.attn0, 'fa_q')
     assert not hasattr(root.attn1, 'fa_q')
+
+
+class TestGetAdapterConfigForSubgraphMoe:
+    def test_returns_dense_up_down_when_layer_before_first_k_dense_replace(self):
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=2,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=2,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        up_down = [cfg for cfg in out if cfg.subgraph_type == "up-down"]
+        assert len(up_down) == 2
+        assert up_down[0].mapping.source == "language_model.model.layers.0.mlp.up_proj"
+        assert up_down[0].mapping.targets == ["language_model.model.layers.0.mlp.down_proj"]
+        assert up_down[1].mapping.source == "language_model.model.layers.1.mlp.up_proj"
+        assert up_down[1].mapping.targets == ["language_model.model.layers.1.mlp.down_proj"]
+
+    def test_returns_shared_and_routed_expert_up_down_when_moe_layer_with_num_experts(self):
+        n_experts = 3
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=2,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=1,
+                    num_experts=n_experts,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        up_down = [cfg for cfg in out if cfg.subgraph_type == "up-down"]
+        assert len(up_down) == 1 + 1 + n_experts
+        assert up_down[0].mapping.source == "language_model.model.layers.0.mlp.up_proj"
+        assert up_down[1].mapping.source == "language_model.model.layers.1.mlp.shared_experts.up_proj"
+        for i in range(n_experts):
+            assert up_down[2 + i].mapping.source == f"language_model.model.layers.1.mlp.experts.{i}.up_proj"
+            assert up_down[2 + i].mapping.targets == [f"language_model.model.layers.1.mlp.experts.{i}.down_proj"]
+
+    def test_returns_shared_and_routed_expert_up_down_when_moe_layer_with_n_routed_experts(self):
+        n_routed = 2
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=2,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=1,
+                    n_routed_experts=n_routed,
+                    n_shared_experts=1,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        up_down = [cfg for cfg in out if cfg.subgraph_type == "up-down"]
+        assert len(up_down) == 1 + 1 + n_routed
+        assert up_down[1].mapping.source == "language_model.model.layers.1.mlp.shared_experts.up_proj"
+        assert up_down[2].mapping.source == "language_model.model.layers.1.mlp.experts.0.up_proj"
+        assert up_down[3].mapping.source == "language_model.model.layers.1.mlp.experts.1.up_proj"
+
+    def test_expert_num_defaults_to_zero_when_no_expert_attr(self):
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=2,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=1,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        up_down = [cfg for cfg in out if cfg.subgraph_type == "up-down"]
+        assert len(up_down) == 1 + 1
+        assert up_down[0].mapping.source == "language_model.model.layers.0.mlp.up_proj"
+        assert up_down[1].mapping.source == "language_model.model.layers.1.mlp.shared_experts.up_proj"
+
+    def test_prefers_num_experts_over_n_routed_experts_when_both_present(self):
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=2,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=1,
+                    num_experts=4,
+                    n_routed_experts=2,
+                    n_shared_experts=1,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        up_down = [cfg for cfg in out if cfg.subgraph_type == "up-down"]
+        assert len(up_down) == 1 + 1 + 4
+
+    def test_total_config_count_matches_formula_when_moe(self):
+        n_layers = 4
+        first_k = 1
+        n_experts = 3
+        adapter = _adapter(
+            config=SimpleNamespace(
+                text_config=SimpleNamespace(
+                    num_hidden_layers=n_layers,
+                    num_attention_heads=8,
+                    num_key_value_heads=4,
+                    qk_nope_head_dim=128,
+                    v_head_dim=128,
+                    first_k_dense_replace=first_k,
+                    num_experts=n_experts,
+                )
+            )
+        )
+        out = adapter.get_adapter_config_for_subgraph()
+        per_dense = 3 + 1
+        per_moe = 3 + 1 + n_experts
+        expected = first_k * per_dense + (n_layers - first_k) * per_moe
+        assert len(out) == expected
+
+
+class TestGetLnFuseMap:
+    def test_returns_empty_dict_and_ln_fuse_map(self, monkeypatch):
+        config = SimpleNamespace(text_config=SimpleNamespace(num_hidden_layers=2))
+        adapter = _adapter(config=config)
+        fake_map = {"k": ["v"]}
+        monkeypatch.setattr(target, "get_ln_fuse_map", lambda c, num_hidden_layers=None: fake_map)
+        result_empty, result_map = adapter.get_ln_fuse_map()
+        assert result_empty == {}
+        assert result_map is fake_map
+
+    def test_passes_num_hidden_layers_from_config(self, monkeypatch):
+        captured = {}
+        config = SimpleNamespace(text_config=SimpleNamespace(num_hidden_layers=5))
+        adapter = _adapter(config=config)
+
+        def fake_get_ln_fuse_map(c, num_hidden_layers=None):
+            captured["num_hidden_layers"] = num_hidden_layers
+            return {}
+
+        monkeypatch.setattr(target, "get_ln_fuse_map", fake_get_ln_fuse_map)
+        adapter.get_ln_fuse_map()
+        assert captured["num_hidden_layers"] == 5
+
+
+class TestGetBakeNames:
+    def test_returns_empty_lists(self):
+        adapter = _adapter()
+        bake_pre, bake_post = adapter.get_bake_names()
+        assert bake_pre == []
+        assert bake_post == []
+
+
+class TestGetRotateMap:
+    def test_returns_pre_run_and_rot_pairs_values(self, monkeypatch):
+        config = SimpleNamespace(text_config=SimpleNamespace(num_hidden_layers=2))
+        adapter = _adapter(config=config)
+
+        fake_pre_run = object()
+        fake_pair_1 = object()
+        fake_pair_2 = object()
+        fake_pair_3 = object()
+        fake_rot_pairs = {"rot": fake_pair_1, "rot_b_proj": fake_pair_2, "rot_uv": fake_pair_3}
+        fake_rotate_matrix = {"rot": object()}
+
+        monkeypatch.setattr(
+            target,
+            "get_rotate_map",
+            lambda c, block_size, num_hidden_layers=None: (fake_pre_run, fake_rot_pairs, fake_rotate_matrix),
+        )
+
+        pre_run_list, rot_values = adapter.get_rotate_map(block_size=32)
+        assert pre_run_list == [fake_pre_run]
+        assert rot_values == [fake_pair_1, fake_pair_2, fake_pair_3]
+
+    def test_passes_block_size_and_num_hidden_layers(self, monkeypatch):
+        captured = {}
+        config = SimpleNamespace(text_config=SimpleNamespace(num_hidden_layers=7))
+        adapter = _adapter(config=config)
+
+        def fake_get_rotate_map(c, block_size, num_hidden_layers=None):
+            captured["block_size"] = block_size
+            captured["num_hidden_layers"] = num_hidden_layers
+            return object(), {}, {}
+
+        monkeypatch.setattr(target, "get_rotate_map", fake_get_rotate_map)
+        adapter.get_rotate_map(block_size=64)
+        assert captured["block_size"] == 64
+        assert captured["num_hidden_layers"] == 7

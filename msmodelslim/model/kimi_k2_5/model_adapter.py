@@ -47,6 +47,7 @@ from msmodelslim.model.interface_hub import (
     AscendV1SaveInterface,
     FA3QuantAdapterInterface,
     FA3QuantPlaceHolder,
+    QuaRotInterface,
 )
 from msmodelslim.model.common.vlm_base import SafeGenerator, VLMBaseModelAdapter
 from msmodelslim.utils.exception import UnsupportedError
@@ -66,6 +67,7 @@ from .convert_int4_to_bf16 import (
     auto_convert_module_int4_to_bf16,
     replace_compressed_linear_with_bf16,
 )
+from .quarot import get_ln_fuse_map, get_rotate_map
 
 
 @contextmanager
@@ -89,6 +91,7 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
     FA3QuantAdapterInterface,
     LayerWiseOffloadOptionalInterface,
     AscendV1SaveInterface,
+    QuaRotInterface,
 ):
     def __init__(self, model_type: str, model_path: Path, trust_remote_code: bool = False):
         # Cache for processor (used in dataset handling)
@@ -471,8 +474,16 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
 
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         adapter_config = []
-        # mtp layer does not apply smooth due to the compatible with pre-refactor
-        for layer_idx in range(self.config.text_config.num_hidden_layers - 1):
+        if hasattr(self.config.text_config, 'num_experts'):
+            expert_num = self.config.text_config.num_experts
+        elif hasattr(self.config.text_config, 'n_routed_experts') and hasattr(
+            self.config.text_config, 'n_shared_experts'
+        ):
+            expert_num = self.config.text_config.n_routed_experts
+        else:
+            expert_num = 0
+
+        for layer_idx in range(self.config.text_config.num_hidden_layers):
             # OKV_b融合的映射配置：o_proj -> kv_b_proj
             okv_b_mapping_config = MappingConfig(
                 # KV_b投影层
@@ -520,6 +531,40 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
                     AdapterConfig(subgraph_type="norm-linear", mapping=norm_linear_mapping_config2),
                 ]
             )
+
+            # 添加up-down的FFN配置
+            if layer_idx < self.config.text_config.first_k_dense_replace:
+                # Dense FFN 层
+                up_proj = 'language_model.model.layers.' + str(layer_idx) + '.mlp.up_proj'
+                down_proj = 'language_model.model.layers.' + str(layer_idx) + '.mlp.down_proj'
+                up_down_mapping_config = MappingConfig(
+                    source=up_proj,  # 上投影层
+                    targets=[down_proj],  # 下投影层
+                )
+                adapter_config.extend(
+                    [
+                        AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config),
+                    ]
+                )
+            else:
+                # MOE FFN 层：Shared Experts
+                expert_up_proj = 'language_model.model.layers.' + str(layer_idx) + '.mlp.shared_experts.up_proj'
+                expert_down_proj = 'language_model.model.layers.' + str(layer_idx) + '.mlp.shared_experts.down_proj'
+                up_down_mapping_config_shared = MappingConfig(source=expert_up_proj, targets=[expert_down_proj])
+                adapter_config.extend([AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_shared)])
+
+                # MOE FFN 层：Routed Experts
+                for expert in range(expert_num):
+                    up_proj = (
+                        'language_model.model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.up_proj'
+                    )
+                    down_proj = (
+                        'language_model.model.layers.' + str(layer_idx) + '.mlp.experts.' + str(expert) + '.down_proj'
+                    )
+                    up_down_mapping_config_expert = MappingConfig(source=up_proj, targets=[down_proj])
+                    adapter_config.extend(
+                        [AdapterConfig(subgraph_type="up-down", mapping=up_down_mapping_config_expert)]
+                    )
 
         return adapter_config
 
@@ -642,6 +687,18 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
             dest_file = os.path.join(save_directory, "tiktoken.model")
             safe_copy_file(src_path=tiktoken_file, dest_path=dest_file)
             os.chmod(dest_file, int("600", 8))
+
+    def get_ln_fuse_map(self):
+        return {}, get_ln_fuse_map(self.config, num_hidden_layers=self.config.text_config.num_hidden_layers)
+
+    def get_bake_names(self):
+        return [], []
+
+    def get_rotate_map(self, block_size):
+        pre_run, rot_pairs, _ = get_rotate_map(
+            self.config, block_size, num_hidden_layers=self.config.text_config.num_hidden_layers
+        )
+        return [pre_run], list(rot_pairs.values())
 
     @lru_cache(maxsize=1)
     def _get_weight_map(self) -> Dict[str, str]:

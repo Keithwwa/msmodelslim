@@ -1030,7 +1030,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
     <tr>
       <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/Kimi-K2.5/README.md">Kimi-K2.5</a></strong></td>
       <td>Kimi-K2.5</td>
-      <td>transformers>=4.57.6, compressed-tensors==0.13.0</td>
+      <td>transformers==4.57.6, compressed-tensors==0.13.0</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -1040,7 +1040,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
     <tr>
       <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/Kimi-K2.6/README.md">Kimi-K2.6</a></strong></td>
       <td>Kimi-K2.6</td>
-      <td>transformers>=4.57.6, compressed-tensors==0.13.0</td>
+      <td>transformers==4.57.6, compressed-tensors==0.13.0</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
