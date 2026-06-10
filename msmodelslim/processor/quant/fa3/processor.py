@@ -139,7 +139,7 @@ class FA3QuantProcessor(AutoSessionProcessor):
         return False
 
     def is_data_free(self) -> bool:
-        return self.check_scope_condition(QScope.PER_TOKEN)
+        return self.check_scope_condition(QScope.PER_TOKEN) or self.check_scope_condition(QScope.PER_BLOCK)
 
     def support_distributed(self) -> bool:
         return True
@@ -175,7 +175,7 @@ class FA3QuantProcessor(AutoSessionProcessor):
     def postprocess(self, request: BatchProcessRequest) -> None:
         # 遍历所有 observer，先同步统计量，再创建 IR
         for name, submodule in request.module.named_modules(prefix=request.name):
-            if not isinstance(submodule, _FA3PerHeadObserver) or (name not in self.include) or (name in self.exclude):
+            if not isinstance(submodule, _FA3PerHeadObserver):
                 continue
 
             fa_prefix = name.rsplit('.', 1)[-1]
@@ -194,6 +194,8 @@ class FA3QuantProcessor(AutoSessionProcessor):
                 self._process_per_head(qconfig, name, submodule)
             elif qconfig.scope == QScope.PER_TOKEN:
                 self._process_per_token(qconfig, name)
+            elif qconfig.scope == QScope.PER_BLOCK:
+                self._process_per_block(qconfig, name)
             else:
                 raise UnsupportedError(
                     f"fa3 quantization does not support following configuration:{qconfig}",
@@ -224,6 +226,12 @@ class FA3QuantProcessor(AutoSessionProcessor):
 
     def _process_per_token(self, fa_config: Union[QConfig, FA3AttentionDetails], name: str):
         # 创建空的QParam，per-token在forward中动态计算
+        q_param = QParam(scheme=fa_config.to_scheme())
+        fa_quantizer = qir.AutoFakeQuantActivation.create(q_param)
+        self.model.set_submodule(name, fa_quantizer)
+
+    def _process_per_block(self, fa_config: Union[QConfig, FA3AttentionDetails], name: str):
+        # 创建空的QParam，per-block在forward中动态计算
         q_param = QParam(scheme=fa_config.to_scheme())
         fa_quantizer = qir.AutoFakeQuantActivation.create(q_param)
         self.model.set_submodule(name, fa_quantizer)

@@ -110,6 +110,13 @@ def _mindie_post_run_case(method_name: str):
             "model.layers.0.self_attn.quant_type",
             None,
         )
+    if method_name == "on_activation_per_block":
+        return (
+            "model.layers.0.self_attn.fa3_q",
+            SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.MXFP4, scope=QScope.PER_BLOCK)),
+            "model.layers.0.self_attn.quant_type",
+            None,
+        )
     raise AssertionError(method_name)
 
 
@@ -121,7 +128,8 @@ def _mindie_expected_desc_value(method_name: str):
         "on_online_rotation_wrapper": "FLOAT",
         "on_float_linear": "FLOAT",
         "on_float_module": "FLOAT",
-        "on_activation_per_token": "FP8_DYNAMIC",
+        "on_activation_per_token": "Q_FP8_DYNAMIC",
+        "on_activation_per_block": "Q_MXFP4_DYNAMIC",
     }[method_name]
 
 
@@ -135,6 +143,7 @@ class TestMindIEFormatSaver:
             "on_float_linear",
             "on_float_module",
             "on_activation_per_token",
+            "on_activation_per_block",
         }
         actual = {n for n, _ in inspect.getmembers(MindIEFormatSaver, predicate=callable) if n.startswith("on_")}
         assert expected.issubset(actual)
@@ -218,10 +227,15 @@ class TestMindIEFormatSaver:
     def test_MindIEFormatSaver_json_writes_fp8_dynamic_quant_type_when_on_activation_per_token(self, saver):
         module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_TOKEN))
         saver.on_activation_per_token("model.layers.0.self_attn.fa3_q", module)
-        saver.json_writer.write.assert_called_once_with("model.layers.0.self_attn.quant_type", "FP8_DYNAMIC")
+        saver.json_writer.write.assert_called_once_with("model.layers.0.self_attn.quant_type", "Q_FP8_DYNAMIC")
+
+    def test_MindIEFormatSaver_json_writes_mxfp4_dynamic_quant_type_when_on_activation_per_block(self, saver):
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.MXFP4, scope=QScope.PER_BLOCK))
+        saver.on_activation_per_block("model.layers.0.self_attn.fa3_q", module)
+        saver.json_writer.write.assert_called_once_with("model.layers.0.self_attn.quant_type", "Q_MXFP4_DYNAMIC")
 
     def test_MindIEFormatSaver_raises_schema_validate_error_when_activation_scheme_invalid(self, saver):
-        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.INT8, scope=QScope.PER_CHANNEL))
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.INT4, scope=QScope.PER_TOKEN))
         with pytest.raises(SchemaValidateError):
             saver.on_activation_per_token("model.layers.0.self_attn.fa3_q", module)
 
@@ -236,6 +250,7 @@ class TestMindIEFormatSaver:
             "on_float_linear",
             "on_float_module",
             "on_activation_per_token",
+            "on_activation_per_block",
         ],
     )
     def test_MindIEFormatSaver_post_run_artifacts_match_on_method_when_parametrized(
@@ -285,3 +300,104 @@ class TestMindIEFormatSaver:
             assert desc.get("model_quant_type") == expected_desc_value
         if not expected_key.endswith(".quant_type"):
             assert expected_key in index_data["weight_map"]
+
+
+class TestMindIEFormatSaverFA3:
+    """FA3 新增方法覆盖测试（_save_activation_per_head、update_global_fa_quant_type）。"""
+
+    @pytest.fixture
+    def saver(self):
+        tmp = tempfile.mkdtemp()
+        with patch(
+            "msmodelslim.core.quant_service.modelslim_v1.save.mindie_format.dist.is_initialized", return_value=False
+        ):
+            saver_ins = MindIEFormatSaver(
+                nn.Linear(4, 4), MindIEFormatConfig(save_directory=tmp, part_file_size=0), _Adapter(tmp)
+            )
+        saver_ins.json_writer = MagicMock()
+        saver_ins.safetensors_writer = MagicMock()
+        return saver_ins
+
+    def test_MindIEFormatSaver_writes_fp8_per_head_scale_offset_when_on_fp8_activation_per_head(self, saver):
+        """on_fp8_activation_per_head 应调用 _save_activation_per_head，写入 dtype=float32 的 offset"""
+        module = SimpleNamespace(
+            input_scale=torch.tensor([[[[0.5]]]], dtype=torch.float32),
+            x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_HEAD),
+        )
+        with patch.object(saver, "_save_activation_per_head") as mock_save:
+            saver.on_fp8_activation_per_head("blocks.0.self_attn.fa3_q", module)
+            mock_save.assert_called_once_with("blocks.0.self_attn.fa3_q", module, torch.float32)
+
+    def test_MindIEFormatSaver_writes_int8_per_head_scale_offset_when_on_int8_activation_per_head(self, saver):
+        """on_int8_activation_per_head 应调用 _save_activation_per_head，写入 dtype=int8 的 offset"""
+        module = SimpleNamespace(
+            input_scale=torch.tensor([[[[0.5]]]], dtype=torch.float32),
+            x_q_scheme=SimpleNamespace(dtype=QDType.INT8, scope=QScope.PER_HEAD),
+        )
+        with patch.object(saver, "_save_activation_per_head") as mock_save:
+            saver.on_int8_activation_per_head("blocks.0.self_attn.fa3_q", module)
+            mock_save.assert_called_once_with("blocks.0.self_attn.fa3_q", module, torch.int8)
+
+    def test_MindIEFormatSaver_save_activation_per_head_writes_scale_offset_tensors(self, saver):
+        """_save_activation_per_head 应写入 scale（float32）和 offset（指定 dtype）。"""
+        calls = _capture_write_tensor(saver)
+        module = SimpleNamespace(
+            input_scale=torch.tensor([[[[0.5]]]], dtype=torch.float32),
+            x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_HEAD),
+        )
+        saver._save_activation_per_head("blocks.0.self_attn.fa3_q", module, torch.int8)
+        assert ("blocks.0.self_attn.fa3_q.scale", "FAQuant", torch.float32) in calls
+        assert ("blocks.0.self_attn.fa3_q.offset", "FAQuant", torch.int8) in calls
+
+    def test_MindIEFormatSaver_save_activation_per_head_unsqueezes_1d_scale(self, saver):
+        """_save_activation_per_head 对 1 维 scale 应 unsqueeze 为 2 维。"""
+        captured = []
+
+        def _write(prefix, desc, tensor):
+            captured.append((prefix, desc, tensor))
+
+        saver.write_tensor = _write
+        module = SimpleNamespace(
+            input_scale=torch.tensor([0.5], dtype=torch.float32),
+            x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_HEAD),
+        )
+        saver._save_activation_per_head("blocks.0.self_attn.fa3_q", module, torch.float32)
+        scale_tensor = [t for p, _, t in captured if p == "blocks.0.self_attn.fa3_q.scale"][0]
+        assert scale_tensor.ndim == 2, f"Expected 2D scale, got {scale_tensor.ndim}D"
+
+    def test_MindIEFormatSaver_writes_global_fa_quant_type_when_update_global_fa_quant_type(self, saver):
+        """update_global_fa_quant_type 应在 fa_quant_states 非空时写入 fa_quant_type。"""
+        saver.fa_quant_states = {"blocks.0.self_attn": {"Q": ("FP8", "DYNAMIC")}}
+        saver.update_global_fa_quant_type("FAKQuant")
+        saver.json_writer.write.assert_called_once_with("fa_quant_type", "FAKQuant")
+
+    def test_MindIEFormatSaver_skips_global_fa_quant_type_when_no_states(self, saver):
+        """update_global_fa_quant_type 在 fa_quant_states 为空时应跳过。"""
+        saver.fa_quant_states = {}
+        saver.update_global_fa_quant_type("FAKQuant")
+        saver.json_writer.write.assert_not_called()
+
+    def test_MindIEFormatSaver_update_fa_quant_type_writes_composite_string_when_multiple_acts(self, saver):
+        """update_fa_quant_type 在 Q/K/V 配置不同时应输出复合字符串。"""
+        # 先写 Q (FP8_DYNAMIC)
+        q_module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_TOKEN))
+        saver.on_activation_per_token("blocks.0.self_attn.fa3_q", q_module)
+        # 再写 K (INT8_STATIC)
+        k_module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.INT8, scope=QScope.PER_HEAD))
+        saver.on_activation_per_token("blocks.0.self_attn.fa3_k", k_module)
+        # 最后写入应为合并结果
+        saver.json_writer.write.assert_called_with("blocks.0.self_attn.quant_type", "Q_FP8_DYNAMIC_K_INT8")
+
+    def test_MindIEFormatSaver_update_fa_quant_type_merges_qkv_when_same_config(self, saver):
+        """update_fa_quant_type 在 Q/K/V 配置一致时应省略 act 前缀。"""
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.FP8_E4M3, scope=QScope.PER_TOKEN))
+        saver.on_activation_per_token("blocks.0.self_attn.fa3_q", module)
+        saver.on_activation_per_token("blocks.0.self_attn.fa3_k", module)
+        saver.on_activation_per_token("blocks.0.self_attn.fa3_v", module)
+        saver.json_writer.write.assert_called_with("blocks.0.self_attn.quant_type", "FP8_DYNAMIC")
+
+    def test_MindIEFormatSaver_update_fa_quant_type_raises_when_unsupported_dtype(self, saver):
+        """update_fa_quant_type 遇到不支持的 dtype 应抛出 SchemaValidateError。"""
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.INT4, scope=QScope.PER_TOKEN))
+        with pytest.raises(SchemaValidateError):
+            saver.update_fa_quant_type("blocks.0.self_attn.fa3_q", module)

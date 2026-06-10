@@ -113,6 +113,7 @@ class AutoSaverProcessor(AutoSessionProcessor):
             qir.INT8FakeQuantActivationPerHead: self.on_int8_activation_per_head,
             qir.FP8FakeQuantActivationPerHead: self.on_fp8_activation_per_head,
             qir.FakeQuantActivationPerToken: self.on_activation_per_token,
+            qir.FakeQuantActivationPerBlock: self.on_activation_per_block,
             qir.W16A16sLinear: self.on_w16a16s,
             qir.QuarotOnlineHeadRotationWrapper: self.on_rotation_wrapper,
             qir.QuarotOnlineKroneckerRotationWrapper: self.on_kronecker_rotation_wrapper,
@@ -242,6 +243,11 @@ class AutoSaverProcessor(AutoSessionProcessor):
     def on_activation_per_token(self, prefix: str, module: qir.FakeQuantActivationPerToken):
         raise NotImplementedError(
             f"You should implement the on_activation_per_token method for {self.__class__.__name__}"
+        )
+
+    def on_activation_per_block(self, prefix: str, module: qir.FakeQuantActivationPerBlock):
+        raise NotImplementedError(
+            f"You should implement the on_activation_per_block method for {self.__class__.__name__}"
         )
 
     def on_int8_activation_per_head(self, prefix: str, module: qir.INT8FakeQuantActivationPerHead):

@@ -57,6 +57,7 @@ __all__ = [
     "FP8FakeQuantActivationPerHead",
     "FakeQuantActivationPerHead",
     "FakeQuantActivationPerToken",
+    "FakeQuantActivationPerBlock",
     "FlatQuantOnlineWrapper",
     "FlatQuantOnlineHookIR",
     "NonFusionSmoothQuantWrapper",
@@ -95,7 +96,7 @@ __all__ = [
 from .int8_activation_static import INT8FakeQuantActivationPerHead
 from .fp8_activation_static import FP8FakeQuantActivationPerHead
 from .activation_static import FakeQuantActivationPerHead
-from .activation_dynamic import FakeQuantActivationPerToken
+from .activation_dynamic import FakeQuantActivationPerToken, FakeQuantActivationPerBlock
 from .api.impl import int_quantization, fp_quantization, mx_quantization
 from .attention import FakeQuantDynamicCache
 from .auto import AutoFakeQuantLinear, AutoFakeQuantActivation, AutoFakeQuantDynamicCache

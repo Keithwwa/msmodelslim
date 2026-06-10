@@ -148,6 +148,7 @@ ASCENDV1_SAFETENSORS_NAME = "quant_model_weights.safetensors"
 DTYPE_PREFIX_MAP = {
     QDType.FP8_E4M3: "FP8",
     QDType.INT8: "INT8",
+    QDType.MXFP4: "MXFP4",
 }
 
 
@@ -564,6 +565,10 @@ class AscendV1Saver(AutoSaverProcessor):
         # FA3动态量化保存策略
         self.update_fa_quant_type(prefix, module)
 
+    def on_activation_per_block(self, prefix: str, module: qir.FakeQuantActivationPerBlock):
+        # FA3 MXFP4 per-block 动态量化保存策略
+        self.update_fa_quant_type(prefix, module)
+
     def update_fa_quant_type(self, prefix: str, module):
         """
         拼装和更新FA3量化策略字符串
@@ -575,7 +580,7 @@ class AscendV1Saver(AutoSaverProcessor):
         dtype = DTYPE_PREFIX_MAP.get(module.x_q_scheme.dtype)
         if not dtype:
             raise SchemaValidateError(f"AutoFakeQuantActivation Unsupported dtype: {module.x_q_scheme.dtype}")
-        is_dynamic = module.x_q_scheme.scope == QScope.PER_TOKEN
+        is_dynamic = module.x_q_scheme.scope in (QScope.PER_TOKEN, QScope.PER_BLOCK)
         strategy = "DYNAMIC" if is_dynamic else "STATIC"
 
         if parent_prefix not in self.fa_quant_states:

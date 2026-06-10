@@ -118,6 +118,12 @@ DEFAULT_DESC_JSON_NAME = "quant_model_description.json"
 DEFAULT_SAFETENSORS_NAME = "quant_model_weight.safetensors"
 DEFAULT_GROUP_SIZE = 32
 
+DTYPE_PREFIX_MAP = {
+    QDType.FP8_E4M3: "FP8",
+    QDType.INT8: "INT8",
+    QDType.MXFP4: "MXFP4",
+}
+
 
 def save_this_rank_only():
     """
@@ -181,6 +187,7 @@ class MindIEFormatSaver(AutoSaverProcessor):
         self.dist_helper: Optional[DistHelper] = None
         self.shared_modules_slice: Optional[List[str]] = None
         self.group_size = None
+        self.fa_quant_states = {}
 
     def support_distributed(self) -> bool:
         return True
@@ -286,11 +293,22 @@ class MindIEFormatSaver(AutoSaverProcessor):
     def on_dynamic_cache(self, prefix: str, module: qir.FakeQuantDynamicCache):
         self._raise_ascendv1_saver_recommended("on_dynamic_cache")
 
+    def _save_activation_per_head(self, prefix: str, module, offset_dtype: torch.dtype):
+        """参考 AscendV1Saver._save_activation_per_head，保存 per-head scale/offset 张量。"""
+        scale = module.input_scale.to(torch.float32).unsqueeze(-1)
+        if scale.dim() == 1:
+            scale = scale.unsqueeze(-1)
+        offset = torch.zeros_like(scale, dtype=offset_dtype)
+        self.write_tensor(prefix + ".scale", "FAQuant", scale)
+        self.write_tensor(prefix + ".offset", "FAQuant", offset)
+        self.update_fa_quant_type(prefix, module)
+        self.update_global_fa_quant_type('FAKQuant')
+
     def on_int8_activation_per_head(self, prefix: str, module: qir.INT8FakeQuantActivationPerHead):
-        self._raise_ascendv1_saver_recommended("on_int8_activation_per_head")
+        self._save_activation_per_head(prefix, module, torch.int8)
 
     def on_fp8_activation_per_head(self, prefix: str, module: qir.FP8FakeQuantActivationPerHead):
-        self._raise_ascendv1_saver_recommended("on_fp8_activation_per_head")
+        self._save_activation_per_head(prefix, module, torch.float32)
 
     def on_quarot_extra_info_wrapper(self, prefix: str, module: qir.QuaRotExtraInfoWrapperIR):
         self._raise_ascendv1_saver_recommended("on_quarot_extra_info_wrapper")
@@ -427,10 +445,56 @@ class MindIEFormatSaver(AutoSaverProcessor):
         for name, param in module.named_parameters(recurse=False, prefix=prefix):
             self.write_tensor(name, "FLOAT", param)
 
+    def update_fa_quant_type(self, prefix: str, module):
+        """
+        拼装和更新FA3量化策略字符串（参考 AscendV1Saver.update_fa_quant_type）。
+        支持 per-head/per-token/per-block 混合场景，累积 Q/K/V/P 状态后合并输出。
+        """
+        parent_prefix, act_name_raw = prefix.rsplit('.', 1)
+        quant_type_key = f"{parent_prefix}.quant_type"
+        act = act_name_raw.split('_')[-1].upper()
+
+        dtype = DTYPE_PREFIX_MAP.get(module.x_q_scheme.dtype)
+        if not dtype:
+            raise SchemaValidateError(f"AutoFakeQuantActivation Unsupported dtype: {module.x_q_scheme.dtype}")
+        is_dynamic = module.x_q_scheme.scope in (QScope.PER_TOKEN, QScope.PER_BLOCK)
+        strategy = "DYNAMIC" if is_dynamic else "STATIC"
+
+        if parent_prefix not in self.fa_quant_states:
+            self.fa_quant_states[parent_prefix] = {}
+
+        self.fa_quant_states[parent_prefix][act] = (dtype, strategy)
+        layer_states = self.fa_quant_states[parent_prefix]
+
+        config_to_acts = {}
+        for expected_act in ['Q', 'K', 'V', 'P']:
+            if expected_act in layer_states:
+                cfg = layer_states[expected_act]
+                if cfg not in config_to_acts:
+                    config_to_acts[cfg] = []
+                config_to_acts[cfg].append(expected_act)
+
+        parts = []
+        for (cfg_dtype, cfg_strategy), acts in config_to_acts.items():
+            act_prefix = "".join(acts)
+            if act_prefix == "QKV":
+                act_prefix = ""
+            strat_suffix = "_DYNAMIC" if cfg_strategy == "DYNAMIC" else ""
+            config_str = f"{cfg_dtype}{strat_suffix}"
+            if act_prefix:
+                parts.append(f"{act_prefix}_{config_str}")
+            else:
+                parts.append(config_str)
+
+        final_quant_type = "_".join(parts)
+        self.json_writer.write(quant_type_key, final_quant_type)
+
+    def update_global_fa_quant_type(self, states=None):
+        if self.fa_quant_states:
+            self.json_writer.write('fa_quant_type', states)
+
     def on_activation_per_token(self, prefix: str, module: qir.FakeQuantActivationPerToken):
-        if module.x_q_scheme.dtype == QDType.FP8_E4M3 and module.x_q_scheme.scope == QScope.PER_TOKEN:
-            parent_prefix = prefix.rsplit('.', 1)[0]
-            quant_type_key = parent_prefix + ".quant_type"
-            self.json_writer.write(quant_type_key, "FP8_DYNAMIC")
-        else:
-            raise SchemaValidateError(f"FakeQuantActivationPerToken Unsupported dtype: {module.x_q_scheme.dtype}")
+        self.update_fa_quant_type(prefix, module)
+
+    def on_activation_per_block(self, prefix: str, module: qir.FakeQuantActivationPerBlock):
+        self.update_fa_quant_type(prefix, module)
