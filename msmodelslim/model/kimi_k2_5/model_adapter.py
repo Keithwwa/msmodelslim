@@ -20,9 +20,11 @@ See the Mulan PSL v2 for more details.
 
 import os
 from collections import defaultdict
+from contextlib import contextmanager
 from functools import lru_cache
+from importlib import import_module
 from pathlib import Path
-from typing import List, Any, Generator, Tuple, Dict
+from typing import List, Any, Generator, Tuple, Dict, Optional, Callable
 from unittest.mock import patch
 
 import torch
@@ -43,6 +45,8 @@ from msmodelslim.model.interface_hub import (
     ModelSlimPipelineInterfaceV1,
     LayerWiseOffloadOptionalInterface,
     AscendV1SaveInterface,
+    FA3QuantAdapterInterface,
+    FA3QuantPlaceHolder,
 )
 from msmodelslim.model.common.vlm_base import SafeGenerator, VLMBaseModelAdapter
 from msmodelslim.utils.exception import UnsupportedError
@@ -57,8 +61,6 @@ from msmodelslim.utils.security import (
 from transformers import AutoProcessor, AutoTokenizer
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from transformers.modeling_utils import PreTrainedModel
-
-from contextlib import contextmanager
 
 from .convert_int4_to_bf16 import (
     auto_convert_module_int4_to_bf16,
@@ -84,6 +86,7 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
     ModelSlimPipelineInterfaceV1,
     IterSmoothInterface,
     FlexSmoothQuantInterface,
+    FA3QuantAdapterInterface,
     LayerWiseOffloadOptionalInterface,
     AscendV1SaveInterface,
 ):
@@ -519,6 +522,114 @@ class KimiK25ModelAdapter(  # pylint: disable=too-many-ancestors
             )
 
         return adapter_config
+
+    def inject_fa3_placeholders(
+        self, root_name: str, root_module: nn.Module, should_inject: Callable[[str], bool]
+    ) -> None:
+        """为 KimiK2.5 注意力模块安装 FA3 占位，并包裹 forward 调用这些占位。
+
+        - 在每个 Attention 模块下注入子模块：fa_q, fa_k, fa_v
+        - 包裹其 forward，在 MLA 计算的关键位置插入 FA3 占位调用：
+            q_nope = self.fa_q(q_nope)
+            compressed_kv = self.fa_k(compressed_kv.unsqueeze(1)).squeeze(1)
+            _ = self.fa_v(compressed_kv.unsqueeze(1)).squeeze(1)
+        """
+
+        def _wrap_attention_forward(attn_mod: nn.Module):
+            deepseek_module = import_module(attn_mod.forward.__module__)
+            apply_rotary_pos_emb = deepseek_module.apply_rotary_pos_emb
+
+            def new_forward(
+                self,
+                hidden_states: torch.Tensor,
+                attention_mask: Optional[torch.Tensor] = None,
+                position_ids: Optional[torch.LongTensor] = None,
+                past_key_value: Optional[Any] = None,
+                output_attentions: bool = False,
+                use_cache: bool = False,
+                **kwargs,
+            ):
+                bsz, q_len, _ = hidden_states.size()
+
+                if getattr(self, 'q_lora_rank', None) is None:
+                    q = self.q_proj(hidden_states)
+                else:
+                    q = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))
+                q = q.view(bsz, q_len, self.num_heads, self.q_head_dim).transpose(1, 2)
+                q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
+
+                compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
+                compressed_kv, k_pe = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
+                compressed_kv = self.kv_a_layernorm(compressed_kv)
+                k_pe = k_pe.view(bsz, q_len, 1, self.qk_rope_head_dim).transpose(1, 2)
+                kv_seq_len = k_pe.shape[-2]
+
+                if past_key_value is not None:
+                    if getattr(self, 'layer_idx', None) is None:
+                        raise ValueError(
+                            f"The cache structure has changed since version v4.36. "
+                            f"If you are using {self.__class__.__name__} "
+                            f"for auto-regressive decoding with k/v caching, "
+                            f"please make sure to initialize the attention class "
+                            "with a layer index."
+                        )
+                    kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
+
+                cos, sin = self.rotary_emb(q_pe, seq_len=kv_seq_len)
+                q_pe, k_pe = apply_rotary_pos_emb(q_pe, k_pe, cos, sin, position_ids)
+
+                if past_key_value is not None:
+                    cache_kwargs = {"sin": sin, "cos": cos}
+                    compressed_kv = compressed_kv.unsqueeze(1)
+                    k_pe, compressed_kv = past_key_value.update(k_pe, compressed_kv, self.layer_idx, cache_kwargs)
+                    compressed_kv = compressed_kv.squeeze(1)
+
+                kv_b_proj = self.kv_b_proj.weight.view(self.num_heads, -1, self.kv_lora_rank)
+
+                q_absorb = kv_b_proj[:, : self.qk_nope_head_dim, :]
+                out_absorb = kv_b_proj[:, self.qk_nope_head_dim :, :]
+
+                q_nope = torch.matmul(q_nope, q_absorb)
+
+                # ===== 插入 FA3 占位 =====
+                if hasattr(self, 'fa_q'):
+                    q_nope = self.fa_q(q_nope)
+                if hasattr(self, 'fa_k'):
+                    compressed_kv = self.fa_k(compressed_kv.unsqueeze(1)).squeeze(1)
+                if hasattr(self, 'fa_v'):
+                    _ = self.fa_v(compressed_kv.unsqueeze(1)).squeeze(1)
+                # ========================
+
+                attn_weights = torch.matmul(q_pe, k_pe.mT) + torch.matmul(q_nope, compressed_kv.unsqueeze(-3).mT)
+                attn_weights = attn_weights * self.softmax_scale
+
+                if attention_mask is None:
+                    raise ValueError("Attention mask cannot be None")
+                attn_weights = attn_weights + attention_mask
+
+                attn_weights = torch.nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(q_pe.dtype)
+                attn_weights = torch.nn.functional.dropout(
+                    attn_weights, p=self.attention_dropout, training=self.training
+                )
+                attn_output = torch.einsum('bhql,blc->bhqc', attn_weights, compressed_kv)
+                attn_output = torch.matmul(attn_output, out_absorb.mT)
+                attn_output = attn_output.transpose(1, 2).contiguous()
+                attn_output = attn_output.reshape(bsz, q_len, self.num_heads * self.v_head_dim)
+                attn_output = self.o_proj(attn_output)
+                if not output_attentions:
+                    attn_weights_out = None
+                else:
+                    attn_weights_out = attn_weights
+                return attn_output, attn_weights_out, past_key_value
+
+            attn_mod.forward = new_forward.__get__(attn_mod, attn_mod.__class__)  # pylint: disable=no-value-for-parameter
+
+        for name, module in root_module.named_modules():
+            if 'Attention' in module.__class__.__name__ and should_inject(f"{root_name}.{name}" if root_name else name):
+                root_module.set_submodule(f"{name}.fa_q", FA3QuantPlaceHolder(ratio=0.9999))
+                root_module.set_submodule(f"{name}.fa_k", FA3QuantPlaceHolder(ratio=0.9999))
+                root_module.set_submodule(f"{name}.fa_v", FA3QuantPlaceHolder(ratio=1.0))
+                _wrap_attention_forward(module)
 
     def ascendv1_save_postprocess(self, model: nn.Module, save_directory: str) -> None:
         """

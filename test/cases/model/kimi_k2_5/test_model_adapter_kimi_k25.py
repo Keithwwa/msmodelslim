@@ -66,7 +66,9 @@ class _FakeSafeOpen:
     def get_tensor(self, name):
         if self.collector is not None:
             self.collector.append(name)
-        return torch.ones((2, 2), dtype=torch.float32) if name.endswith("weight") else torch.ones(2, dtype=torch.float32)
+        return (
+            torch.ones((2, 2), dtype=torch.float32) if name.endswith("weight") else torch.ones(2, dtype=torch.float32)
+        )
 
 
 @pytest.mark.parametrize(
@@ -111,13 +113,15 @@ def test_handle_dataset_given_item_missing_modality_then_raise_unsupported_error
 @pytest.mark.parametrize(
     "tokenizer_factory",
     [
-        lambda: (_ for _ in ()).throw(RuntimeError("t")),
-        lambda: object(),
+        lambda: (_ for _ in ()).throw(RuntimeError("t")),  # pylint: disable=unnecessary-lambda
+        lambda: object(),  # pylint: disable=unnecessary-lambda
     ],
 )
 def test_handle_dataset_given_processor_fails_then_raise_unsupported_error(monkeypatch, tokenizer_factory):
     adapter = _adapter(model_path=Path("."), trust_remote_code=False)
-    monkeypatch.setattr(target.AutoProcessor, "from_pretrained", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("p")))
+    monkeypatch.setattr(
+        target.AutoProcessor, "from_pretrained", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("p"))
+    )
     monkeypatch.setattr(target.AutoTokenizer, "from_pretrained", lambda *args, **kwargs: tokenizer_factory())
     with pytest.raises(UnsupportedError):
         adapter.handle_dataset([], DeviceType.CPU)
@@ -137,7 +141,9 @@ def test_handle_dataset_given_valid_item_when_called_then_return_processed_data(
 
     monkeypatch.setattr(target.AutoProcessor, "from_pretrained", lambda *args, **kwargs: DummyProcessor())
     monkeypatch.setattr(target, "get_valid_read_path", lambda p, **kwargs: p)
-    adapter._collect_inputs_to_device = lambda inputs, device, keys, defaults: {k: inputs[k] for k in keys if k in inputs}
+    adapter._collect_inputs_to_device = lambda inputs, device, keys, defaults: {
+        k: inputs[k] for k in keys if k in inputs
+    }
     out = adapter.handle_dataset([SimpleNamespace(image="a.jpg", text="hello")], DeviceType.CPU)
     assert isinstance(out, list)
     assert len(out) == 1
@@ -159,13 +165,17 @@ def test_enable_kv_cache_given_need_flag_when_called_then_set_use_cache():
 
 
 def test_get_adapter_config_for_subgraph_given_layers_when_called_then_return_configs():
-    adapter = _adapter(config=SimpleNamespace(text_config=SimpleNamespace(
-        num_hidden_layers=3,
-        num_attention_heads=8,
-        num_key_value_heads=4,
-        qk_nope_head_dim=128,
-        v_head_dim=128,
-    )))
+    adapter = _adapter(
+        config=SimpleNamespace(
+            text_config=SimpleNamespace(
+                num_hidden_layers=3,
+                num_attention_heads=8,
+                num_key_value_heads=4,
+                qk_nope_head_dim=128,
+                v_head_dim=128,
+            )
+        )
+    )
 
     out = adapter.get_adapter_config_for_subgraph()
     ov = [cfg for cfg in out if cfg.subgraph_type == "ov"]
@@ -263,7 +273,12 @@ def test_load_decoder_if_not_exist_given_missing_layer_cls_when_called_then_rais
 @pytest.mark.parametrize(
     "inputs, mm_projector, vision_dtype, expected",
     [
-        ({"input_ids": torch.tensor([[1, 2]], dtype=torch.long), "pixel_values": None}, object(), torch.float32, ["language_model.model.layers.0"]),
+        (
+            {"input_ids": torch.tensor([[1, 2]], dtype=torch.long), "pixel_values": None},
+            object(),
+            torch.float32,
+            ["language_model.model.layers.0"],
+        ),
         (
             {
                 "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
@@ -276,24 +291,32 @@ def test_load_decoder_if_not_exist_given_missing_layer_cls_when_called_then_rais
             ["vision_tower", "mm_projector", "language_model.model.layers.0"],
         ),
         (
-            [{
-                "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
-                "attention_mask": None,
-                "pixel_values": torch.ones((1, 3, 2, 2), dtype=torch.float32),
-                "grid_thws": None,
-            }],
+            [
+                {
+                    "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
+                    "attention_mask": None,
+                    "pixel_values": torch.ones((1, 3, 2, 2), dtype=torch.float32),
+                    "grid_thws": None,
+                }
+            ],
             None,
             torch.float16,
             ["vision_tower", "language_model.model.layers.0"],
         ),
         (
-            {"input_ids": torch.tensor([[1]], dtype=torch.long), "pixel_values": torch.ones((1, 3, 2, 2), dtype=torch.float32)},
+            {
+                "input_ids": torch.tensor([[1]], dtype=torch.long),
+                "pixel_values": torch.ones((1, 3, 2, 2), dtype=torch.float32),
+            },
             object(),
             torch.float32,
             ["language_model.model.layers.0"],
         ),
         (
-            {"input_ids": torch.tensor([[1, 2]], dtype=torch.long), "pixel_values": torch.empty((0, 3, 2, 2), dtype=torch.float32)},
+            {
+                "input_ids": torch.tensor([[1, 2]], dtype=torch.long),
+                "pixel_values": torch.empty((0, 3, 2, 2), dtype=torch.float32),
+            },
             object(),
             torch.float32,
             ["language_model.model.layers.0"],
@@ -333,18 +356,24 @@ def test_generate_model_forward_given_decoder_returns_tuple_when_called_then_unw
         def forward(self, hidden_states, **kwargs):
             return (hidden_states + 1,)
 
-    adapter.generate_decoder_layer = lambda model: iter([
-        ("language_model.model.layers.0", TupleLayer()),
-        ("language_model.model.layers.1", nn.Identity()),
-    ])
+    adapter.generate_decoder_layer = lambda model: iter(
+        [
+            ("language_model.model.layers.0", TupleLayer()),
+            ("language_model.model.layers.1", nn.Identity()),
+        ]
+    )
 
     model = SimpleNamespace(
         language_model=SimpleNamespace(model=SimpleNamespace(embed_tokens=nn.Embedding(10, 4))),
-        vision_tower=SimpleNamespace(patch_embed=SimpleNamespace(proj=SimpleNamespace(weight=torch.ones(1, dtype=torch.float32)))),
+        vision_tower=SimpleNamespace(
+            patch_embed=SimpleNamespace(proj=SimpleNamespace(weight=torch.ones(1, dtype=torch.float32)))
+        ),
     )
     monkeypatch.setattr(target, "_prepare_4d_causal_attention_mask", lambda *args, **kwargs: torch.ones((1, 1, 2, 2)))
 
-    gen = adapter.generate_model_forward(model, {"input_ids": torch.tensor([[1, 2]], dtype=torch.long), "pixel_values": None})
+    gen = adapter.generate_model_forward(
+        model, {"input_ids": torch.tensor([[1, 2]], dtype=torch.long), "pixel_values": None}
+    )
     assert next(gen).name == "language_model.model.layers.0"
     assert gen.send((torch.ones((1, 2, 4), dtype=torch.float32),)).name == "language_model.model.layers.1"
 
@@ -451,6 +480,7 @@ def test_init_model_main_paths(monkeypatch, mm_projector, config, with_heads, ex
     if expected_replace_calls is not None:
         assert replace_calls["count"] == expected_replace_calls
     else:
+        # pylint: disable-next=unsubscriptable-object
         assert fake_model.vision_tower[0] == "vision_tower"
         assert fake_model.mm_projector[0] == "mm_projector"
         assert fake_model.language_model.lm_head[0] == "language_model.lm_head"
@@ -470,10 +500,170 @@ def test_init_model_given_load_model_raises_when_called_then_restore_initialize_
     monkeypatch.setattr(target, "get_valid_read_path", lambda p, **kwargs: p)
     original = target.PreTrainedModel._initialize_missing_keys
 
-    monkeypatch.setattr(target.SafeGenerator, "get_model_from_pretrained", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        target.SafeGenerator, "get_model_from_pretrained", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     with pytest.raises(RuntimeError):
         adapter.init_model(DeviceType.CPU)
 
     assert target.PreTrainedModel._initialize_missing_keys is original
     # 当前实现在异常路径不会恢复 num_hidden_layers，这里仅看护 monkey patch 回滚
     assert adapter.config.text_config.num_hidden_layers == 1
+
+
+def _fake_deepseek_module():
+    class M:
+        @staticmethod
+        def apply_rotary_pos_emb(q, k, *args, **kwargs):
+            return q, k
+
+    return M()
+
+
+def _make_root_with_attention():
+    class FakeAttention(nn.Module):
+        def forward(self, x):
+            return x
+
+    class RootModule(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.attn = FakeAttention()
+
+    return RootModule()
+
+
+def test_inject_fa3_placeholders_injects_submodules_when_should_inject_returns_true(monkeypatch):
+    adapter = _adapter()
+    root = _make_root_with_attention()
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: True)
+
+    assert hasattr(root.attn, 'fa_q')
+    assert hasattr(root.attn, 'fa_k')
+    assert hasattr(root.attn, 'fa_v')
+    assert isinstance(root.attn.fa_q, target.FA3QuantPlaceHolder)
+    assert isinstance(root.attn.fa_k, target.FA3QuantPlaceHolder)
+    assert isinstance(root.attn.fa_v, target.FA3QuantPlaceHolder)
+    assert root.attn.fa_q.get_ratio() == pytest.approx(0.9999)
+    assert root.attn.fa_k.get_ratio() == pytest.approx(0.9999)
+    assert root.attn.fa_v.get_ratio() == pytest.approx(1.0)
+
+
+def test_inject_fa3_placeholders_skips_module_when_should_inject_returns_false():
+    adapter = _adapter()
+    root = _make_root_with_attention()
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: False)
+
+    assert not hasattr(root.attn, 'fa_q')
+    assert not hasattr(root.attn, 'fa_k')
+    assert not hasattr(root.attn, 'fa_v')
+
+
+def test_inject_fa3_placeholders_skips_non_attention_modules():
+    class FakeMLP(nn.Module):
+        def forward(self, x):
+            return x
+
+    class RootModule(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.mlp = FakeMLP()
+
+    adapter = _adapter()
+    root = RootModule()
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: True)
+
+    assert not hasattr(root.mlp, 'fa_q')
+
+
+def test_inject_fa3_placeholders_calls_should_inject_with_full_name(monkeypatch):
+    adapter = _adapter()
+    root = _make_root_with_attention()
+    called_names = []
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("my_root", root, lambda name: (called_names.append(name), True)[1])
+
+    assert called_names == ["my_root.attn"]
+
+
+def test_inject_fa3_placeholders_uses_name_only_when_root_name_empty(monkeypatch):
+    adapter = _adapter()
+    root = _make_root_with_attention()
+    called_names = []
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("", root, lambda name: (called_names.append(name), True)[1])
+
+    assert called_names == ["attn"]
+
+
+def test_inject_fa3_placeholders_wraps_forward_when_should_inject_returns_true(monkeypatch):
+    adapter = _adapter()
+    root = _make_root_with_attention()
+    original_forward = root.attn.forward
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: True)
+
+    assert root.attn.forward is not original_forward
+
+
+def test_inject_fa3_placeholders_does_not_wrap_forward_when_should_inject_returns_false():
+    adapter = _adapter()
+    root = _make_root_with_attention()
+    original_forward = root.attn.forward
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: False)
+
+    assert root.attn.forward.__func__ is original_forward.__func__
+
+
+def test_inject_fa3_placeholders_handles_multiple_attention_modules(monkeypatch):
+    class FakeAttention(nn.Module):
+        def forward(self, x):
+            return x
+
+    class RootModule(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.attn0 = FakeAttention()
+            self.attn1 = FakeAttention()
+
+    adapter = _adapter()
+    root = RootModule()
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: True)
+
+    assert hasattr(root.attn0, 'fa_q')
+    assert hasattr(root.attn0, 'fa_k')
+    assert hasattr(root.attn0, 'fa_v')
+    assert hasattr(root.attn1, 'fa_q')
+    assert hasattr(root.attn1, 'fa_k')
+    assert hasattr(root.attn1, 'fa_v')
+
+
+def test_inject_fa3_placeholders_selectively_injects_based_on_should_inject(monkeypatch):
+    class FakeAttention(nn.Module):
+        def forward(self, x):
+            return x
+
+    class RootModule(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.attn0 = FakeAttention()
+            self.attn1 = FakeAttention()
+
+    adapter = _adapter()
+    root = RootModule()
+    monkeypatch.setattr(target, "import_module", lambda *_: _fake_deepseek_module())
+
+    adapter.inject_fa3_placeholders("root", root, lambda name: "attn0" in name)
+
+    assert hasattr(root.attn0, 'fa_q')
+    assert not hasattr(root.attn1, 'fa_q')
