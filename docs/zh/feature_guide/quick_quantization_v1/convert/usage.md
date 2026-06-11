@@ -1,6 +1,3 @@
----
-toc_depth: 3
----
 # 权重转换完整指南
 
 ## 目录
@@ -51,7 +48,7 @@ toc_depth: 3
 
 ## 使用前准备
 
-1. 安装 msModelSlim 工具，详情请参见[《msModelSlim 工具安装指南》](../../../getting_started/install_guide.md)。
+1. 安装 msModelSlim 工具，详情请参见《[msModelSlim 工具安装指南](../../../getting_started/install_guide.md)》。
 2. 准备源权重目录，须为 HuggingFace 风格 checkpoint（含 `config.json` 及 `*.safetensors` 或 `model.safetensors.index.json` 分片索引）。
 3. 编写或选用 `apiversion: modelslim_convert` 的 YAML 配置，明确需转换的线性层匹配规则、目标 IR 与落盘格式。
 
@@ -90,12 +87,6 @@ msmodelslim quant \
 | model_path | 必选 | 源权重目录路径。<br>类型：Str。 |
 | save_path | 必选 | 转换后权重保存路径。<br>类型：Str。 |
 | config_path | 必选 | 转换配置 YAML 路径。<br>1. 类型：Str。<br>2. YAML 中 `apiversion` 须为 `modelslim_convert`。<br>3. 与 `quant_type` 不可同时指定。 |
-| model_type | 可选 | 模型名称，用于落盘元数据；convert 场景可省略。<br>类型：Str。 |
-| device | 可选 | convert 流水线默认在 CPU 执行，该参数对 convert 无实质影响。<br>默认值：`npu`。 |
-| quant_type | 不可与 config_path 共存 | convert 场景**不使用**此参数。 |
-| tag | 可选 | convert 场景**不使用**此参数。 |
-| debug | 可选 | convert 场景当前不支持调试上下文导出。 |
-| trust_remote_code | 可选 | convert 不加载模型代码，通常无需设置。 |
 | h, help | 可选 | 命令行帮助信息。 |
 
 ### 使用示例
@@ -149,7 +140,7 @@ msmodelslim quant \
 
 | save.type | 典型目标 IR | 输出特征 |
 |-----------|-------------|----------|
-| `ascend_v1` | `W8A8_MXFP8` | 生成 `quant_model_description.json`、`quant_model_weights*.safetensors` 等 AscendV1 量化权重，详见[一键量化生成结果](../quantization_result.md) |
+| `ascend_v1` | `W8A8_MXFP8` | 生成 `quant_model_description.json`、`quant_model_weights*.safetensors` 等 AscendV1 量化权重，详见《[一键量化生成结果](../quantization_result.md)》 |
 | `huggingface` / `compressed_tensors` | `FLOAT` | 生成 HF 风格 `config.json`、`model*.safetensors` 等，权重为 BF16 浮点 |
 
 无论哪种落盘格式，未纳入 `linears.match` 的非线性层权重均会从源 checkpoint 拷贝至输出目录。
@@ -266,9 +257,6 @@ spec:
 spec:
   parallel:
     workers: 8              # 进程/worker 数量
-    max_group_size: null    # 单 dependency group 最大任务数；过大 MoE 层可设正整数拆组
-    worker_device: cpu      # workers=1 时可设为 npu（单进程 NPU 路径）
-    npu_max_workers: 1      # worker_device 为 NPU 时组内最大并发，防 OOM
 ```
 
 **字段说明**：
@@ -276,9 +264,6 @@ spec:
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
 | workers | 1 | `1`：单进程 + 线程池；`>1`：多进程并行（固定 CPU，突破 GIL）。 |
-| max_group_size | null | 超过阈值时将大 dependency group 拆成多个子组分散到不同进程，缓解 MoE Expert 层收尾拖尾。 |
-| worker_device | cpu | 仅 `workers=1` 时生效；可设为 `npu` 或 `npu:0` 等。 |
-| npu_max_workers | 1 | NPU 组内并发上限。 |
 
 #### preprocess - 权重图预处理（可选）
 
@@ -351,16 +336,16 @@ spec:
 
 ### 相关资料
 
-- 一键量化总体流程与常规量化配置：[一键量化完整指南](../usage.md)
-- AscendV1 量化权重文件说明：[一键量化生成结果](../quantization_result.md)
-- 格式支持矩阵：[格式支持矩阵](../../../quantization_formats/README.md)
+- 一键量化总体流程与常规量化配置：《[一键量化完整指南](../usage.md)》
+- AscendV1 量化权重文件说明：《[一键量化生成结果](../quantization_result.md)》
+- 格式支持矩阵：《[格式支持矩阵](../../../quantization_formats/README.md)》
 
 ### 常见问题
 
 #### Q1: 权重转换与常规一键量化如何选择？
 
 - 已有 **FP8 / BF16 等 checkpoint**，仅需改精度或落盘格式、**不需要重新校准** → 使用权重转换（本文档）。
-- 从 **原始浮点模型** 出发，需要校准集统计激活并做 W8A8 等完整量化 → 使用[一键量化完整指南](../usage.md)。
+- 从 **原始浮点模型** 出发，需要校准集统计激活并做 W8A8 等完整量化 → 使用《[一键量化完整指南](../usage.md)》。
 
 #### Q2: 为什么 MXFP8 必须用 ascend_v1 落盘？
 
