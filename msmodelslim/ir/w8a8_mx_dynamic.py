@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details.
 """
 
 import torch
-from torch import nn as nn
+from torch import nn
 from torch.nn import functional as F
 
 from msmodelslim.ir.qal import QABCRegistry, QScope, QScheme, QParam, QStorage, QDType
@@ -32,22 +32,10 @@ from msmodelslim.ir.utils import reshape_to_blocks, undo_reshape_to_blocks
 from msmodelslim.utils.logging import logger_setter
 
 
-@QABCRegistry.multi_register(
-    dispatch_key=[
-        (mxfp8_per_block_sym, mxfp8_per_block_sym)
-    ],
-    abc_type=AutoFakeQuantLinear
-)
+@QABCRegistry.multi_register(dispatch_key=[(mxfp8_per_block_sym, mxfp8_per_block_sym)], abc_type=AutoFakeQuantLinear)
 @logger_setter()
 class W8A8MXDynamicPerBlockFakeQuantLinear(AutoFakeQuantLinear):
-
-    def __init__(
-            self,
-            x_q_param: QParam,
-            w_q_param: QParam,
-            w_q: QStorage,
-            bias: torch.Tensor
-    ):
+    def __init__(self, x_q_param: QParam, w_q_param: QParam, w_q: QStorage, bias: torch.Tensor):
         super().__init__()
         self.w_scheme = w_q_param.scheme
         self.w_mx_finfo = w_q_param.scheme.dtype.mx_finfo
@@ -68,6 +56,24 @@ class W8A8MXDynamicPerBlockFakeQuantLinear(AutoFakeQuantLinear):
     def __repr__(self) -> str:
         return f"W8A8MXDynamicPerBlockFakeQuantLinear(symmetric={self.w_scheme.symmetric})"
 
+    @classmethod
+    def from_deploy_state_dict(cls, state_dict: dict[str, torch.Tensor]) -> "W8A8MXDynamicPerBlockFakeQuantLinear":
+        """从 deploy 后的 state_dict 重建模块（convert 多进程回传，仅供 AscendV1 落盘）。"""
+        mx_scheme = QScheme(scope=QScope.PER_BLOCK, dtype=QDType.MXFP8, symmetric=True)
+        axes = -1
+        x_q_param = QParam(scheme=mx_scheme, ext={"axes": axes})
+        w_q_param = QParam(
+            scheme=mx_scheme,
+            ext={
+                "axes": axes,
+                "scale": state_dict["weight_scale"],
+                "offset": state_dict["weight_offset"],
+            },
+        )
+        w_q = QStorage(QDType.MXFP8, state_dict["weight"])
+        bias = state_dict.get("bias")
+        return cls(x_q_param, w_q_param, w_q, bias)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         axes = self.x_axes
         axes = [axes] if isinstance(axes, int) else axes
@@ -77,10 +83,11 @@ class W8A8MXDynamicPerBlockFakeQuantLinear(AutoFakeQuantLinear):
         self.x_minmax_block_observer.update(x, shared_exp_axes=shared_exp_axes)
         x_min_val, x_max_val = self.x_minmax_block_observer.get_min_max()
         x_q_param = calculate_qparam(
-            x_min_val, x_max_val,
+            x_min_val,
+            x_max_val,
             q_dtype=self.x_scheme.dtype,
             q_scope=self.x_scheme.scope,
-            symmetric=self.x_scheme.symmetric
+            symmetric=self.x_scheme.symmetric,
         )
         x_q_dq = fake_quantize(QStorage(QDType.FLOAT, x), x_q_param)
         x_q_dq.value = undo_reshape_to_blocks(x_q_dq.value, padded_shape, orig_shape, axes)
@@ -92,8 +99,10 @@ class W8A8MXDynamicPerBlockFakeQuantLinear(AutoFakeQuantLinear):
         w_q_storage.value, _, w_orig_shape, w_padded_shape = reshape_to_blocks(
             w_q_storage.value, axes, self.w_mx_finfo.block_size
         )
-        w_q_param = QParam(scheme=QScheme(scope=QScope.PER_BLOCK, dtype=QDType.MXFP8, symmetric=True),
-                           ext={"scale": self.weight_scale.data})
+        w_q_param = QParam(
+            scheme=QScheme(scope=QScope.PER_BLOCK, dtype=QDType.MXFP8, symmetric=True),
+            ext={"scale": self.weight_scale.data},
+        )
         weight_q_dq = dequantize(w_q_storage, w_q_param)
         weight_q_dq.value = undo_reshape_to_blocks(weight_q_dq.value, w_padded_shape, w_orig_shape, axes)
 

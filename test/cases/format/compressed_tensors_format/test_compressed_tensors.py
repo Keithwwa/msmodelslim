@@ -43,7 +43,6 @@ from msmodelslim.format.compressed_tensors_format.config.base import (
 from msmodelslim.format.interface import ExportContext
 from msmodelslim.utils.exception import (
     ConfigError,
-    InvalidModelError,
     SchemaValidateError,
 )
 
@@ -303,11 +302,10 @@ class TestCompressedTensorsQuantFormatBuildQuantizationConfig:
         assert isinstance(result, dict)
         assert "config_groups" in result
 
-    def test_build_quantization_config_raise_invalid_model_error_when_no_qir_module(self, quant_format):
+    def test_build_quantization_config_return_none_when_no_qir_module(self, quant_format):
         empty_model = nn.Sequential(nn.Linear(4, 2))
 
-        with pytest.raises(InvalidModelError, match="No quantized QIR module found"):
-            quant_format._build_quantization_config(empty_model)
+        assert quant_format._build_quantization_config(empty_model) is None
 
 
 class TestCompressedTensorsQuantFormatFinalizeExport:

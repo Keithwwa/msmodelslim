@@ -44,7 +44,7 @@ from msmodelslim.format.compressed_tensors_format.compressed_tensors_safetensors
 )
 from msmodelslim.format.compressed_tensors_format.quantization.quant_config import QuantizationConfig
 from msmodelslim.format.interface import ExportContext
-from msmodelslim.utils.exception import ConfigError, InvalidModelError, SchemaValidateError
+from msmodelslim.utils.exception import ConfigError, SchemaValidateError
 from msmodelslim.utils.security import (
     get_valid_read_path,
     get_valid_write_path,
@@ -207,14 +207,26 @@ class CompressedTensorsQuantFormat(QuantFormatBase):
                 action="Ensure config.json is a valid JSON object.",
             )
 
-        config_data[QUANTIZATION_CONFIG_NAME] = self._build_quantization_config(model)
+        qconfig = self._build_quantization_config(model)
+        if qconfig is None:
+            if QUANTIZATION_CONFIG_NAME in config_data:
+                config_data.pop(QUANTIZATION_CONFIG_NAME)
+                logger.info(
+                    "No quantized QIR modules in model; removed %s for float-only export",
+                    QUANTIZATION_CONFIG_NAME,
+                )
+        else:
+            config_data[QUANTIZATION_CONFIG_NAME] = qconfig
         write_path = get_valid_write_path(config_path, extensions=[".json"])
         writer = self._json_writer_factory_infra.create_json_writer(
             os.path.dirname(write_path),
             os.path.basename(write_path),
         )
         writer.dump(config_data, indent=2)
-        logger.info("Updated compressed-tensors quantization_config in %s", write_path)
+        if qconfig is None:
+            logger.info("Updated config.json for float-only export: %s", write_path)
+        else:
+            logger.info("Updated compressed-tensors quantization_config in %s", write_path)
 
     def _ensure_config_json_exists(self, config_path: str) -> bool:
         if os.path.exists(config_path):
@@ -232,13 +244,10 @@ class CompressedTensorsQuantFormat(QuantFormatBase):
                 writer.dump(src_reader.load(), indent=2)
         return os.path.exists(config_path)
 
-    def _build_quantization_config(self, model: nn.Module) -> Dict[str, Any]:
+    def _build_quantization_config(self, model: nn.Module) -> Dict[str, Any] | None:
         qconfig = QuantizationConfig.from_model(model)
         if qconfig is None:
-            raise InvalidModelError(
-                "No quantized QIR module found in model",
-                action="Ensure the model contains at least one supported QIR fake-quant module before export.",
-            )
+            return None
         return qconfig.to_quantization_config_dict()
 
 

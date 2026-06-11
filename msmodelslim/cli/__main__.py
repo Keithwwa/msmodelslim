@@ -123,7 +123,11 @@ def main():
     # Quant command
     quant_parser = subparsers.add_parser('quant', help='Model quantization')
     quant_parser.add_argument(
-        '--model_type', required=True, help="Type of model to quantize (e.g. 'Qwen2.5-7B-Instruct', 'Qwen-QwQ-32B')"
+        '--model_type',
+        required=False,
+        default=None,
+        help="Type of model to quantize (e.g. 'Qwen2.5-7B-Instruct'). "
+        "Optional when --config_path uses apiversion modelslim_convert (weight convert needs only model_path).",
     )
     quant_parser.add_argument('--model_path', required=True, type=str, help="Path to the original model")
     quant_parser.add_argument('--save_path', required=True, type=str, help="Path to save quantized model")

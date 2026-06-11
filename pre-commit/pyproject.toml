@@ -91,12 +91,13 @@
  	   "broad-except",
  	   "bare-except",
 
- 	   # 导入相关
- 	   "wrong-import-order",
- 	   "wrong-import-position",
- 	   "import-error",
+	   # 导入相关
+	   "wrong-import-order",
+	   "wrong-import-position",
+	   "import-error",
+	   "cyclic-import",
 
- 	   # 重复代码检测
+	   # 重复代码检测
  	   "duplicate-code",
  	 ]
 
