@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field, AfterValidator, field_validator
 from msmodelslim.core.base.protocol import BatchProcessRequest
 from msmodelslim.core.context import get_current_context
 from msmodelslim.processor.base import AutoSessionProcessor
-from msmodelslim.utils.distributed import DistHelper
+from msmodelslim.utils.distributed import DistHelper, is_rank_zero
 from msmodelslim.utils.exception import SchemaValidateError, UnsupportedError
 from msmodelslim.utils.logging import get_logger, logger_setter
 from msmodelslim.utils.validation.pydantic import in_range, validate_str_length
@@ -226,7 +226,8 @@ class AdaptRotationStage1Processor(AutoSessionProcessor):
             )
         ns = ctx["adapt_rotation"]  # pylint: disable=unsubscriptable-object
         adapted_matrix_cpu = adapted_matrix.cpu() if hasattr(adapted_matrix, "cpu") else adapted_matrix
-        ns.state["adapted_matrix"] = adapted_matrix_cpu
+        if is_rank_zero():
+            ns.state["adapted_matrix"] = adapted_matrix_cpu
 
     def _fuse_norm(self, fused_map: Dict[str, str]):
         for key, value in fused_map.items():
