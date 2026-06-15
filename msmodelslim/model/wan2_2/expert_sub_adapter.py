@@ -24,14 +24,23 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from torch import nn
 
+from msmodelslim.model.base import BaseModelAdapter
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface
 from msmodelslim.processor.quarot import OnlineQuaRotInterface
+from ..interface_hub import (
+    IterSmoothInterface,
+)
 
 if TYPE_CHECKING:
     from .base_model_adapter import Wan2_2BaseModelAdapter
 
 
-class Wan2_2ExpertSubAdapter(OnlineQuaRotInterface, FA3QuantAdapterInterface):
+class Wan2_2ExpertSubAdapter(
+    BaseModelAdapter,
+    OnlineQuaRotInterface,
+    FA3QuantAdapterInterface,
+    IterSmoothInterface,
+):
     """
     Wan2.2 内部 expert 子适配器（不注册 model_type）。
 
@@ -39,6 +48,7 @@ class Wan2_2ExpertSubAdapter(OnlineQuaRotInterface, FA3QuantAdapterInterface):
     本类通过 parent 委托 generate_model_forward / generate_model_visit 等默认实现。
     """
 
+    # pylint: disable=super-init-not-called
     def __init__(self, parent: "Wan2_2BaseModelAdapter", expert_name: str):
         self._parent = parent
         self.expert_name = expert_name
@@ -74,6 +84,9 @@ class Wan2_2ExpertSubAdapter(OnlineQuaRotInterface, FA3QuantAdapterInterface):
         should_inject: Callable[[str], bool],
     ) -> None:
         self._parent.inject_fa3_placeholders(root_name, root_module, should_inject)
+
+    def get_adapter_config_for_subgraph(self) -> None:
+        return self._parent.get_adapter_config_for_subgraph(self._module.num_layers)
 
 
 class Wan2_2LowNoiseSubAdapter(Wan2_2ExpertSubAdapter):

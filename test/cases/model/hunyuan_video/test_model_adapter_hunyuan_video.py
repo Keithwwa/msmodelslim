@@ -856,21 +856,55 @@ class TestValidateCalibSamples:
 
 
 # ------------------------------ handle_dataset 补充测试 ------------------------------
-class TestHandleDataset:
-    """handle_dataset 边界场景"""
-
+class TestHunyuanVideoHandleDataset:
     @staticmethod
-    def test_handle_dataset_returns_empty_when_none(adapter):
-        """None输入返回空列表"""
+    def test_handle_dataset_returns_empty_list_when_dataset_is_none(adapter):
         assert adapter.handle_dataset(None) == []
 
     @staticmethod
-    def test_handle_dataset_wraps_single_sample(adapter):
-        """单个VlmCalibSample应被包装为列表"""
+    def test_handle_dataset_returns_validated_list_when_dataset_is_single_vlm_calib_sample(adapter):
         sample = VlmCalibSample(text="single")
         result = adapter.handle_dataset(sample)
         assert len(result) == 1
         assert result[0].text == "single"
+
+    @staticmethod
+    def test_handle_dataset_passes_through_when_dataset_is_tensor_data_list(adapter):
+        tensor_data = [[1, 2, 3], [4, 5, 6]]
+        result = adapter.handle_dataset(tensor_data)
+        assert result == tensor_data
+
+    @staticmethod
+    def test_handle_dataset_passes_through_when_dataset_is_dict_item_list(adapter):
+        dict_data = [{"key": "val1"}, {"key": "val2"}]
+        result = adapter.handle_dataset(dict_data)
+        assert result == dict_data
+
+    @staticmethod
+    def test_handle_dataset_raises_schema_validate_error_when_dataset_is_str(adapter):
+        with pytest.raises(SchemaValidateError, match="handle_dataset expects dataset to be a list, got str"):
+            adapter.handle_dataset("not_a_list")
+
+    @staticmethod
+    def test_handle_dataset_raises_schema_validate_error_when_dataset_is_int(adapter):
+        with pytest.raises(SchemaValidateError, match="handle_dataset expects dataset to be a list, got int"):
+            adapter.handle_dataset(42)
+
+    @staticmethod
+    def test_handle_dataset_raises_schema_validate_error_when_dataset_is_dict(adapter):
+        with pytest.raises(SchemaValidateError, match="handle_dataset expects dataset to be a list, got dict"):
+            adapter.handle_dataset({"key": "val"})
+
+    @staticmethod
+    def test_handle_dataset_returns_empty_list_when_dataset_is_empty_list(adapter):
+        result = adapter.handle_dataset([])
+        assert result == []
+
+    @staticmethod
+    def test_handle_dataset_returns_validated_list_when_dataset_is_vlm_calib_sample_list(adapter):
+        samples = [VlmCalibSample(text="a"), VlmCalibSample(text="b")]
+        result = adapter.handle_dataset(samples)
+        assert result == samples
 
 
 # ------------------------------ get_online_rotation_configs 测试 ------------------------------

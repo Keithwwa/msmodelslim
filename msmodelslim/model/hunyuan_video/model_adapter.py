@@ -134,13 +134,23 @@ class HunyuanVideoModelAdapter(
         self,
         dataset: Any,
         device: DeviceType = DeviceType.NPU,
-    ) -> List[VlmCalibSample]:
+    ) -> List[Any]:
+        """
+        dump 前仅做场景校验，不做模型 forward。
+        支持两种输入：
+        - List[VlmCalibSample]：原始校准样本，走 validate_calib_samples 校验
+        - List[List[...]]：prepare_calib_data 已处理的 tensor 数据列表，透传
+        """
         _ = device
         if dataset is None:
             return []
         if isinstance(dataset, VlmCalibSample):
             return self.validate_calib_samples([dataset])
-        return self.validate_calib_samples(list(dataset))
+        if isinstance(dataset, list) and dataset and isinstance(dataset[0], VlmCalibSample):
+            return self.validate_calib_samples(dataset)
+        if not isinstance(dataset, list):
+            raise SchemaValidateError("handle_dataset expects dataset to be a list, got %s" % type(dataset).__name__)
+        return dataset
 
     def init_model(self, device: DeviceType = DeviceType.NPU) -> Dict[str, nn.Module]:
         _ = device

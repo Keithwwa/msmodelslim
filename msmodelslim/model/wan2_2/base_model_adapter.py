@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-# pylint: disable=logging-fstring-interpolation,too-many-ancestors,consider-merging-isinstance,consider-using-from-import,attribute-defined-outside-init,invalid-envvar-default,simplifiable-if-expression,logging-not-lazy
+# pylint: disable=logging-fstring-interpolation,too-many-ancestors,consider-merging-isinstance,consider-using-from-import,attribute-defined-outside-init,invalid-envvar-default,simplifiable-if-expression,logging-not-lazy,too-many-lines,arguments-differ
 
 import logging
 import os
@@ -38,6 +38,7 @@ from tqdm import tqdm
 
 from msmodelslim.core.base.protocol import ProcessRequest
 from msmodelslim.core.const import DeviceType
+from msmodelslim.core.graph import AdapterConfig, MappingConfig
 from msmodelslim.model.base import BaseModelAdapter
 from msmodelslim.model.common.layer_wise_forward import (
     TransformersForwardBreak,
@@ -48,7 +49,12 @@ from msmodelslim.utils.exception import InvalidModelError, SchemaValidateError, 
 from msmodelslim.utils.logging import logger_setter, get_logger
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface, FA3QuantPlaceHolder
 from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VlmCalibSample
-from ..interface_hub import ModelInfoInterface, MultimodalPipelineInterface, OnlineQuaRotInterface
+from ..interface_hub import (
+    ModelInfoInterface,
+    MultimodalPipelineInterface,
+    OnlineQuaRotInterface,
+    IterSmoothInterface,
+)
 from .constants import DEFAULT_SIZE, DUAL_EXPERT_SCENE_TASKS, EXAMPLE_PROMPT, TASK_TYPES
 from .expert_sub_adapter import (
     Wan2_2ExpertSubAdapter,
@@ -64,6 +70,7 @@ class Wan2_2BaseModelAdapter(
     MultimodalPipelineInterface,
     FA3QuantAdapterInterface,
     OnlineQuaRotInterface,
+    IterSmoothInterface,
 ):
     """
     1.公共流水线接口
@@ -112,16 +119,23 @@ class Wan2_2BaseModelAdapter(
         self,
         dataset: Any,
         device: DeviceType = DeviceType.NPU,
-    ) -> List[VlmCalibSample]:
+    ) -> List[Any]:
         """
         dump 前仅做场景校验，不做模型 forward。
+        支持两种输入：
+        - List[VlmCalibSample]：原始校准样本，走 validate_calib_samples 校验
+        - List[List[...]]：prepare_calib_data 已处理的 tensor 数据列表，透传
         """
         _ = device
         if dataset is None:
             return []
         if isinstance(dataset, VlmCalibSample):
             return self.validate_calib_samples([dataset])
-        return self.validate_calib_samples(dataset)
+        if isinstance(dataset, list) and dataset and isinstance(dataset[0], VlmCalibSample):
+            return self.validate_calib_samples(dataset)
+        if not isinstance(dataset, list):
+            raise SchemaValidateError("handle_dataset expects dataset to be a list, got %s" % type(dataset).__name__)
+        return dataset
 
     def init_model(self, device: DeviceType = DeviceType.NPU) -> Dict[str, nn.Module]:
         raise NotImplementedError(
@@ -370,7 +384,23 @@ class Wan2_2BaseModelAdapter(
                 return self._quantization_context_with_no_sync(
                     self.low_noise_model, self.high_noise_model)
         """
+
         import torch.cuda.amp as amp
+
+        # 遍历所有子模块，将非blocks部分移至npu
+        for m in dit_models:
+            if m is None:
+                continue
+            for name, module in m.named_modules():
+                # 最大的一层，不处理
+                if not name:
+                    continue
+                # 处理非blocks模块：确保在npu上
+                if not name.startswith('blocks'):
+                    module.to('npu')
+                # 处理blocks模块：确保在cpu上
+                else:
+                    module.to('cpu')
 
         with (
             amp.autocast(dtype=self.model_args.param_dtype),
@@ -834,20 +864,37 @@ class Wan2_2BaseModelAdapter(
             if rope_apply is None:
                 raise ImportError(f"Could not find rope_apply in {original_forward.__module__}")
 
-            # attention 从 wan.modules.attention 导入（相对导入 .attention）
-            module_parts = original_forward.__module__.rsplit('.', 1)
-            if len(module_parts) == 2:
-                base_module_path = module_parts[0]
-                attention_module_path = base_module_path + '.attention'
-                try:
-                    wan_attention_module = import_module(attention_module_path)
-                    attention = getattr(wan_attention_module, 'attention', None)
-                    if attention is None:
-                        raise AttributeError(f"attention not found in {attention_module_path}")
-                except (ImportError, AttributeError) as e:
-                    raise ImportError(f"Could not import attention from {attention_module_path}: {e}")
+            # Wan2.2 attention 存在两个不兼容版本，需按优先级探测：
+            #   - 新版（commit 38fb8eb）：attention 抽取为 WanSelfAttention 实例方法 self.attention()
+            #   - 旧版：attention 为独立函数，位于 wan.modules.attention.attention()
+            # 探测策略：优先使用 self.attention（新版），若不存在则回退导入旧版函数。
+            use_method_attention = False
+            attention_fn = None
+            if hasattr(module, "attention") and callable(getattr(module, "attention")):
+                use_method_attention = True
             else:
-                raise ImportError(f"Could not determine attention module path from {original_forward.__module__}")
+                # attention 从 wan.modules.attention 导入（相对导入 .attention）
+                module_parts = original_forward.__module__.rsplit('.', 1)
+                if len(module_parts) == 2:
+                    base_module_path = module_parts[0]
+                    attention_module_path = base_module_path + '.attention'
+                    try:
+                        wan_attention_module = import_module(attention_module_path)
+                        attention = getattr(wan_attention_module, 'attention', None)
+                        if attention is None:
+                            raise AttributeError(f"attention not found in {attention_module_path}")
+                    except (ImportError, AttributeError) as e:
+                        raise ImportError(f"Could not import attention from {attention_module_path}: {e}")
+                else:
+                    raise ImportError(f"Could not determine attention module path from {original_forward.__module__}")
+
+            # 若未能解析到 attention，跳过不处理
+            if not use_method_attention and attention_fn is None:
+                get_logger().warning(
+                    f"Skip wrapping {module.__class__.__name__} because attention callable cannot be resolved "
+                    f"(module={original_forward.__module__})"
+                )
+                raise ImportError(f"Could not find attention in {original_forward.__module__}")
 
             def new_forward(
                 self,
@@ -858,6 +905,8 @@ class Wan2_2BaseModelAdapter(
                 args=None,
                 rainfusion_config=None,
                 t_idx=None,
+                b_idx=None,
+                **kwargs,
             ):
                 b, s, n, d = *x.shape[:2], self.num_heads, self.head_dim
 
@@ -886,15 +935,28 @@ class Wan2_2BaseModelAdapter(
                     v = self.fa3_v(v)
                 # ========================
 
-                x = attention(
-                    q=rope_apply(q, grid_sizes, freqs),
-                    k=rope_apply(k, grid_sizes, freqs),
-                    v=v,
-                    k_lens=seq_lens,
-                    window_size=self.window_size,
-                    rainfusion_config=rainfusion_config,
-                    t_idx=t_idx,
-                )
+                if use_method_attention:
+                    x = self.attention(
+                        q=rope_apply(q, grid_sizes, freqs),
+                        k=rope_apply(k, grid_sizes, freqs),
+                        v=v,
+                        k_lens=seq_lens,
+                        window_size=self.window_size,
+                        rainfusion_config=rainfusion_config,
+                        t_idx=t_idx,
+                        b_idx=b_idx,
+                        **kwargs,
+                    )
+                else:
+                    x = attention(
+                        q=rope_apply(q, grid_sizes, freqs),
+                        k=rope_apply(k, grid_sizes, freqs),
+                        v=v,
+                        k_lens=seq_lens,
+                        window_size=self.window_size,
+                        rainfusion_config=rainfusion_config,
+                        t_idx=t_idx,
+                    )
 
                 # output
                 x = x.flatten(2)
@@ -908,21 +970,35 @@ class Wan2_2BaseModelAdapter(
             """包裹 WanCrossAttention 的 forward 方法"""
             original_forward = module.forward
 
-            # 动态导入必要的函数
-            # attention 从 wan.modules.attention 导入（相对导入 .attention）
-            module_parts = original_forward.__module__.rsplit('.', 1)
-            if len(module_parts) == 2:
-                base_module_path = module_parts[0]
-                attention_module_path = base_module_path + '.attention'
-                try:
-                    wan_attention_module = import_module(attention_module_path)
-                    attention = getattr(wan_attention_module, 'attention', None)
-                    if attention is None:
-                        raise AttributeError(f"attention not found in {attention_module_path}")
-                except (ImportError, AttributeError) as e:
-                    raise ImportError(f"Could not import attention from {attention_module_path}: {e}")
+            # 解析 attention 实现：优先使用模块自身的 self.attention（新版本），否则回退到旧版函数
+            use_method_attention = False
+            attention_fn = None
+            if hasattr(module, "attention") and callable(getattr(module, "attention")):
+                use_method_attention = True
             else:
-                raise ImportError(f"Could not determine attention module path from {original_forward.__module__}")
+                # 动态导入必要的函数
+                # attention 从 wan.modules.attention 导入（相对导入 .attention）
+                module_parts = original_forward.__module__.rsplit('.', 1)
+                if len(module_parts) == 2:
+                    base_module_path = module_parts[0]
+                    attention_module_path = base_module_path + '.attention'
+                    try:
+                        wan_attention_module = import_module(attention_module_path)
+                        attention = getattr(wan_attention_module, 'attention', None)
+                        if attention is None:
+                            raise AttributeError(f"attention not found in {attention_module_path}")
+                    except (ImportError, AttributeError) as e:
+                        raise ImportError(f"Could not import attention from {attention_module_path}: {e}")
+                else:
+                    raise ImportError(f"Could not determine attention module path from {original_forward.__module__}")
+
+            # 若未能解析到 attention，跳过不处理
+            if not use_method_attention and attention_fn is None:
+                get_logger().warning(
+                    f"Skip wrapping {module.__class__.__name__} because attention callable cannot be resolved "
+                    f"(module={original_forward.__module__})"
+                )
+                raise ImportError(f"Could not find attention in {original_forward.__module__}")
 
             def new_forward(
                 self,
@@ -954,7 +1030,10 @@ class Wan2_2BaseModelAdapter(
                 # ========================
 
                 # compute attention
-                x = attention(q, k, v, k_lens=context_lens)
+                if use_method_attention:
+                    x = self.attention(q, k, v, k_lens=context_lens)
+                else:
+                    x = attention(q, k, v, k_lens=context_lens)
 
                 # output
                 x = x.flatten(2)
@@ -993,3 +1072,62 @@ class Wan2_2BaseModelAdapter(
                 _wrap_cross_attention_forward(module)
 
             get_logger().info(f"Injected FA3 placeholders for {full_name}")
+
+    def get_adapter_config_for_subgraph(self, num_layers) -> List[AdapterConfig]:
+        """
+        Get adapter config for subgraph-based anti-outlier processing (iter_smooth).
+
+        Defines the subgraph structure for non-fusion.
+        Based on wan2_2.py implementation but adapted for Wan2.2 model.
+
+        Includes both vision encoder and text decoder layers.
+        """
+        adapter_config = []
+
+        # Text decoder layers
+        # for layer_idx in range(self.transformer.num_layers):
+        for layer_idx in range(num_layers):
+            # Non-fusion: non-fusion
+            self_attn_qkv_mapping_config = MappingConfig(
+                targets=[
+                    f"blocks.{layer_idx}.self_attn.q",
+                    f"blocks.{layer_idx}.self_attn.k",
+                    f"blocks.{layer_idx}.self_attn.v",
+                ]
+            )
+
+            # Cross-Attention Q 与 K/V 来源不同，分开统计其smooth scale
+            cross_attn_q_mapping_config = MappingConfig(targets=[f"blocks.{layer_idx}.cross_attn.q"])
+            cross_attn_kv_mapping_config = MappingConfig(
+                targets=[f"blocks.{layer_idx}.cross_attn.k", f"blocks.{layer_idx}.cross_attn.v"]
+            )
+
+            # Norm-Linear mappings
+            adapter_config.extend(
+                [
+                    AdapterConfig(subgraph_type="norm-linear", mapping=self_attn_qkv_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=cross_attn_q_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=cross_attn_kv_mapping_config),
+                ]
+            )
+
+            # O层 非融合
+            o_self_mapping_config = MappingConfig(targets=[f"blocks.{layer_idx}.self_attn.o"])
+            o_cross_mapping_config = MappingConfig(targets=[f"blocks.{layer_idx}.cross_attn.o"])
+            adapter_config.extend(
+                [
+                    AdapterConfig(subgraph_type="norm-linear", mapping=o_self_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=o_cross_mapping_config),
+                ]
+            )
+
+            up_mapping_config = MappingConfig(targets=[f"blocks.{layer_idx}.ffn.0"])
+            down_mapping_config = MappingConfig(targets=[f"blocks.{layer_idx}.ffn.2"])
+            adapter_config.extend(
+                [
+                    AdapterConfig(subgraph_type="norm-linear", mapping=up_mapping_config),
+                    AdapterConfig(subgraph_type="norm-linear", mapping=down_mapping_config),
+                ]
+            )
+
+        return adapter_config
