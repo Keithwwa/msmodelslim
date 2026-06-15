@@ -31,7 +31,7 @@ from msmodelslim.utils.logging import get_logger
 class WrapperIR(nn.Module):
     """
     包装类IR基类，用于包装其他nn.Module。
-    
+
     该类是一个nn.Module，但持有一个被包装的nn.Module，提供统一的接口
     来访问和操作被包装的模块。
     """
@@ -39,7 +39,7 @@ class WrapperIR(nn.Module):
     def __init__(self, wrapped_module: nn.Module):
         """
         初始化包装类IR。
-        
+
         Args:
             wrapped_module: 被包装的nn.Module实例
         """
@@ -51,20 +51,17 @@ class WrapperIR(nn.Module):
         """
         如果该包装类IR是原子性的，则返回True，否则返回False。
         原子性包装类IR是指该IR应当被视为一个整体，不能被拆分。
-        
+
         在保存时，原子性包装器会作为整体处理，不会单独处理被包装的模块。
         非原子性包装器会分别处理被包装模块和包装器自身。
-        
+
         Returns:
             False，表示该包装类IR是非原子性的
         """
         return False
 
     def named_modules(
-            self,
-            memo: Optional[Set[nn.Module]] = None,
-            prefix: str = '',
-            remove_duplicate: bool = True
+        self, memo: Optional[Set[nn.Module]] = None, prefix: str = '', remove_duplicate: bool = True
     ) -> Iterator[Tuple[str, nn.Module]]:
         """
         重写named_modules方法，如果is_atomic()返回True，则只返回自身。
@@ -105,9 +102,9 @@ class HookIR(Callable):
         if self.hook_handle is not None:
             try:
                 self.hook_handle.remove()
-                get_logger().info(f"Removed hook with handle: {self.hook_handle}")
+                get_logger().debug("Removed hook with handle: %s", self.hook_handle)
             except Exception as e:
-                get_logger().warning(f"Failed to remove hook: {e}")
+                get_logger().warning("Failed to remove hook: %s", e)
 
     @abstractmethod
     def wrapper_module(self, module: nn.Module) -> WrapperIR:

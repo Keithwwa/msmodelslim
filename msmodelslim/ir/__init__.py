@@ -61,6 +61,8 @@ __all__ = [
     "FlatQuantOnlineWrapper",
     "FlatQuantOnlineHookIR",
     "NonFusionSmoothQuantWrapper",
+    "SVDResidualWrapper",
+    "SVDResidualHookIR",
     "int8_per_tensor_sym",
     "int8_per_channel_sym",
     "int8_per_channel_asym",
@@ -157,3 +159,4 @@ from .w8a8_mx_dynamic import W8A8MXDynamicPerBlockFakeQuantLinear
 from .w8a8_pdmix import W8A8PDMixFakeQuantLinear, PDMixState
 from .w8a8_static import W8A8StaticFakeQuantLinear
 from .wrapper import WrapperIR, HookIR
+from .svd_residual import SVDResidualWrapper, SVDResidualHookIR

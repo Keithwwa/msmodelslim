@@ -174,9 +174,10 @@ class AscendV1Saver(AutoSaverProcessor):
         'WFP8AFP8_DYNAMIC',
         'W8A8_MXFP8',  # 8-bit 浮点量化
         'W4A8_MXFP',  # 4w 浮点量化
-        'W4A4_DYNAMIC',
+        'W4A4_DYNAMIC',  # 4w4a → 高优先级
         'W4A4_MXFP4',
-        'W4A4_MXFP4_DUALSCALE',  # 4w4a → 高优先级
+        'W4A4_MXFP4_DUALSCALE',
+        'W4A4_MXFP4_SVD',
     ]
 
     def __init__(self, model: nn.Module, config: AscendV1Config, adapter: object, **kwargs: Dict[str, Any]):
@@ -200,6 +201,7 @@ class AscendV1Saver(AutoSaverProcessor):
         # If global torch dtype is bfloat16, convert deq_scale to int64.
         self._global_torch_dtype_is_bf16 = self._resolve_is_bf16_from_adapter(adapter)
         self.desc_quant: str = ''
+        self._desc_transform = None
 
     def support_distributed(self) -> bool:
         return True
@@ -273,6 +275,8 @@ class AscendV1Saver(AutoSaverProcessor):
         return False
 
     def write_tensor(self, prefix: str, desc: str, tensor: torch.Tensor):
+        if self._desc_transform is not None:
+            desc = self._desc_transform(desc)
         self.json_writer.write(prefix, desc)
         self.safetensors_writer.write(prefix, tensor)
 
@@ -714,6 +718,42 @@ class AscendV1Saver(AutoSaverProcessor):
         self.write_tensor(prefix + ".div.mul_scale", "FLOAT", module.scales)
         prefix = prefix + ".linear"
         self._process_module(prefix, wrapped_module)
+
+    def on_svd_wrapper(self, prefix: str, module: qir.SVDResidualWrapper):
+        """
+        处理 SVDResidualWrapper 类型的模块。
+
+        保存 svd_lowrank_l1、svd_lowrank_l2 参数，并在JSON中添加相应的描述。
+
+        Args:
+            prefix: 模块名称前缀
+            module: SVDResidualWrapper 模块实例
+        """
+        wrapped_module = module.wrapped_module
+        for name, param in module.named_parameters(recurse=False, prefix=prefix):
+            self.write_tensor(name, "FLOAT", param)
+
+        self.desc_quant = ""
+
+        def svd_desc_transform(desc):
+            # 对非 FLOAT 类型（量化权重）追加 SVD 标记
+            if desc != "FLOAT":
+                if desc.endswith("_DYNAMIC"):
+                    desc = desc.replace("_DYNAMIC", "_SVD_DYNAMIC")
+                else:
+                    desc += "_SVD"
+                self.desc_quant = desc
+            return desc
+
+        prev_transform = self._desc_transform
+        self._desc_transform = svd_desc_transform
+        try:
+            self._process_module(prefix, wrapped_module)
+        finally:
+            self._desc_transform = prev_transform
+
+        if self.desc_quant:
+            self.update_quant_type(self.desc_quant)
 
     def update_quant_type(self, quant_type: str):
         if quant_type not in self.QUANT_TYPE_PRIORITY:

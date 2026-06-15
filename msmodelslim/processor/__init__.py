@@ -19,7 +19,6 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
-
 __all__ = [
     "AdaptRotationProcessor",
     "AdaptRotationProcessorConfig",
@@ -54,10 +53,12 @@ __all__ = [
     "FloatSparseProcessor",
     "QuaRotProcessorConfig",
     "QuaRotProcessor",
-    'FlatQuantProcessorConfig', 
+    'FlatQuantProcessorConfig',
     'FlatQuantProcessor',
     "AWQProcessorConfig",
-    "AWQProcessor"
+    "AWQProcessor",
+    'SVDResidualProcessorConfig',
+    'SVDResidualProcessor',
 ]
 
 from .analysis import (
@@ -82,7 +83,7 @@ from .base import AutoProcessorConfig
 from .container.group import GroupProcessorConfig, GroupProcessor
 from .memory.load import LoadProcessorConfig, LoadProcessor
 from .quant.attention import DynamicCacheProcessorConfig, DynamicCacheQuantProcessor
-from .quant.autoround import AutoProcessorConfig, AutoroundQuantProcessor
+from .quant.autoround import AutoroundQuantProcessor
 from .quant.fa3 import FA3QuantProcessorConfig, FA3QuantProcessor
 from .quant.linear import LinearProcessorConfig, LinearQuantProcessor
 from .quarot import QuaRotProcessor, QuaRotProcessorConfig
@@ -90,3 +91,4 @@ from .adapt_rotation import AdaptRotationProcessor, AdaptRotationProcessorConfig
 from .sparse.float_sparse import FloatSparseProcessorConfig, FloatSparseProcessor
 from .flat_quant import FlatQuantProcessorConfig, FlatQuantProcessor
 from .anti_outlier import AWQProcessor, AWQProcessorConfig
+from .svd_residual import SVDResidualProcessorConfig, SVDResidualProcessor

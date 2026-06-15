@@ -188,6 +188,8 @@ class MindIEFormatSaver(AutoSaverProcessor):
         self.shared_modules_slice: Optional[List[str]] = None
         self.group_size = None
         self.fa_quant_states = {}
+        self._desc_transform = None
+        self.desc_quant = ""
 
     def support_distributed(self) -> bool:
         return True
@@ -249,6 +251,8 @@ class MindIEFormatSaver(AutoSaverProcessor):
         return os.path.join(self.config.save_directory, f"rank_{dist.get_rank()}")
 
     def write_tensor(self, prefix: str, desc: str, tensor: torch.Tensor):
+        if self._desc_transform is not None:
+            desc = self._desc_transform(desc)
         self.json_writer.write(prefix, desc)
         self.safetensors_writer.write(prefix, tensor)
 
@@ -498,3 +502,40 @@ class MindIEFormatSaver(AutoSaverProcessor):
 
     def on_activation_per_block(self, prefix: str, module: qir.FakeQuantActivationPerBlock):
         self.update_fa_quant_type(prefix, module)
+
+    def on_svd_wrapper(self, prefix: str, module: qir.SVDResidualWrapper):
+        """
+        处理 SVDResidualWrapper 类型的模块。
+
+        保存 svd_lowrank_l1、svd_lowrank_l2 参数，并在JSON中添加相应的描述。
+
+        Args:
+            prefix: 模块名称前缀
+            module: SVDResidualWrapper 模块实例
+        """
+        wrapped_module = module.wrapped_module
+        for name, param in module.named_parameters(recurse=False, prefix=prefix):
+            self.write_tensor(name, "FLOAT", param)
+
+        self.desc_quant = ""  # pylint: disable=attribute-defined-outside-init
+
+        def svd_desc_transform(desc):
+            if desc != "FLOAT":
+                if desc.endswith("_DYNAMIC"):
+                    desc = desc.replace("_DYNAMIC", "_SVD_DYNAMIC")
+                else:
+                    desc += "_SVD"
+                self.desc_quant = desc  # pylint: disable=attribute-defined-outside-init
+            return desc
+
+        prev_transform = self._desc_transform
+        self._desc_transform = svd_desc_transform
+        try:
+            self._process_module(prefix, wrapped_module)
+        finally:
+            self._desc_transform = prev_transform
+
+        if self.desc_quant:
+            if ValidJsonExt.JSON_APPEND not in self.json_append:
+                self.json_append[ValidJsonExt.JSON_APPEND] = dict()
+            self.json_append[ValidJsonExt.JSON_APPEND]["model_quant_type"] = self.desc_quant
