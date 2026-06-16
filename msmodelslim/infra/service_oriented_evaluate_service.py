@@ -98,7 +98,16 @@ class ServiceOrientedEvaluateService(EvaluateServiceInfra):
                     current_run_dir=context.working_dir,
                 )
                 accuracies.extend(bencher.run())
-                if not is_demand_satisfied(demand=evaluate_config.demand.expectations, evaluate_result=accuracies):
+
+                current_accuracy = accuracies[-1] if accuracies else None
+                if not current_accuracy or current_accuracy.dataset != expectation.dataset:
+                    return EvaluateResult(
+                        accuracies=accuracies,
+                        expectations=evaluate_config.demand.expectations,
+                        is_satisfied=False,
+                    )
+
+                if expectation.target - current_accuracy.accuracy > expectation.tolerance:
                     return EvaluateResult(
                         accuracies=accuracies,
                         expectations=evaluate_config.demand.expectations,
@@ -108,7 +117,10 @@ class ServiceOrientedEvaluateService(EvaluateServiceInfra):
             return EvaluateResult(
                 accuracies=accuracies,
                 expectations=evaluate_config.demand.expectations,
-                is_satisfied=True,
+                is_satisfied=is_demand_satisfied(
+                    demand=evaluate_config.demand.expectations,
+                    evaluate_result=accuracies,
+                ),
             )
         finally:
             if server and server.process.process:
