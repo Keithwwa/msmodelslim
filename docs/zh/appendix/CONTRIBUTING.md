@@ -122,10 +122,11 @@ git push --force-with-lease origin your-branch-name
 
 ### 单元测试指南
 
-如果您需要运行 msModelSlim 单元测试，请参阅详细的《[开发者测试指南](../developer_guide/testing_guide.md)》。该指南涵盖了：
+如果您需要运行或编写 msModelSlim 单元测试，请参阅详细的《[开发者测试指南](../developer_guide/testing_guide.md)》。该指南涵盖了：
 
-- 准备环境与安装依赖
-- 运行 modelslim_v1 模块测试
+- 准备环境与安装依赖。
+- **单元测试执行**：运行 modelslim_v1 模块测试。
+- **单元测试编写**：目录结构映射、命名规范、场景化测试设计、conftest.py 使用等。
 
 ## 感谢
 
