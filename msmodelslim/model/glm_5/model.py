@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
@@ -20,6 +21,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 # modified from DeepSeek-V3.2-Exp/inference/model.py
 import math
 from dataclasses import dataclass
@@ -39,9 +41,9 @@ BLOCK_SIZE = 128
 
 
 def fp8_index(q: torch.Tensor, q_s: torch.Tensor, k: torch.Tensor):
-    logits = (
-        torch.matmul(q.transpose(1, 2).to(torch.float32), k.permute(0, 2, 3, 1).to(torch.float32))
-    ).to(torch.float32)
+    logits = (torch.matmul(q.transpose(1, 2).to(torch.float32), k.permute(0, 2, 3, 1).to(torch.float32))).to(
+        torch.float32
+    )
     logits = torch.relu(logits)
     logits = logits * q_s.transpose(1, 2)
     logits = torch.sum(logits, dim=1)
@@ -86,6 +88,7 @@ class ModelArgs:
         index_head_dim (int): Dimension for index head.
         index_topk (int): Top-k for index head.
     """
+
     max_batch_size: int = 8
     max_seq_len: int = 4096 * 4
     dtype: Literal["bf16", "fp8"] = "bf16"
@@ -114,10 +117,10 @@ class ModelArgs:
     # yarn
     original_seq_len: int = 4096
     rope_theta: float = 10000.0
-    rope_factor: float = 40.
+    rope_factor: float = 40.0
     beta_fast: int = 32
     beta_slow: int = 1
-    mscale: float = 1.
+    mscale: float = 1.0
     # index
     index_n_heads: int = 32
     index_head_dim: int = 128
@@ -176,8 +179,9 @@ class ParallelEmbedding(nn.Module):
         return y
 
 
-def linear(x: torch.Tensor, weight: torch.Tensor, bias: Optional[torch.Tensor] = None,
-           scale_fmt: Optional[str] = None) -> torch.Tensor:
+def linear(
+    x: torch.Tensor, weight: torch.Tensor, bias: Optional[torch.Tensor] = None, scale_fmt: Optional[str] = None
+) -> torch.Tensor:
     """
     Applies a linear transformation to the incoming data: y = xA^T + b.
     This function supports specialized implementations based on quantization
@@ -357,13 +361,14 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
 
 def hadamard_transform_ref(x: torch.Tensor, scale=1.0):
     from scipy.linalg import hadamard
+
     if hadamard is None:
         raise ImportError("Please install scipy")
     x_shape = x.shape
     dim = x.shape[-1]
     x = x.reshape(-1, dim)
     log_dim = math.ceil(math.log2(dim))
-    dim_padded = 2 ** log_dim
+    dim_padded = 2**log_dim
     if dim != dim_padded:
         x = F.pad(x, (0, dim_padded - dim))
     out = F.linear(x, torch.tensor(hadamard(dim_padded, dtype=float), dtype=x.dtype, device=x.device))
@@ -373,7 +378,7 @@ def hadamard_transform_ref(x: torch.Tensor, scale=1.0):
 
 def rotate_activation(x: torch.Tensor) -> torch.Tensor:
     hidden_size = x.size(-1)
-    return hadamard_transform_ref(x, scale=hidden_size ** -0.5)
+    return hadamard_transform_ref(x, scale=hidden_size**-0.5)
 
 
 class Indexer(torch.nn.Module):
@@ -391,11 +396,12 @@ class Indexer(torch.nn.Module):
         self.wk = nn.Linear(self.dim, self.head_dim, bias=False)
         self.k_norm = LayerNorm(self.head_dim)
         self.weights_proj = nn.Linear(self.dim, self.n_heads, dtype=torch.get_default_dtype(), bias=False)
-        self.softmax_scale = self.head_dim ** -0.5
+        self.softmax_scale = self.head_dim**-0.5
         self.scale_fmt = args.scale_fmt
 
-    def forward(self, x: torch.Tensor, qr: torch.Tensor, start_pos: int, freqs_cis: torch.Tensor,
-                mask: Optional[torch.Tensor]):
+    def forward(
+        self, x: torch.Tensor, qr: torch.Tensor, start_pos: int, freqs_cis: torch.Tensor, mask: Optional[torch.Tensor]
+    ):
         bsz, seqlen, _ = x.size()
         end_pos = start_pos + seqlen
         q = self.wq_b(qr)
@@ -411,7 +417,7 @@ class Indexer(torch.nn.Module):
         q = rotate_activation(q)
         k = rotate_activation(k)
         q_scale = torch.ones(*q.size()[:-1], q.size(-1) // 128, dtype=torch.float32).npu()
-        weights = self.weights_proj(x) * self.n_heads ** -0.5
+        weights = self.weights_proj(x) * self.n_heads**-0.5
         weights = weights.unsqueeze(-1) * q_scale * self.softmax_scale
         k = k.view(bsz, -1, 1, self.head_dim)
         index_score = fp8_index(q.contiguous(), weights, k)
@@ -424,18 +430,20 @@ class Indexer(torch.nn.Module):
 
 def weight_dequant(weight, scale):
     shape = weight.shape
-    weight = weight.view(
-        shape[0] // BLOCK_SIZE,
-        BLOCK_SIZE,
-        shape[1] // BLOCK_SIZE,
-        BLOCK_SIZE
-    ).transpose(1, 2).contiguous().view(-1, BLOCK_SIZE * BLOCK_SIZE)
-    weight = (weight.float() * scale.view(-1, 1).float()).to(torch.get_default_dtype()).view(
-        shape[0] // BLOCK_SIZE,
-        shape[1] // BLOCK_SIZE,
-        BLOCK_SIZE,
-        BLOCK_SIZE
-    ).transpose(1, 2).contiguous().view(shape)
+    weight = (
+        weight.view(shape[0] // BLOCK_SIZE, BLOCK_SIZE, shape[1] // BLOCK_SIZE, BLOCK_SIZE)
+        .transpose(1, 2)
+        .contiguous()
+        .view(-1, BLOCK_SIZE * BLOCK_SIZE)
+    )
+    weight = (
+        (weight.float() * scale.view(-1, 1).float())
+        .to(torch.get_default_dtype())
+        .view(shape[0] // BLOCK_SIZE, shape[1] // BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE)
+        .transpose(1, 2)
+        .contiguous()
+        .view(shape)
+    )
     return weight
 
 
@@ -474,20 +482,23 @@ class MLA(nn.Module):
         self.q_b_proj = nn.Linear(self.q_lora_rank, self.n_heads * self.qk_head_dim, bias=False)
         self.kv_a_proj_with_mqa = nn.Linear(self.dim, self.kv_lora_rank + self.qk_rope_head_dim, bias=False)
         self.kv_a_layernorm = RMSNorm(self.kv_lora_rank)
-        self.kv_b_proj = nn.Linear(self.kv_lora_rank,
-                                   self.n_heads * (self.qk_nope_head_dim + self.v_head_dim), bias=False)
+        self.kv_b_proj = nn.Linear(
+            self.kv_lora_rank, self.n_heads * (self.qk_nope_head_dim + self.v_head_dim), bias=False
+        )
         self.o_proj = nn.Linear(self.n_heads * self.v_head_dim, self.dim, bias=False)
-        self.softmax_scale = self.qk_head_dim ** -0.5
+        self.softmax_scale = self.qk_head_dim**-0.5
         if args.max_seq_len > args.original_seq_len:
             mscale = 0.1 * args.mscale * math.log(args.rope_factor) + 1.0
             self.softmax_scale = self.softmax_scale * mscale * mscale
 
         self.indexer = Indexer(args)
 
-        self.register_buffer("kv_cache", torch.zeros(args.max_batch_size, args.max_seq_len, self.kv_lora_rank),
-                             persistent=False)
-        self.register_buffer("pe_cache", torch.zeros(args.max_batch_size, args.max_seq_len, self.qk_rope_head_dim),
-                             persistent=False)
+        self.register_buffer(
+            "kv_cache", torch.zeros(args.max_batch_size, args.max_seq_len, self.kv_lora_rank), persistent=False
+        )
+        self.register_buffer(
+            "pe_cache", torch.zeros(args.max_batch_size, args.max_seq_len, self.qk_rope_head_dim), persistent=False
+        )
         self.dequant_wkv_b = None
 
     def forward(self, x: torch.Tensor, start_pos: int, freqs_cis: torch.Tensor, mask: Optional[torch.Tensor]):
@@ -537,10 +548,11 @@ class MLA(nn.Module):
                 self.dequant_wkv_b = weight_dequant(self.kv_b_proj.weight, self.kv_b_proj.scale)
             wkv_b = self.kv_b_proj.weight if self.dequant_wkv_b is None else self.dequant_wkv_b
             wkv_b = wkv_b.view(self.n_local_heads, -1, self.kv_lora_rank)
-            q_nope = torch.einsum("bshd,hdc->bshc", q_nope, wkv_b[:, :self.qk_nope_head_dim])
-            scores = (torch.einsum("bshc,btc->bsht", q_nope.float(), self.kv_cache[:bsz, :end_pos].float()) +
-                      torch.einsum("bshr,btr->bsht", q_pe.float(),
-                                   self.pe_cache[:bsz, :end_pos].float())) * self.softmax_scale
+            q_nope = torch.einsum("bshd,hdc->bshc", q_nope, wkv_b[:, : self.qk_nope_head_dim])
+            scores = (
+                torch.einsum("bshc,btc->bsht", q_nope.float(), self.kv_cache[:bsz, :end_pos].float())
+                + torch.einsum("bshr,btr->bsht", q_pe.float(), self.pe_cache[:bsz, :end_pos].float())
+            ) * self.softmax_scale
 
             # indexer
             topk_indices = self.indexer(x, qr, start_pos, freqs_cis, mask)
@@ -549,7 +561,7 @@ class MLA(nn.Module):
 
             scores = scores.softmax(dim=-1, dtype=torch.float32)
             x = torch.einsum("bsht,btc->bshc", scores.type_as(x), self.kv_cache[:bsz, :end_pos])
-            x = torch.einsum("bshc,hdc->bshd", x, wkv_b[:, -self.v_head_dim:])
+            x = torch.einsum("bshc,hdc->bshd", x, wkv_b[:, -self.v_head_dim :])
         x = self.o_proj(x.flatten(2))
         return x
 
@@ -620,8 +632,9 @@ class Gate(nn.Module):
         self.score_func = args.scoring_func
         self.route_scale = args.routed_scaling_factor
         self.weight = nn.Parameter(torch.empty(args.n_routed_experts, args.hidden_size))
-        self.e_score_correction_bias = nn.Parameter(
-            torch.empty(args.n_routed_experts, dtype=torch.float32)) if self.dim == 6144 else None
+        self.e_score_correction_bias = (
+            nn.Parameter(torch.empty(args.n_routed_experts, dtype=torch.float32)) if self.dim == 6144 else None
+        )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -724,11 +737,16 @@ class MoE(nn.Module):
         self.experts_end_idx = self.experts_start_idx + self.n_local_experts
         self.gate = Gate(args)
         self.experts = nn.ModuleList(
-            [Expert(args.hidden_size,
-                    args.moe_intermediate_size) if self.experts_start_idx <= i < self.experts_end_idx else None
-             for i in range(self.n_routed_experts)])
-        self.shared_experts = MLP(args.hidden_size, args.n_shared_experts * args.moe_intermediate_size,
-                                  reduce_output=False)
+            [
+                Expert(args.hidden_size, args.moe_intermediate_size)
+                if self.experts_start_idx <= i < self.experts_end_idx
+                else None
+                for i in range(self.n_routed_experts)
+            ]
+        )
+        self.shared_experts = MLP(
+            args.hidden_size, args.n_shared_experts * args.moe_intermediate_size, reduce_output=False
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -744,29 +762,29 @@ class MoE(nn.Module):
         # TP模式：不需要gather（因为不同rank处理不同的张量分片和专家，输入已经按专家路由）
         if WORLD_SIZE > 1 and USE_DP_MODE:
             seq_len_this_rank = x.size(-2)  # 当前rank的seq_len
-            
+
             # 同步所有rank的seq_len
             seq_len_tensor = torch.tensor([seq_len_this_rank], dtype=torch.long, device=x.device)
             seq_len_list = [torch.zeros_like(seq_len_tensor) for _ in range(WORLD_SIZE)]
             dist.all_gather(seq_len_list, seq_len_tensor)
             seq_lens = [s.item() for s in seq_len_list]
-            
+
             # 计算当前rank的起始位置（前面所有rank的token数量之和）
             start_pos = sum(seq_lens[:RANK])
             end_pos = start_pos + seq_len_this_rank
-            
+
             # gather所有rank的输入
             x = torch.cat(DistHelper.gather_variable_shapes(x), dim=1)
         else:
             start_pos = 0
             end_pos = x.size(-2)
-        
+
         shape = x.size()
         x = x.view(-1, self.dim)
         weights, indices = self.gate(x)
         y = torch.zeros_like(x, dtype=torch.float32)
         counts = torch.bincount(indices.flatten(), minlength=self.n_routed_experts).tolist()
-        
+
         # 处理本地专家（专家在所有rank间切分，无论DP+EP还是TP+EP模式）
         for i in range(self.experts_start_idx, self.experts_end_idx):
             if counts[i] == 0:
@@ -774,8 +792,9 @@ class MoE(nn.Module):
             expert = self.experts[i]
             idx, top = torch.where(indices == i)
             y[idx] += expert(x[idx]) * weights[idx, top, None]
-        y += self.shared_experts(x)
-        
+        if not USE_DP_MODE or RANK == 0:
+            y += self.shared_experts(x)
+
         # 专家并行需要all_reduce汇总结果
         if WORLD_SIZE > 1:
             dist.all_reduce(y)
@@ -784,7 +803,7 @@ class MoE(nn.Module):
                 return y.type_as(x).view(shape)[:, start_pos:end_pos, :]
             else:
                 return y.type_as(x).view(shape)
-        
+
         return y.type_as(x).view(shape)
 
 
@@ -813,8 +832,14 @@ class Block(nn.Module):
         self.input_layernorm = RMSNorm(args.hidden_size)
         self.post_attention_layernorm = RMSNorm(args.hidden_size)
 
-    def forward(self, x: torch.Tensor, residual: torch.Tensor, start_pos: int, freqs_cis: torch.Tensor,
-                mask: Optional[torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        residual: torch.Tensor,
+        start_pos: int,
+        freqs_cis: torch.Tensor,
+        mask: Optional[torch.Tensor],
+    ) -> torch.Tensor:
         """
         Forward pass for the Transformer block.
 
@@ -857,10 +882,10 @@ class GLMMOEModel(nn.Module):
         Args:
             args (ModelArgs): Model arguments containing transformer parameters.
         """
-        global WORLD_SIZE, RANK, USE_DP_MODE
+        global WORLD_SIZE, RANK, USE_DP_MODE  # pylint: disable=global-variable-not-assigned
         WORLD_SIZE = dist.get_world_size() if dist.is_initialized() else 1
         RANK = dist.get_rank() if dist.is_initialized() else 0
-        
+
         super().__init__()
         self.max_seq_len = args.max_seq_len
         self.embed_tokens = ParallelEmbedding(args.vocab_size, args.hidden_size)
@@ -883,7 +908,7 @@ class GLMMOEModel(nn.Module):
             torch.Tensor: Logits tensor of shape (batch_size, vocab_size).
         """
         seqlen = tokens.size(1)
-        freqs_cis = self.freqs_cis[start_pos:start_pos + seqlen]
+        freqs_cis = self.freqs_cis[start_pos : start_pos + seqlen]
         mask = torch.full((seqlen, seqlen), float("-inf"), device=tokens.device).triu_(1) if seqlen > 1 else None
         h, residual = self.embed_tokens(tokens), None
         for layer in self.layers:
