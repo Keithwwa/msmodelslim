@@ -19,10 +19,17 @@ See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
 
+from __future__ import annotations
+
 import traceback
+import types
 from functools import wraps
+from typing import TYPE_CHECKING, Tuple
 
 from typing_extensions import Type
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, Optional
 
 from msmodelslim.utils.config import msmodelslim_config
 from msmodelslim.utils.exception import UnexpectedError, ModelslimError
@@ -45,6 +52,91 @@ def get_action_report() -> str:
     if UnexpectedError.tips:
         return ACTION_REPORT_IF_TIPS_FAIL
     return ACTION_REPORT
+
+
+def _rebuild_exception_handler_callable(
+    func: Callable[..., Any],
+    receiver: Optional[Any],
+    handler: _ExceptionHandler,
+) -> _ExceptionHandlerCallable:
+    if receiver is not None:
+        return _ExceptionHandlerCallable(types.MethodType(func, receiver), handler)
+    return _ExceptionHandlerCallable(func, handler)
+
+
+class _ExceptionHandlerCallable:
+    """Picklable decorator result; replaces the former nested local wrapper."""
+
+    def __init__(self, func: Callable[..., Any], handler: _ExceptionHandler):
+        self._handler = handler
+        if isinstance(func, types.MethodType):
+            # Store unbound function + receiver explicitly; bound methods are awkward to pickle
+            # and functools.wraps on them can pull in non-picklable getset_descriptor objects.
+            self._func = func.__func__
+            self._self: Optional[Any] = func.__self__
+        else:
+            self._func = func
+            self._self = None
+
+    def __reduce__(self):
+        return _rebuild_exception_handler_callable, (self._func, self._self, self._handler)
+
+    def __call__(self, *args, **kwargs):
+        try:
+            if self._self is not None:
+                return self._func(self._self, *args, **kwargs)
+            return self._func(*args, **kwargs)
+        except ModelslimError:
+            # 已是msModelSlim异常，直接抛出
+            raise
+        except self._handler._err_cls as e:
+            # 关键字匹配（若设置）
+            if not self._handler._keyword or self._handler._keyword in str(e):
+                args_to_raise = self._handler._set_args if self._handler._set_args else (str(e),)
+                raise self._handler._ms_err_cls(*args_to_raise, action=self._handler._action) from e
+            raise
+        except Exception:
+            # 其他类型的异常直接抛出
+            raise
+
+
+class _ExceptionHandler:
+    """Decorator and context manager for converting third-party exceptions."""
+
+    def __init__(
+        self,
+        set_args_tuple: Tuple[Any, ...],
+        err_cls_local: Type[Exception],
+        ms_err_cls_local: Type[ModelslimError],
+        keyword_local: str,
+        action_local: str,
+    ):
+        self._set_args = set_args_tuple
+        self._err_cls = err_cls_local
+        self._ms_err_cls = ms_err_cls_local
+        self._keyword = keyword_local
+        self._action = action_local
+
+    def __call__(self, func: Callable[..., Any]) -> _ExceptionHandlerCallable:
+        return _ExceptionHandlerCallable(func, self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc is None:
+            return False
+        # 已是msModelSlim异常，透传
+        if isinstance(exc, ModelslimError):
+            return False
+        # 仅处理指定第三方异常
+        if isinstance(exc, self._err_cls):
+            if not self._keyword or self._keyword in str(exc):
+                args_to_raise = self._set_args if self._set_args else (str(exc),)
+                # 在上下文管理器中转换并抛出新的msModelSlim异常
+                raise self._ms_err_cls(*args_to_raise, action=self._action) from exc
+        # 其他异常不处理，交由上层
+        return False
 
 
 def exception_handler(
@@ -94,60 +186,6 @@ def exception_handler(
         - 建议为每种常见的第三方异常场景都建立相应的知识库条目
         - 装饰器与上下文两种用法行为一致；若遇到已是 ModelslimError 的异常将直接透传
     """
-
-    class _ExceptionHandler:
-        def __init__(
-            self,
-            set_args_tuple,
-            err_cls_local: Type[Exception],
-            ms_err_cls_local: Type[ModelslimError],
-            keyword_local: str,
-            action_local: str,
-        ):
-            self._set_args = set_args_tuple
-            self._err_cls = err_cls_local
-            self._ms_err_cls = ms_err_cls_local
-            self._keyword = keyword_local
-            self._action = action_local
-
-        def __call__(self, func):
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                try:
-                    return func(*args, **kwargs)
-                except ModelslimError:
-                    # 已是msModelSlim异常，直接抛出
-                    raise
-                except self._err_cls as e:
-                    # 关键字匹配（若设置）
-                    if not self._keyword or self._keyword in str(e):
-                        args_to_raise = self._set_args if self._set_args else (str(e),)
-                        raise self._ms_err_cls(*args_to_raise, action=self._action) from e
-                    raise
-                except Exception:
-                    # 其他类型的异常直接抛出
-                    raise
-
-            return wrapper
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            if exc is None:
-                return False
-            # 已是msModelSlim异常，透传
-            if isinstance(exc, ModelslimError):
-                return False
-            # 仅处理指定第三方异常
-            if isinstance(exc, self._err_cls):
-                if not self._keyword or self._keyword in str(exc):
-                    args_to_raise = self._set_args if self._set_args else (str(exc),)
-                    # 在上下文管理器中转换并抛出新的msModelSlim异常
-                    raise self._ms_err_cls(*args_to_raise, action=self._action) from exc
-            # 其他异常不处理，交由上层
-            return False
-
     return _ExceptionHandler(set_args, err_cls, ms_err_cls, keyword, action)
 
 

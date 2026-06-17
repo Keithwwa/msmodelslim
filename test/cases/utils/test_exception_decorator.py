@@ -17,22 +17,40 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
-"""
 
-
-"""
-msmodelslim.utils.exception_decorator 模块的单元测试（pytest 版）
+msmodelslim.utils.exception_decorator 模块的单元测试（pytest 版）。
 """
 
 import importlib
+import io
+import pickle
 import sys
 import types
+from multiprocessing.reduction import ForkingPickler
 
 import pytest
 
-from msmodelslim.utils.exception import (
-    UnexpectedError, ModelslimError, ConfigError
-)
+from msmodelslim.utils.exception import UnexpectedError, ModelslimError, ConfigError
+
+# pylint: disable=redefined-outer-name
+
+
+def _pickle_sample_fn():
+    return "ok"
+
+
+def _pickle_fn_with_defaults(x, y=10):
+    return x + y
+
+
+class _PickleDummyAdapter:
+    def init_model(self, device=None):
+        if device is None:
+            return "model"
+        return f"model-{device}"
+
+    def load_weights(self):
+        return "weights"
 
 
 @pytest.fixture()
@@ -59,12 +77,12 @@ def exception_decorator_mod(monkeypatch):
             del sys.modules["msmodelslim.utils.exception_decorator"]
 
 
-def test_exception_handler_when_catch_specified_exception_then_convert_to_modelslim_error(exception_decorator_mod):
+def test_exception_handler_convert_to_modelslim_error_when_catch_specified_exception(exception_decorator_mod):
     """当捕获指定异常时，应转换为msModelSlim异常"""
 
-    @exception_decorator_mod.exception_handler("配置文件格式错误", ms_err_cls=ConfigError,
-                                               err_cls=ValueError,
-                                               action="请检查配置文件格式")
+    @exception_decorator_mod.exception_handler(
+        "配置文件格式错误", ms_err_cls=ConfigError, err_cls=ValueError, action="请检查配置文件格式"
+    )
     def test_function():
         raise ValueError("invalid literal for int() with base 10: 'abc'")
 
@@ -74,14 +92,14 @@ def test_exception_handler_when_catch_specified_exception_then_convert_to_models
     assert "请检查配置文件格式" in str(exc.value)
 
 
-def test_exception_handler_when_catch_exception_with_keyword_then_convert_only_if_keyword_matches(
-        exception_decorator_mod):
+def test_exception_handler_convert_only_if_keyword_matches_when_catch_exception_with_keyword(
+    exception_decorator_mod,
+):
     """使用关键字过滤时，仅匹配关键字的异常会被转换"""
 
-    @exception_decorator_mod.exception_handler("文件不存在", ms_err_cls=ConfigError,
-                                               err_cls=FileNotFoundError,
-                                               keyword="No such file",
-                                               action="请检查文件路径")
+    @exception_decorator_mod.exception_handler(
+        "文件不存在", ms_err_cls=ConfigError, err_cls=FileNotFoundError, keyword="No such file", action="请检查文件路径"
+    )
     def test_function(file_path):
         if "missing" in file_path:
             raise FileNotFoundError("No such file or directory: 'missing.txt'")
@@ -96,7 +114,7 @@ def test_exception_handler_when_catch_exception_with_keyword_then_convert_only_i
         test_function("readonly.txt")
 
 
-def test_exception_handler_when_modelslim_error_occurs_then_pass_through(exception_decorator_mod):
+def test_exception_handler_pass_through_when_modelslim_error_occurs(exception_decorator_mod):
     """当发生msModelSlim异常时，应直接传递"""
 
     @exception_decorator_mod.exception_handler("其他错误", ms_err_cls=ConfigError)
@@ -109,7 +127,7 @@ def test_exception_handler_when_modelslim_error_occurs_then_pass_through(excepti
     assert "原始action" in str(exc.value)
 
 
-def test_exception_handler_when_other_exception_occurs_then_pass_through(exception_decorator_mod):
+def test_exception_handler_pass_through_when_other_exception_occurs(exception_decorator_mod):
     """当发生其他类型异常时，应直接传递"""
 
     @exception_decorator_mod.exception_handler("配置错误", ms_err_cls=ConfigError, err_cls=ValueError)
@@ -120,7 +138,7 @@ def test_exception_handler_when_other_exception_occurs_then_pass_through(excepti
         test_function()
 
 
-def test_exception_handler_when_no_set_args_then_use_original_exception_message(exception_decorator_mod):
+def test_exception_handler_use_original_exception_message_when_no_set_args(exception_decorator_mod):
     """当没有设置参数时，应使用原始异常消息"""
 
     @exception_decorator_mod.exception_handler(err_cls=ValueError, ms_err_cls=ConfigError)
@@ -132,19 +150,19 @@ def test_exception_handler_when_no_set_args_then_use_original_exception_message(
     assert "原始错误消息" in str(exc.value)
 
 
-def test_exception_handler_when_use_default_parameters_then_work_correctly(exception_decorator_mod):
+def test_exception_handler_work_correctly_when_use_default_parameters(exception_decorator_mod):
     """使用默认参数时应正常工作"""
 
     @exception_decorator_mod.exception_handler()
     def test_function():
-        raise Exception("测试异常")
+        raise RuntimeError("测试异常")
 
     with pytest.raises(ModelslimError) as exc:
         test_function()
     assert "测试异常" in str(exc.value)
 
 
-def test_exception_catcher_when_normal_execution_then_return_result(exception_decorator_mod):
+def test_exception_catcher_return_result_when_normal_execution(exception_decorator_mod):
     """正常执行时应返回结果"""
 
     @exception_decorator_mod.exception_catcher
@@ -154,7 +172,7 @@ def test_exception_catcher_when_normal_execution_then_return_result(exception_de
     assert test_function() == "success"
 
 
-def test_exception_catcher_when_modelslim_error_occurs_then_log_and_re_raise(exception_decorator_mod):
+def test_exception_catcher_log_and_re_raise_when_modelslim_error_occurs(exception_decorator_mod):
     """当发生msModelSlim异常时，应记录日志并重新抛出"""
 
     @exception_decorator_mod.exception_catcher
@@ -167,7 +185,7 @@ def test_exception_catcher_when_modelslim_error_occurs_then_log_and_re_raise(exc
     assert "请检查配置" in str(exc.value)
 
 
-def test_exception_catcher_when_other_exception_occurs_then_convert_to_unexpected_error(exception_decorator_mod):
+def test_exception_catcher_convert_to_unexpected_error_when_other_exception_occurs(exception_decorator_mod):
     """当发生其他异常时，应转换为UnexpectedError"""
 
     @exception_decorator_mod.exception_catcher
@@ -179,7 +197,7 @@ def test_exception_catcher_when_other_exception_occurs_then_convert_to_unexpecte
     assert exception_decorator_mod.ACTION_REPORT in str(exc.value)
 
 
-def test_exception_catcher_when_exception_occurs_then_preserve_original_context(exception_decorator_mod):
+def test_exception_catcher_preserve_original_context_when_exception_occurs(exception_decorator_mod):
     """当发生异常时，应保留原始异常上下文"""
 
     @exception_decorator_mod.exception_catcher
@@ -193,40 +211,47 @@ def test_exception_catcher_when_exception_occurs_then_preserve_original_context(
     assert "原始异常" in str(exc.value.__cause__)
 
 
-def test_exception_handler_context_when_catch_specified_exception_then_convert_to_modelslim_error(
-        exception_decorator_mod):
+def test_exception_handler_context_convert_to_modelslim_error_when_catch_specified_exception(
+    exception_decorator_mod,
+):
     """上下文用法：捕获指定异常并转换为msModelSlim异常"""
 
     with pytest.raises(ConfigError) as exc:
-        with exception_decorator_mod.exception_handler("配置文件格式错误", ms_err_cls=ConfigError,
-                                                      err_cls=ValueError,
-                                                      action="请检查配置文件格式"):
+        with exception_decorator_mod.exception_handler(
+            "配置文件格式错误", ms_err_cls=ConfigError, err_cls=ValueError, action="请检查配置文件格式"
+        ):
             raise ValueError("invalid literal for int() with base 10: 'abc'")
     assert "配置文件格式错误" in str(exc.value)
     assert "请检查配置文件格式" in str(exc.value)
 
 
-def test_exception_handler_context_when_keyword_used_then_convert_only_if_matches(exception_decorator_mod):
+def test_exception_handler_context_convert_only_if_matches_when_keyword_used(exception_decorator_mod):
     """上下文用法：使用关键字过滤，仅匹配时才转换"""
 
     # 匹配关键字，转为 ConfigError
     with pytest.raises(ConfigError):
-        with exception_decorator_mod.exception_handler("文件不存在", ms_err_cls=ConfigError,
-                                                      err_cls=FileNotFoundError,
-                                                      keyword="No such file",
-                                                      action="请检查文件路径"):
+        with exception_decorator_mod.exception_handler(
+            "文件不存在",
+            ms_err_cls=ConfigError,
+            err_cls=FileNotFoundError,
+            keyword="No such file",
+            action="请检查文件路径",
+        ):
             raise FileNotFoundError("No such file or directory: 'missing.txt'")
 
     # 不匹配关键字，原异常透传
     with pytest.raises(FileNotFoundError):
-        with exception_decorator_mod.exception_handler("文件不存在", ms_err_cls=ConfigError,
-                                                      err_cls=FileNotFoundError,
-                                                      keyword="No such file",
-                                                      action="请检查文件路径"):
+        with exception_decorator_mod.exception_handler(
+            "文件不存在",
+            ms_err_cls=ConfigError,
+            err_cls=FileNotFoundError,
+            keyword="No such file",
+            action="请检查文件路径",
+        ):
             raise FileNotFoundError("Permission denied: 'readonly.txt'")
 
 
-def test_exception_handler_context_when_modelslim_error_occurs_then_pass_through(exception_decorator_mod):
+def test_exception_handler_context_pass_through_when_modelslim_error_occurs(exception_decorator_mod):
     """上下文用法：发生 msModelSlim 异常时应透传"""
 
     with pytest.raises(ConfigError) as exc:
@@ -236,7 +261,7 @@ def test_exception_handler_context_when_modelslim_error_occurs_then_pass_through
     assert "原始action" in str(exc.value)
 
 
-def test_exception_handler_context_when_other_exception_occurs_then_pass_through(exception_decorator_mod):
+def test_exception_handler_context_pass_through_when_other_exception_occurs(exception_decorator_mod):
     """上下文用法：发生其他类型异常时应透传"""
 
     with pytest.raises(TypeError):
@@ -244,8 +269,7 @@ def test_exception_handler_context_when_other_exception_occurs_then_pass_through
             raise TypeError("类型错误")
 
 
-def test_exception_handler_context_when_no_set_args_then_use_original_exception_message(
-        exception_decorator_mod):
+def test_exception_handler_context_use_original_exception_message_when_no_set_args(exception_decorator_mod):
     """上下文用法：未设置自定义消息时应使用原始异常消息"""
 
     with pytest.raises(ConfigError) as exc:
@@ -254,10 +278,38 @@ def test_exception_handler_context_when_no_set_args_then_use_original_exception_
     assert "原始错误消息" in str(exc.value)
 
 
-def test_exception_handler_context_when_use_default_parameters_then_work_correctly(exception_decorator_mod):
+def test_exception_handler_context_work_correctly_when_use_default_parameters(exception_decorator_mod):
     """上下文用法：使用默认参数应正常工作（Exception -> ModelslimError）"""
 
     with pytest.raises(ModelslimError) as exc:
         with exception_decorator_mod.exception_handler():
-            raise Exception("测试异常")
+            raise RuntimeError("测试异常")
     assert "测试异常" in str(exc.value)
+
+
+def _forking_pickle_roundtrip(obj):
+    buf = io.BytesIO()
+    ForkingPickler(buf, pickle.HIGHEST_PROTOCOL).dump(obj)
+    buf.seek(0)
+    return pickle.load(buf)  # nosec B301
+
+
+def test_exception_handler_be_picklable_when_decorated_module_function(exception_decorator_mod):
+    """装饰后的函数应可被 mp.spawn 使用的 ForkingPickler 序列化"""
+
+    decorated = exception_decorator_mod.exception_handler(err_cls=ValueError, ms_err_cls=ConfigError)(_pickle_sample_fn)
+
+    restored = _forking_pickle_roundtrip(decorated)
+    assert restored() == "ok"
+
+
+def test_exception_handler_be_picklable_when_decorated_function_with_default_args(exception_decorator_mod):
+    """模块级带默认参数的函数装饰后应可 pickle（贴近 adapter 方法签名）"""
+
+    decorated = exception_decorator_mod.exception_handler(err_cls=ValueError, ms_err_cls=ConfigError)(
+        _pickle_fn_with_defaults
+    )
+
+    restored = _forking_pickle_roundtrip(decorated)
+    assert restored(5) == 15
+    assert restored(5, y=20) == 25
