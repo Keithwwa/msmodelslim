@@ -38,7 +38,7 @@ Wan2.2 的 DiT 采用 **双专家**（低噪声 / 高噪声）结构，msModelSl
 当前适配 Wan2.2 FA3+W8A8（MXFP8）动态量化，请通过如下命令切换魔乐社区 MindIE Wan2.2 推理仓版本：
 
 ```bash
-git checkout 521cee68abc4d1b8bde30b6a26855e34f23a0073
+git checkout 38fb8eb13a018cca316678930720eafa446c4387
 ```
 
 ### <span id="wan22-t2v-fa3w8a8动态量化">Wan2.2-T2V-A14B FA3+W8A8动态量化</span>
