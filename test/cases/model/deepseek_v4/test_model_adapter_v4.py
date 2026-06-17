@@ -37,6 +37,8 @@ class DummyConfig:
         self.n_shared_experts = 1
         self.dim = 128
         self.q_lora_rank = 4
+        self.compress_ratios = (1, 1)
+        self.norm_eps = 1e-6
 
 
 class DummyDecoderLayerV4(nn.Module):
@@ -70,6 +72,7 @@ class DummyModelV4(nn.Module):
             self.config = None
 
         self.layers = nn.ModuleList([DummyDecoderLayerV4(layer_id=i, args=self.config) for i in range(num_layers)])
+        self.mtp = nn.ModuleList()
 
     def forward(self, x):
         for layer in self.layers:
@@ -111,30 +114,28 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         adapter._get_tokenized_data.assert_called_once_with('ds', DeviceType.CPU)
         self.assertEqual(result, ['tokenized'])
 
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.json_safe_load')
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.os.path.join')
-    # Verify weight map loading returns the parsed mapping and caches it.
+    @patch('msmodelslim.model.common.weight_helper.json_safe_load')
+    @patch('msmodelslim.model.common.weight_helper.os.path.join')
+    # Verify weight map loading via weight_helper returns the parsed mapping.
     def test_get_weight_map_returns_weight_map_when_index_json_loaded(self, mock_join, mock_json_load):
-        adapter = self.create_adapter()
         mock_json_load.return_value = {'weight_map': {'a': 'file1', 'b': 'file2'}}
         mock_join.return_value = self.model_path / 'model.safetensors.index.json'
 
-        result = adapter.get_weight_map()
+        from msmodelslim.model.common.weight_helper import get_weight_map
+
+        result = get_weight_map(self.model_path)
 
         mock_join.assert_called_once_with(self.model_path, 'model.safetensors.index.json')
         mock_json_load.assert_called_once()
         self.assertEqual(result, {'a': 'file1', 'b': 'file2'})
 
-        adapter.get_weight_map()
-        self.assertEqual(mock_json_load.call_count, 1)
-
-    # Verify state dict loading works when all tensors are in a single safe tensors file.
+    # Verify state dict loading via weight_helper reads weights from a single file.
     def test_get_state_dict_reads_single_file_when_single_file_contains_all_parameters(self):
-        adapter = self.create_adapter()
-        adapter.get_weight_map = Mock(
-            return_value={'layer.weight': 'file1.safetensors', 'layer.bias': 'file1.safetensors'}
-        )
+        from msmodelslim.model.common.weight_helper import get_state_dict, get_weight_map
 
+        get_weight_map.cache_clear()
+
+        weight_map = {'layer.weight': 'file1.safetensors', 'layer.bias': 'file1.safetensors'}
         mock_module = Mock(spec=nn.Module)
         mock_module.named_parameters.return_value = [('layer.weight', Mock()), ('layer.bias', Mock())]
 
@@ -142,29 +143,30 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         mock_file.get_tensor.side_effect = lambda name: f'tensor_{name}'
 
         with (
-            patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', side_effect=lambda x, **kwargs: x),
+            patch('msmodelslim.model.common.weight_helper.get_weight_map', return_value=weight_map),
+            patch('msmodelslim.model.common.weight_helper.get_valid_read_path', side_effect=lambda x, **kwargs: x),
             patch(
-                'msmodelslim.model.deepseek_v4.model_adapter.safe_open',
+                'msmodelslim.model.common.weight_helper.safe_open',
                 return_value=Mock(__enter__=Mock(return_value=mock_file), __exit__=Mock(return_value=False)),
             ),
         ):
-            result = adapter.get_state_dict(mock_module)
+            result = get_state_dict(str(self.model_path), mock_module)
 
         self.assertEqual(result['layer.weight'], 'tensor_layer.weight')
         self.assertEqual(result['layer.bias'], 'tensor_layer.bias')
 
     # Verify state dict loading works when tensors are spread across multiple files.
     def test_get_state_dict_reads_multiple_files_when_parameters_spread_across_files(self):
-        adapter = self.create_adapter()
-        adapter.get_weight_map = Mock(
-            return_value={
-                'layer1.weight': 'file1.safetensors',
-                'layer1.bias': 'file1.safetensors',
-                'layer2.weight': 'file2.safetensors',
-                'layer2.bias': 'file2.safetensors',
-            }
-        )
+        from msmodelslim.model.common.weight_helper import get_state_dict, get_weight_map
 
+        get_weight_map.cache_clear()
+
+        weight_map = {
+            'layer1.weight': 'file1.safetensors',
+            'layer1.bias': 'file1.safetensors',
+            'layer2.weight': 'file2.safetensors',
+            'layer2.bias': 'file2.safetensors',
+        }
         mock_module = Mock(spec=nn.Module)
         mock_module.named_parameters.return_value = [
             ('layer1.weight', Mock()),
@@ -182,57 +184,57 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
             return mock_context
 
         with (
-            patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', side_effect=lambda x, **kwargs: x),
-            patch('msmodelslim.model.deepseek_v4.model_adapter.safe_open', side_effect=safe_open_side_effect),
+            patch('msmodelslim.model.common.weight_helper.get_weight_map', return_value=weight_map),
+            patch('msmodelslim.model.common.weight_helper.get_valid_read_path', side_effect=lambda x, **kwargs: x),
+            patch('msmodelslim.model.common.weight_helper.safe_open', side_effect=safe_open_side_effect),
         ):
-            result = adapter.get_state_dict(mock_module)
+            result = get_state_dict(str(self.model_path), mock_module)
 
         self.assertEqual(result['layer1.weight'], 'tensor_layer1.weight')
         self.assertEqual(result['layer2.bias'], 'tensor_layer2.bias')
 
     # Verify a missing weight file raises FileNotFoundError during state dict loading.
     def test_get_state_dict_raises_file_not_found_when_weight_file_missing(self):
-        adapter = self.create_adapter()
-        adapter.get_weight_map = Mock(return_value={'layer.weight': 'missing.safetensors'})
+        from msmodelslim.model.common.weight_helper import get_state_dict, get_weight_map
 
+        get_weight_map.cache_clear()
+
+        weight_map = {'layer.weight': 'missing.safetensors'}
         mock_module = Mock(spec=nn.Module)
         mock_module.named_parameters.return_value = [('layer.weight', Mock())]
 
-        with patch(
-            'msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path',
-            side_effect=FileNotFoundError('not found'),
+        with (
+            patch('msmodelslim.model.common.weight_helper.get_weight_map', return_value=weight_map),
+            patch(
+                'msmodelslim.model.common.weight_helper.get_valid_read_path',
+                side_effect=FileNotFoundError('not found'),
+            ),
         ):
             with self.assertRaises(FileNotFoundError):
-                adapter.get_state_dict(mock_module)
+                get_state_dict(str(self.model_path), mock_module)
 
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_mtp_layer')
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.wrap_mtp_decoder')
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_logger')
-    # Verify missing MTP decoder triggers creation and wrapping of a new MTP layer.
-    def test_load_mtp_if_not_load_creates_mtp_layer_when_decoder_missing_mtp(
-        self, mock_get_logger, mock_wrap, mock_get_mtp
-    ):
+    # Verify MTP decoder is returned when model.mtp already has it.
+    def test_load_mtp_decoder_if_not_exist_creates_mtp_layer_when_decoder_missing(self):
         adapter = self.create_adapter()
-        dummy_decoder = DummyDecoderLayerV4()
+        adapter.config.num_hidden_layers = 1
+        adapter.config.n_mtp_layers = 1
+        dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
+        dummy_model.mtp = nn.ModuleList([DummyDecoderLayerV4()])
 
-        adapter.load_mtp_if_not_load(dummy_decoder, layer_prefix='layers.1')
+        mtp_decoder = adapter.load_mtp_decoder_if_not_exist(dummy_model, layer_prefix='mtp.0', mtp_idx=0)
 
-        mock_get_mtp.assert_called_once_with(
-            config=self.dummy_config, model_path=self.model_path, layer_prefix='layers.1', mtp_layer_prefix='layers.1.'
-        )
-        mock_wrap.assert_called_once_with(mtp_decoder=dummy_decoder, mtp_layer=mock_get_mtp.return_value)
-        mock_get_logger.return_value.info.assert_any_call('Creating MTP layer')
+        self.assertIsNotNone(mtp_decoder)
 
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_mtp_layer')
+    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_state_dict')
     # Verify existing MTP decoder is not re-created when already loaded.
-    def test_load_mtp_if_not_load_skips_when_mtp_already_exists(self, mock_get_mtp):
+    def test_load_mtp_decoder_if_not_exist_skips_when_mtp_already_exists(self, mock_get_sd):
         adapter = self.create_adapter()
-        dummy_decoder = DummyDecoderLayerV4()
-        # ensure adapter checks via get_submodule; provide a get_submodule method
-        dummy_decoder.enorm = nn.Linear(1, 1)
+        adapter.config.n_mtp_layers = 1
+        dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
+        dummy_model.mtp = nn.ModuleList([DummyDecoderLayerV4()])
 
-        adapter.load_mtp_if_not_load(dummy_decoder, layer_prefix='layers.1')
-        mock_get_mtp.assert_not_called()
+        result = adapter.load_mtp_decoder_if_not_exist(dummy_model, layer_prefix='mtp.0', mtp_idx=0)
+        self.assertIsNotNone(result)
 
     @patch('msmodelslim.model.deepseek_v4.model_adapter.auto_dequant_state_dict')
     # Verify the existing decoder is returned and no auto-dequant is performed when the decoder exists.
@@ -245,21 +247,16 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         self.assertEqual(result, dummy_model.get_submodule('layers.0'))
         mock_auto_dequant.assert_not_called()
 
-    # Verify decoder layer generator yields the expected names and wraps the final layer.
+    # Verify decoder layer generator yields the expected layer names.
     def test_generate_decoder_layer_returns_layer_names_when_layers_generated(self):
-        adapter = self.create_adapter(config=Mock(num_hidden_layers=3))
-        mock_decoders = [
-            DummyDecoderLayerV4(layer_id=0),
-            DummyDecoderLayerV4(layer_id=1),
-            DummyDecoderLayerV4(layer_id=2),
-        ]
+        adapter = self.create_adapter()
+        adapter.config.num_hidden_layers = 2
+        mock_decoders = [DummyDecoderLayerV4(layer_id=i) for i in range(adapter.config.num_hidden_layers)]
         adapter.load_decoder_if_not_exist = Mock(side_effect=mock_decoders)
-        adapter.load_mtp_if_not_load = Mock()
 
         layers = list(adapter.generate_decoder_layer(model=Mock()))
 
-        self.assertEqual([name for name, _ in layers], ['layers.0', 'layers.1', 'layers.2'])
-        adapter.load_mtp_if_not_load.assert_called_once_with(mock_decoders[2], layer_prefix='layers.2')
+        self.assertEqual([name for name, _ in layers], ['layers.0', 'layers.1'])
 
     # Verify adapter config generation for subgraph uses model configuration values.
     def test_get_adapter_config_for_subgraph_returns_configs_when_config_present(self):
@@ -287,8 +284,6 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
 
         self.assertEqual(pre_ln_map, {'norm': ['head']})
         self.assertIn('layers.0.ffn_norm', ln_map)
-        self.assertIn('layers.1.enorm', ln_map)
-        self.assertEqual(ln_map['layers.1.enorm'], ['layers.1.e_proj'])
 
     @patch('msmodelslim.model.deepseek_v4.model_adapter.QuaRotInterface.get_rotate_command')
     # Verify rotate map generation returns the pre-run list and rotation pairs.
@@ -304,12 +299,12 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         self.assertTrue(any('layers.0.attn.wq_a' in pair.right_rot for pair in rot_pairs))
         self.assertEqual(mock_rotate_cmd.call_count, 2)
 
-    # Verify Ascend v1 save preprocessing rewrites layer prefixes for MTP modules.
+    # Verify Ascend v1 save preprocessing preserves the original prefix (MTP is now in model.mtp).
     def test_ascendv1_save_module_preprocess_replaces_mtp_prefix_when_layer_prefix_given(self):
         adapter = self.create_adapter()
         adapter.config.num_hidden_layers = 3
         prefix, module = adapter.ascendv1_save_module_preprocess('layers.2.some', nn.Linear(1, 1), Mock())
-        self.assertEqual(prefix, 'mtp.0.some')
+        self.assertEqual(prefix, 'layers.2.some')
 
     def test_ascendv1_save_module_preprocess_unchanged_when_not_mtp_prefix(self):
         """验证非 MTP 层前缀不被修改"""
@@ -338,59 +333,34 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
             adapter.generate_model_visit(Mock())
         mock_visit.assert_called_once()
 
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.get_mtp_layer')
-    @patch('msmodelslim.model.deepseek_v4.model_adapter.wrap_mtp_decoder')
     @patch('msmodelslim.model.deepseek_v4.model_adapter.auto_dequant_state_dict')
-    def test_load_decoder_if_not_exist_creates_new_decoder_when_missing(
-        self, mock_auto_dequant, mock_wrap, mock_get_mtp
-    ):
+    def test_load_decoder_if_not_exist_creates_new_decoder_when_missing(self, mock_auto_dequant):
         """验证 decoder 不存在时创建新 decoder 并加载权重"""
         adapter = self.create_adapter()
         dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
-        adapter.get_weight_map = Mock(
-            return_value={
-                'mtp.0.linear.weight': 'fake.safetensors',
-                'mtp.0.linear.bias': 'fake.safetensors',
-                'linear.weight': 'fake.safetensors',
-            }
-        )
 
+        state_dict = {'linear.weight': torch.ones(1, 1), 'linear.bias': torch.zeros(1)}
         with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
-            with patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', return_value='/tmp/fake'):
-
-                def _get_tensor(name):
-                    return torch.ones(1, 1) if 'weight' in name else torch.ones(1)
-
-                with patch(
-                    'msmodelslim.model.deepseek_v4.model_adapter.safe_open',
-                    return_value=MagicMock(
-                        __enter__=MagicMock(return_value=MagicMock(get_tensor=MagicMock(side_effect=_get_tensor))),
-                        __exit__=MagicMock(),
-                    ),
-                ):
-                    decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.1', idx=1)
+            with patch('msmodelslim.model.deepseek_v4.model_adapter.get_state_dict', return_value=state_dict):
+                decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.1', idx=1)
 
         self.assertIsNotNone(decoder)
 
     @patch('msmodelslim.model.deepseek_v4.model_adapter.auto_dequant_state_dict')
     def test_load_decoder_if_not_exist_creates_with_mtp_prefix_when_mtp_layer(self, mock_auto_dequant):
-        """验证最后一层 decoder 使用 mtp.0 前缀加载权重"""
+        """验证创建 decoder 并加载权重"""
         adapter = self.create_adapter()
         adapter.config.num_hidden_layers = 1
         dummy_model = DummyModelV4(num_layers=1, config=self.dummy_config)
 
-        with patch('msmodelslim.model.deepseek_v4.model_adapter.get_valid_read_path', return_value='/tmp/fake'):
+        with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
             with patch(
-                'msmodelslim.model.deepseek_v4.model_adapter.safe_open',
-                return_value=MagicMock(
-                    __enter__=MagicMock(return_value=MagicMock(get_tensor=MagicMock(return_value=torch.ones(1)))),
-                    __exit__=MagicMock(),
-                ),
+                'msmodelslim.model.deepseek_v4.model_adapter.get_state_dict',
+                return_value={'linear.weight': torch.ones(1, 1)},
             ):
-                with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
-                    decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.0', idx=0)
+                decoder = adapter.load_decoder_if_not_exist(model=dummy_model, layer_prefix='layers.0', idx=0)
 
-                    self.assertIsNotNone(decoder)
+                self.assertIsNotNone(decoder)
 
     def test_get_adapter_config_for_subgraph_three_layers_when_multi_layer(self):
         """验证 3 层时每层生成正确数量的子图配置"""
@@ -424,19 +394,21 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
         """验证 ln_fuse_map 包含 MTP 层专用映射"""
         adapter = self.create_adapter()
         adapter.config.num_hidden_layers = 1
+        adapter.config.n_mtp_layers = 1
         adapter.config.n_routed_experts = 1
         adapter.config.n_shared_experts = 1
 
         pre_ln, ln_map = adapter.get_ln_fuse_map()
 
-        self.assertIn('layers.0.enorm', ln_map)
-        self.assertIn('layers.0.hnorm', ln_map)
-        self.assertIn('layers.0.norm', ln_map)
+        self.assertIn('mtp.0.enorm', ln_map)
+        self.assertIn('mtp.0.hnorm', ln_map)
+        self.assertIn('mtp.0.norm', ln_map)
 
     def test_rotate_map_includes_mtp_rotations_when_mtp_layer(self):
         """验证 rotate_map 含 MTP 层专用旋转对"""
         adapter = self.create_adapter()
-        adapter.config.num_hidden_layers = 2
+        adapter.config.num_hidden_layers = 1
+        adapter.config.n_mtp_layers = 1
         adapter.config.n_routed_experts = 1
         adapter.config.n_shared_experts = 1
 
@@ -446,13 +418,28 @@ class TestDeepSeekV4ModelAdapter(unittest.TestCase):
             pre_run, rot_pairs = adapter.get_rotate_map(block_size=128)
 
         self.assertEqual(len(rot_pairs), 2)
-        # MTP 层 h_proj 在最后一层的右旋中
-        last_layer_right = rot_pairs[0].right_rot
-        self.assertIn('layers.1.h_proj', last_layer_right)
+        # MTP 层 h_proj 在 mtp.0 的右旋中
+        mtp_right = rot_pairs[0].right_rot
+        self.assertIn('mtp.0.h_proj', mtp_right)
 
     def test_load_config_returns_model_args_when_called(self):
         """验证 _load_config 返回 ModelArgs 实例"""
         adapter = self.create_adapter()
-        with patch('msmodelslim.model.deepseek_v4.model_adapter.ModelArgs') as mock_model_args:
-            adapter._load_config()
-        mock_model_args.assert_called_once()
+        fake_config = {
+            'hidden_size': 128,
+            'moe_intermediate_size': 64,
+            'index_topk': 1,
+            'n_routed_experts': 2,
+            'num_attention_heads': 8,
+            'num_hidden_layers': 2,
+            'o_groups': 1,
+            'q_lora_rank': 8,
+            'routed_scaling_factor': 1.0,
+            'compress_ratios': [1, 1],
+        }
+        with (
+            patch('msmodelslim.model.deepseek_v4.model_adapter.json_safe_load', return_value=fake_config),
+            patch('msmodelslim.model.deepseek_v4.model_adapter.os.path.join', return_value='ignored'),
+        ):
+            config = adapter._load_config()
+        self.assertIsNotNone(config)

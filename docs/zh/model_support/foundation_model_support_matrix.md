@@ -49,7 +49,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
   </thead>
   <tbody>
     <tr>
-      <td rowspan="10"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md">DeepSeek系列</a></strong></td>
+      <td rowspan="11"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md">DeepSeek系列</a></strong></td>
       <td>DeepSeek-V2-16B</td>
       <td>-</td>
       <td>√</td>
@@ -146,6 +146,19 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
       <td>√(一键量化)</td>
       <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>DeepSeek-V4-Pro</td>
+      <td>transformers==4.48.2</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>√(一键量化)</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>

@@ -151,15 +151,6 @@ class TestGetMtpLayerAndWrap(unittest.TestCase):
     def test_get_mtp_layer_returns_layer_when_weights_available(self):
         cfg = DummyCfg()
         model_path = '/tmp/model'
-        # Craft load_file to return keys with 'mtp.0.' prefix
-        fake_weights = {
-            'mtp.0.enorm.weight': torch.ones(cfg.dim),
-            'mtp.0.hnorm.weight': torch.ones(cfg.dim),
-            'mtp.0.e_proj.weight': torch.randn(cfg.dim, cfg.dim),
-            'mtp.0.h_proj.weight': torch.randn(cfg.dim, cfg.dim),
-            'mtp.0.head.weight': torch.randn(cfg.vocab_size, cfg.dim),
-            'mtp.0.emb.tok_emb.weight': torch.randn(cfg.vocab_size, cfg.dim),
-        }
 
         def shared_weight_side_effect(model_path_arg, key):
             if key == 'embed.weight':
@@ -169,11 +160,7 @@ class TestGetMtpLayerAndWrap(unittest.TestCase):
             raise AssertionError(f'Unexpected shared weight key: {key}')
 
         with (
-            patch(
-                'msmodelslim.model.deepseek_v4.mtp_quant_module.get_valid_read_path',
-                return_value='/tmp/model-000.safetensors',
-            ),
-            patch('msmodelslim.model.deepseek_v4.mtp_quant_module.load_file', return_value=fake_weights),
+            patch('msmodelslim.model.deepseek_v4.mtp_quant_module.get_state_dict', return_value={}),
             patch(
                 'msmodelslim.model.deepseek_v4.mtp_quant_module.get_shared_weight',
                 side_effect=shared_weight_side_effect,
@@ -181,7 +168,7 @@ class TestGetMtpLayerAndWrap(unittest.TestCase):
             patch('msmodelslim.model.deepseek_v4.mtp_quant_module.auto_dequant_state_dict') as mock_auto_dequant,
             patch('msmodelslim.model.deepseek_v4.mtp_quant_module.MTPLayer.load_state_dict') as mock_load_state_dict,
         ):
-            mtp_layer = mod.get_mtp_layer(cfg, model_path, layer_prefix='layers.0', mtp_layer_prefix='layers.0.')
+            mtp_layer = mod.get_mtp_layer(cfg, model_path, layer_prefix='layers.0')
 
             self.assertIsInstance(mtp_layer, mod.MTPLayer)
             self.assertEqual(mock_shared.call_count, 2)
@@ -192,7 +179,7 @@ class TestGetMtpLayerAndWrap(unittest.TestCase):
     def test_get_mtp_layer_raises_file_not_found_when_path_missing(self):
         cfg = DummyCfg()
         with patch(
-            'msmodelslim.model.deepseek_v4.mtp_quant_module.get_valid_read_path',
+            'msmodelslim.model.deepseek_v4.mtp_quant_module.get_state_dict',
             side_effect=FileNotFoundError('missing'),
         ):
             with self.assertRaises(FileNotFoundError):

@@ -28,12 +28,14 @@ from torch import nn
 import torch.nn.functional as F
 import torch.distributed as dist
 import logging
+from msmodelslim.utils.distributed import DistHelper
 # from kernel import act_quant, fp8_gemm, sparse_attn, hc_split_sinkhorn
 
 
 world_size = 1
 rank = 0
 block_size = 128
+USE_DP_MODE = True  # True: DP+EP mode, False: TP+EP mode
 
 
 def hc_split_sinkhorn(
@@ -48,7 +50,6 @@ def hc_split_sinkhorn(
     device = mixes.device
     hc_scale = hc_scale.to(device)
     hc_base = hc_base.to(device)
-
     b, s, _ = mixes.size()
     # get pre
     mixes_pre = mixes[:, :, :hc_mult]
@@ -242,6 +243,8 @@ class ModelArgs:
     hc_mult: int = 4
     hc_sinkhorn_iters: int = 20
     hc_eps: float = 1e-6
+    # mtp
+    n_mtp_layers: int = 0
 
 
 class ParallelEmbedding(nn.Module):
@@ -257,11 +260,16 @@ class ParallelEmbedding(nn.Module):
         super().__init__()
         self.vocab_size = vocab_size
         self.dim = dim
-        assert vocab_size % world_size == 0, (
-            f"Vocabulary size must be divisible by world size (world_size={world_size})"
-        )  # nosec
-        self.part_vocab_size = vocab_size // world_size
-        self.vocab_start_idx = rank * self.part_vocab_size
+        # In TP mode, vocab is split across ranks; in DP mode, each rank has full vocab
+        if not USE_DP_MODE:
+            assert vocab_size % world_size == 0, (  # nosec
+                f"Vocabulary size must be divisible by world size (world_size={world_size})"
+            )
+            self.part_vocab_size = vocab_size // world_size
+            self.vocab_start_idx = rank * self.part_vocab_size
+        else:
+            self.part_vocab_size = vocab_size
+            self.vocab_start_idx = 0
         self.vocab_end_idx = self.vocab_start_idx + self.part_vocab_size
         self.weight = nn.Parameter(torch.empty(self.part_vocab_size, self.dim))
 
@@ -278,12 +286,12 @@ class ParallelEmbedding(nn.Module):
         Raises:
             ValueError: If `world_size` is not defined.
         """
-        if world_size > 1:
+        if world_size > 1 and not USE_DP_MODE:
             mask = (x < self.vocab_start_idx) | (x >= self.vocab_end_idx)
             x = x - self.vocab_start_idx
             x[mask] = 0
         y = F.embedding(x, self.weight)
-        if world_size > 1:
+        if world_size > 1 and not USE_DP_MODE:
             y[mask] = 0
             dist.all_reduce(y)
         return y
@@ -461,7 +469,7 @@ class Compressor(nn.Module):
         self.wkv = nn.Linear(self.dim, coff * self.head_dim, dtype=torch.float32, bias=False)
         self.wgate = nn.Linear(self.dim, coff * self.head_dim, dtype=torch.float32, bias=False)
         self.norm = RMSNorm(self.head_dim, args.norm_eps)
-        self.kv_cache = None
+        # self.kv_cache = None
         # If overlap is enabled, state[:, :ratio] for overlapping compression and state[:, ratio:] for normal compression.
         self.register_buffer(
             "kv_state",
@@ -475,6 +483,7 @@ class Compressor(nn.Module):
             ),
             persistent=False,
         )
+        self.register_buffer("kv_cache", None)
 
     def overlap_transform(self, tensor: torch.Tensor, value=0):
         # tensor: [b,s,r,2d]
@@ -561,7 +570,7 @@ class Indexer(torch.nn.Module):
         self.compressor = Compressor(args, compress_ratio, self.head_dim, True)
         self.register_buffer(
             "kv_cache",
-            torch.zeros(args.max_batch_size, args.max_seq_len // compress_ratio, self.head_dim),
+            torch.zeros(args.max_batch_size, args.max_seq_len // max(1, compress_ratio), self.head_dim),
             persistent=False,
         )
 
@@ -598,21 +607,21 @@ class Indexer(torch.nn.Module):
 
 
 class Attention(nn.Module):
-    """Multi-Query Attention (MQA) Layer."""
+    """Multi-Query Latent Attention (MLA) Layer with Hyper-Connection."""
 
     def __init__(self, layer_id: int, args: ModelArgs):
         super().__init__()
         self.layer_id = layer_id
         self.dim = args.dim
         self.n_heads = args.n_heads
-        self.n_local_heads = args.n_heads // world_size
+        self.n_local_heads = args.n_heads if USE_DP_MODE else (args.n_heads // world_size)
         self.q_lora_rank = args.q_lora_rank
         self.o_lora_rank = args.o_lora_rank
         self.head_dim = args.head_dim
         self.rope_head_dim = args.rope_head_dim
         self.nope_head_dim = args.head_dim - args.rope_head_dim
         self.n_groups = args.o_groups
-        self.n_local_groups = self.n_groups // world_size
+        self.n_local_groups = args.o_groups if USE_DP_MODE else (self.n_groups // world_size)
         self.window_size = args.window_size
         self.compress_ratio = args.compress_ratios[layer_id]
         self.eps = args.norm_eps
@@ -645,7 +654,9 @@ class Attention(nn.Module):
 
         self.register_buffer(
             "kv_cache",
-            torch.zeros(args.max_batch_size, args.window_size + args.max_seq_len // self.compress_ratio, self.head_dim),
+            torch.zeros(
+                args.max_batch_size, args.window_size + args.max_seq_len // max(1, self.compress_ratio), self.head_dim
+            ),
             persistent=False,
         )
         freqs_cis = precompute_freqs_cis(
@@ -862,9 +873,9 @@ class MoE(nn.Module):
         super().__init__()
         self.layer_id = layer_id
         self.dim = args.dim
-        assert args.n_routed_experts % world_size == 0, (
+        assert args.n_routed_experts % world_size == 0, (  # nosec
             f"Number of experts must be divisible by world size (world_size={world_size})"
-        )  # nosec
+        )
         self.n_routed_experts = args.n_routed_experts
         self.n_local_experts = args.n_routed_experts // world_size
         self.n_activated_experts = args.n_activated_experts
@@ -896,9 +907,27 @@ class MoE(nn.Module):
         Returns:
             torch.Tensor: Output tensor after expert routing and computation.
         """
+        # DP mode: gather all tokens from all ranks before routing
+        # TP mode: each rank has the same tokens
+        if world_size > 1 and USE_DP_MODE:
+            seq_len_this_rank = x.size(-2)
+            seq_len_tensor = torch.tensor([seq_len_this_rank], dtype=torch.long, device=x.device)
+            seq_len_list = [torch.zeros_like(seq_len_tensor) for _ in range(world_size)]
+            dist.all_gather(seq_len_list, seq_len_tensor)
+            seq_lens = [s.item() for s in seq_len_list]
+            start_pos = sum(seq_lens[:rank])
+            end_pos = start_pos + seq_len_this_rank
+            x = torch.cat(DistHelper.gather_variable_shapes(x), dim=1)
+            input_ids_flat = input_ids.flatten()
+            input_ids_flat = torch.cat(DistHelper.gather_variable_shapes(input_ids_flat.unsqueeze(0)), dim=1).squeeze(0)
+        else:
+            start_pos = 0
+            end_pos = x.size(-2)
+            input_ids_flat = input_ids.flatten()
+
         shape = x.size()
         x = x.view(-1, self.dim)
-        weights, indices = self.run_gate(x, input_ids.flatten())
+        weights, indices = self.run_gate(x, input_ids_flat)
         y = torch.zeros_like(x, dtype=torch.float32)
         counts = torch.bincount(indices.flatten(), minlength=self.n_routed_experts).tolist()
         for i in range(self.experts_start_idx, self.experts_end_idx):
@@ -910,7 +939,11 @@ class MoE(nn.Module):
         if world_size > 1:
             dist.all_reduce(y)
         y += self.shared_experts(x)
-        return y.type_as(x).view(shape)
+        y = y.type_as(x).view(shape)
+        # DP mode: extract this rank's tokens
+        if world_size > 1 and USE_DP_MODE:
+            return y[:, start_pos:end_pos, :]
+        return y
 
 
 class Block(nn.Module):
@@ -1027,6 +1060,7 @@ class Transformer(nn.Module):
         self.layers = torch.nn.ModuleList()
         for layer_id in range(args.num_hidden_layers):
             self.layers.append(Block(layer_id, args))
+        self.mtp = torch.nn.ModuleList()
         self.norm = RMSNorm(args.dim, self.norm_eps)
         # lm_head in the checkpoint is stored in bf16, while the parameter here is stored in fp32 for easier computation of logits later.
         # self.head = ColumnParallelLinear(args.dim, args.vocab_size, dtype=torch.float32)
@@ -1076,12 +1110,11 @@ class Transformer(nn.Module):
         # logging.info(f"h : {h}")
         logits = self.head(h[:, -1].float())
 
-        if world_size > 1:
+        if world_size > 1 and not USE_DP_MODE:
             all_logits = [torch.empty_like(logits) for _ in range(world_size)]
             dist.all_gather(all_logits, logits)
             logits = torch.cat(all_logits, dim=-1)
         return logits
-        # return h
 
 
 class DeepSeekModel(nn.Module):
@@ -1096,7 +1129,7 @@ class DeepSeekModel(nn.Module):
         logging.info(f"h : {h}")
         logits = self.lm_head(h[:, -1].float())
 
-        if world_size > 1:
+        if world_size > 1 and not USE_DP_MODE:
             all_logits = [torch.empty_like(logits) for _ in range(world_size)]
             dist.all_gather(all_logits, logits)
             logits = torch.cat(all_logits, dim=-1)

@@ -118,6 +118,7 @@ class TestDeepSeekV4Model(unittest.TestCase):
         with (
             patch.object(mod, 'world_size', 2),
             patch.object(mod, 'rank', 1),
+            patch.object(mod, 'USE_DP_MODE', False),
             patch.object(mod.dist, 'all_reduce') as mock_all_reduce,
         ):
             embedding = mod.ParallelEmbedding(args.vocab_size, args.dim)
@@ -644,7 +645,11 @@ class TestMoeDistributed(unittest.TestCase):
         x = torch.randn(1, 1, args.dim)
         input_ids = torch.zeros(1, 1, dtype=torch.long)
 
-        with patch.object(mod, 'world_size', 2), patch.object(mod, 'dist') as mock_dist:
+        with (
+            patch.object(mod, 'world_size', 2),
+            patch.object(mod, 'USE_DP_MODE', False),
+            patch.object(mod, 'dist') as mock_dist,
+        ):
             mock_dist.all_reduce = unittest.mock.MagicMock()
             out = moe(x, input_ids)
 

@@ -155,7 +155,6 @@ class TestConvertFP8ToBF16V4(unittest.TestCase):
         self.assertIs(called_state_dict, state_dict)
         self.assertEqual(called_path, 'ignored')
         self.assertEqual(called_kwargs['weight_map'], weight_map)
-        self.assertEqual(called_kwargs['mtp_layer_prefix'], 'model.layers.43.')
 
     # Verify warning logging occurs when `auto_dequant_state_dict` hits a missing tensor KeyError.
     def test_auto_dequant_state_dict_logs_warning_when_dequant_raises_keyerror(self):
@@ -181,9 +180,7 @@ class TestConvertFP8ToBF16V4(unittest.TestCase):
             patch.object(mod, 'get_inv_tensor', return_value=fake_scale) as mock_get_tensor,
             patch.object(mod, 'decode_fp4', return_value=expected_output) as mock_decode,
         ):
-            mod.dequant_state_dict(
-                '', state_dict, 'ignored', {'linear': 'chunk.safetensors'}, mtp_layer_prefix='model.layers.43.'
-            )
+            mod.dequant_state_dict('', state_dict, 'ignored', {'linear': 'chunk.safetensors'})
 
         mock_get_tensor.assert_called_once_with('linear', 'ignored', {'linear': 'chunk.safetensors'})
         mock_decode.assert_called_once_with(original_weight, fake_scale.to(original_weight.device))
@@ -195,9 +192,7 @@ class TestConvertFP8ToBF16V4(unittest.TestCase):
         state_dict = {'other.weight': original_weight.clone()}
 
         with patch.object(mod, 'get_inv_tensor') as mock_get_tensor, patch.object(mod, 'decode_fp4') as mock_decode:
-            mod.dequant_state_dict(
-                '', state_dict, 'ignored', {'linear': 'chunk.safetensors'}, mtp_layer_prefix='model.layers.43.'
-            )
+            mod.dequant_state_dict('', state_dict, 'ignored', {'linear': 'chunk.safetensors'})
 
         mock_get_tensor.assert_not_called()
         mock_decode.assert_not_called()

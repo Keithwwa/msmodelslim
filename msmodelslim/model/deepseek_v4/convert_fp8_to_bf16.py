@@ -26,7 +26,6 @@ from typing import Dict
 import torch
 import torch.distributed as dist
 from safetensors import safe_open
-from torch import nn
 from tqdm import tqdm
 
 from msmodelslim.utils.logging import get_logger
@@ -34,7 +33,6 @@ from msmodelslim.utils.security import get_valid_read_path, MAX_READ_FILE_SIZE_3
 
 WEIGHT_SCALE_INV = '.scale'
 HF_HOOK = '_hf_hook'
-MTP_PREFIX = 'mtp.0.'
 
 
 def decode_fp8(
@@ -82,7 +80,7 @@ def get_inv_tensor(tensor_name, fp8_path, weight_map):
     file_name = weight_map[tensor_name]
     file_path = os.path.join(fp8_path, file_name)
     file_path = get_valid_read_path(file_path, 'safetensors', size_max=MAX_READ_FILE_SIZE_32G)
-    
+
     # 自动检测设备类型
     if dist.is_initialized():
         if hasattr(torch, 'npu') and torch.npu.is_available():
@@ -95,7 +93,7 @@ def get_inv_tensor(tensor_name, fp8_path, weight_map):
             device = 'cpu'
     else:
         device = 'cpu'
-    
+
     with safe_open(file_path, framework='pt', device=device) as f:
         return f.get_tensor(tensor_name + WEIGHT_SCALE_INV)
 
@@ -104,7 +102,7 @@ def get_real_name(name, layer_prefix=''):
     return f'{layer_prefix}.{name}' if layer_prefix else name
 
 
-def auto_dequant_state_dict(layer_prefix: str, state_dict: dict, model_path: str, mtp_layer_prefix: str = "model.layers.43."):
+def auto_dequant_state_dict(layer_prefix: str, state_dict: dict, model_path: str):
     weight_map = get_inv_weight_map(model_path)
 
     if not weight_map:
@@ -113,25 +111,21 @@ def auto_dequant_state_dict(layer_prefix: str, state_dict: dict, model_path: str
     try:
         sub_weight_map = {}
         for sub_name in state_dict:
-            sub_key = get_real_name(sub_name, layer_prefix).replace(mtp_layer_prefix, MTP_PREFIX).replace('.weight', '')
+            sub_key = get_real_name(sub_name, layer_prefix).removesuffix('.weight')
             if sub_key in weight_map:
                 sub_weight_map[sub_key] = weight_map[sub_key]
-        dequant_state_dict(layer_prefix, state_dict, model_path, weight_map=sub_weight_map, mtp_layer_prefix=mtp_layer_prefix)
+        dequant_state_dict(layer_prefix, state_dict, model_path, weight_map=sub_weight_map)
     except KeyError:
-        get_logger().warning(f'Safetensors files not match index.json, please check whether model is of bf16.')
-        get_logger().warning(f'Skip fp8 to bf16.')
+        get_logger().warning('Safetensors files not match index.json, please check whether model is of bf16.')
+        get_logger().warning('Skip fp8 to bf16.')
 
 
 @torch.no_grad()
-def dequant_state_dict(layer_prefix: str,
-                              module: dict,
-                              model_path: str,
-                              weight_map: Dict[str, str],
-                              mtp_layer_prefix: str):
-    with tqdm(total=len(weight_map), desc='fp8 to bf16') as bar:
+def dequant_state_dict(layer_prefix: str, module: dict, model_path: str, weight_map: Dict[str, str]):
+    with tqdm(total=len(weight_map), desc='fp8 to bf16') as pbar:
         for ori_name, weight in module.items():
             real_name = get_real_name(ori_name, layer_prefix)
-            sub_name = real_name.replace(mtp_layer_prefix, MTP_PREFIX).replace('.weight', '')
+            sub_name = real_name.removesuffix('.weight')
             if sub_name not in weight_map:
                 continue
 
@@ -140,4 +134,4 @@ def dequant_state_dict(layer_prefix: str,
             scale = get_inv_tensor(sub_name, model_path, weight_map)
             module[ori_name] = weight_dequant(weight, scale.to(weight.device)).detach()
             weight.to('meta')
-            bar.update(1)
+            pbar.update(1)
