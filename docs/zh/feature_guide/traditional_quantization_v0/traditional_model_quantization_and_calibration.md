@@ -2,19 +2,19 @@
 
 本文聚焦传统模型场景，包含 PyTorch/ONNX/MindSpore 训练后量化与量化感知训练。
 
-## 训练后量化（PyTorch）
+## 1. 训练后量化（PyTorch）
 
-### 简介
+### 1.1 简介
 
 训练后量化工具需要用户提供PyTorch训练脚本或者pth文件，工具可自动对模型中的卷积和线性层（torch.nn.Linear和torch.nn.Conv2d）进行识别并量化，最终导出量化后的onnx模型，量化后的模型可以在推理服务器上运行，达到提升推理性能的目的。量化过程中用户需自行提供模型与数据集，调用API接口完成模型的量化调优。
 
-### 功能介绍
+### 1.2 功能介绍
 
-### 自动混合精度量化算法
+#### 1.2.1 自动混合精度量化算法
 
 为了提升量化精度，训练后量化（PyTorch）算法内置了自动混合精度的模块，自动识别并回退量化敏感层为浮点计算，避免量化敏感层对精度造成较大损失。算法核心是：计算每个量化层量化前后输出的MSE，根据MSE的排序来衡量每一个量化层的量化敏感性，自动回退MSE最大的部分敏感层，从而提升量化的精度。
 
-### 精度保持策略
+### 1.2.2 精度保持策略
 
 为了进一步降低量化精度损失，训练后量化（PyTorch）工具内集成了多种精度保持策略，对权重的量化参数和取整方式进行优化。
 
@@ -22,7 +22,7 @@
 - ADMM权重优化方法：使用交替优化的方法，对权重的量化参数进行迭代更新优化，推荐在label-free模式下使用，适当改善量化效果。
 - Rounding取整优化：在量化中普通取整不是最优解，使用自适应取整的方式优化权重的取整能提高量化精度，推荐在label-free模式下使用，适当改善量化效果。
 
-### 调用示例
+### 1.2.3 调用示例
 
 ```python
 import torchvision
@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
 ```
 
-### 多模态量化场景
+### 1.2.4 多模态量化场景
 
 说明
 多模态量化，当前硬件限定 Atlas 800I A2 / 800T A2 / 900 A2, 当前量化已经支持但不仅限于SD3和opensora1.2。
@@ -101,7 +101,7 @@ calibrator.run()
 calibrator.export_quant_safetensor("/output_path/")
 ```
 
-### 校准数据获取方式
+### 1.2.5 校准数据获取方式
 
 在上面的示例中，校准数据为 sd3_calib_data_v3.pth，其获取方式如下：
 加载 SD3 预训练模型 --> 添加 Listener 类用于捕捉模型输入参数 --> 配置 calib_prompts --> 遍历 calib_prompts，输入 Listener 类中执行前向推理（num_inference_steps用于配置一个prompt生成多少个数据）--> 保存校准数据
@@ -159,9 +159,9 @@ with SafeWriteUmask(umask=0o377):
     torch.save(calib_data, "path_to_save/sd3_calib_data.pth")
 ```
 
-## 训练后量化（ONNX）
+## 2. 训练后量化（ONNX）
 
-### 简介
+### 2.1 简介
 
 当前训练后量化工具自动对ONNX模型中的卷积（Conv）和矩阵乘法（Gemm）进行识别和量化，并将量化后的模型保存为.onnx文件，量化后的模型可以在推理服务器上运行，达到提升推理性能的目的。量化过程中用户需自行提供模型与数据集，调用API接口完成模型的量化调优。
 
@@ -173,7 +173,7 @@ ONNX模型的量化可以采用不同的模式，包括Label-Free和Data-Free模
 - Label-Free模式
     在Label-Free模式下，量化过程需要少量的数据集来校准量化因子。这种模式允许量化工具根据实际数据分布调整量化参数，从而提高量化后的模型精度。当前以Label-Free模式（以post_training_quant接口为例）为例演示量化步骤。
     
-### 使用前准备
+### 2.2 使用前准备
 
 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
 
@@ -181,9 +181,9 @@ ONNX模型的量化可以采用不同的模式，包括Label-Free和Data-Free模
 
 训练后量化前须执行命令安装依赖。
 
-### 功能介绍
+### 2.3 功能介绍
 
-### Data-Free模式（以squant_ptq接口为例）
+#### 2.3.1 Data-Free模式（以squant_ptq接口为例）
 
 本节将以模型静态shape、动态shape、图优化场景分别介绍量化配置步骤，指导用户调用Python API接口对模型进行Data-Free模式的识别和量化，并将量化后的模型保存为.onnx文件，量化后的模型可以在推理服务器上运行。
 
@@ -310,7 +310,7 @@ def get_calib_data():
     return [[img_data]]
 ```
 
-### Label-Free模式（以post_training_quant接口为例）
+#### 2.3.2 Label-Free模式（以post_training_quant接口为例）
 
 本节将以模型静态shape和动态shape两种场景分别介绍量化配置步骤，其中静态shape模型以ResNet50为例，动态shape模型以YoloV5m为例，指导用户调用Python API接口对模型进行Label-Free模式的识别和量化，并将量化后的模型保存为.onnx文件，量化后的模型可以在推理服务器上运行。
 
@@ -433,7 +433,7 @@ calib_data = []
     calib_data.append([np.array(image)])
 ```
 
-### 已验证模型
+#### 2.3.3 已验证模型
 
 目前支持对包括但不限于表1和表2中的模型进行模型训练后量化。
 
@@ -441,17 +441,17 @@ calib_data = []
 
 [表格2 已验证模型列表（Atlas 200/500 A2推理产品）](onnx/onnx_verification_table_2.xlsx)
 
-## 训练后量化（MindSpore）
+## 3. 训练后量化（MindSpore）
 
-### 简介
+### 3.1 简介
 
 训练后量化过程中，用户需自行提供训练好的权重文件和一小批验证集用来矫正量化因子，调用API接口完成模型的调优过程。目前支持MindSpore框架模型的量化调优。模型量化期间，用户可手动配置参数，并使用部分数据完成对模型的校准，获取一个量化后的模型。
 
-### 使用前准备
+### 3.2 使用前准备
 
 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
 
-### 功能介绍
+### 3.3 功能介绍
 
 1.用户自行准备预训练模型和数据集。本样例以ResNet50模型为例，获取模型结构定义脚本，并参考[README](https://gitee.com/mindspore/models/blob/master/official/cv/ResNet/README_CN.md)下载所需数据集， 以cifar10数据集为例，在config/resnet50_cifar10_config.yaml里配置data_path和checkpoint_file_path，并在eval.py的基础上进行修改。
 
@@ -545,21 +545,21 @@ save_model(file_name, model_calibrate, input_data, file_format="AIR")    #请根
 python3 resnet50_quant.py
 ```
 
-## 量化感知训练
+## 4. 量化感知训练
 
-### 简介
+### 4.1 简介
 
 量化感知训练会重新训练量化模型，从而减小模型大小，并且加快推理过程。当前支持对PyTorch框架的CNN类模型进行量化，并将量化后的模型保存为.onnx文件，量化过程中，需要用户自行提供模型与数据集，调用API接口完成模型的量化调优。
 
-### 使用前准备
+### 4.2 使用前准备
 
 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
 量化感知训练前须执行命令安装依赖。
 如下命令如果使用非root用户安装，需要在安装命令后加上--user，例如：pip3 install onnx --user。
 
-### 功能介绍
+### 4.3 功能介绍
 
-### 操作步骤
+#### 4.3.1 操作步骤
 
 1.用户需自行准备模型、训练脚本和数据集，本样例以PyTorch框架的Resnet50和数据集ImageNet为例。
 

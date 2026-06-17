@@ -44,7 +44,7 @@ msmodelslim analyze layer \
 | `--metrics` | 指定分析算法，取值为 `mse_model_wise` 时使用本算法 |
 | `--quant_modules` | 通配符列表，指定参与量化对比的模块范围 |
 
-完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)。
+完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
 
 ## FAQ
 

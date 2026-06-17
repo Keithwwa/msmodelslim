@@ -2,26 +2,26 @@
 
 本目录文档按模型类型与任务场景梳理，便于按需求快速定位。
 
-## 一、传统模型量化与校准
+## 1. 传统模型量化与校准
 
 - [传统模型量化与校准](traditional_model_quantization_and_calibration.md)
   - 包含 PyTorch/ONNX/MindSpore 训练后量化与 QAT。
 
-## 二、大模型量化与压缩
+## 2. 大模型量化与压缩
 
 - [大模型量化与校准](foundation_model_quantization_and_calibration.md)
   - 包含低显存量化、混合校准数据集、FA3 量化。
 - [压缩与结构优化（大模型为主）](foundation_model_compression.md)
   - 包含稀疏量化与权重压缩、长序列压缩、权重压缩流程、低秩分解。
 
-## 三、训练加速与模型改造
+## 3. 训练加速与模型改造
 
 - [训练加速与模型改造](pruning_and_distillation.md)
   - 包含重要性剪枝、Transformer 剪枝、Sparse tool、模型蒸馏。
 - [稀疏加速训练](sparse_acceleration_training.md)
   - 包含宽度扩增与深度扩增模型的稀疏训练加速流程。
 
-## 四、工具与生态适配
+## 4. 工具与生态适配
 
 - [量化权重格式说明](quantized_weight_format.md)
   - 包含量化权重与描述文件格式、反量化公式及 KV Cache 量化说明。

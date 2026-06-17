@@ -3,11 +3,11 @@ toc_depth: 3
 ---
 # 量化敏感层分析工具使用指南
 
-## 简介
+## 1. 简介
 
 `analyze` 是 msModelSlim 工具中的量化敏感层分析功能接口，用于分析模型中各层的量化敏感度，帮助用户识别量化敏感层，从而进行针对性的优化。
 
-下图为端到端量化中各环节流程示意图，其中**敏感层分析**（`msmodelslim analyze`）属于**方案设计**阶段：在撰写或迭代量化 YAML 时，基于校准数据得到层/结构敏感度排序，用于决定哪些层做回退，即哪些层少量化或不量化。分析完成后，日志中可出现便于粘贴的 YAML 片段，格式说明见[输出说明](#输出说明)。
+下图为端到端量化中各环节流程示意图，其中**敏感层分析**（`msmodelslim analyze`）属于**方案设计**阶段：在撰写或迭代量化 YAML 时，基于校准数据得到层/结构敏感度排序，用于决定哪些层做回退，即哪些层少量化或不量化。分析完成后，日志中可出现便于粘贴的 YAML 片段，格式说明见[输出说明](#37-输出说明)。
 
 ```text
                             YAML            权重
@@ -24,13 +24,13 @@ toc_depth: 3
 
 敏感层分析完成后，控制台会输出符合量化 YAML 配置格式的敏感层排序结果，可直接复制并粘贴至量化配置的 include 或 exclude 中（通常用于 type: linear_quant 的 Processor），请检查其中的层名通配符是否覆盖预期范围，再以新的配置进行量化。
 
-## 使用前准备
+## 2. 使用前准备
 
 安装 msModelSlim 工具，详情请参见《[msModelSlim 工具安装指南](../../getting_started/install_guide.md)》。
 
-## 功能介绍
+## 3. 功能介绍
 
-### 功能说明
+### 3.1 功能说明
 
 - **多维度分析**能够从数据分布、稳健性、峰态特征、注意力以及层级输出差异等多个维度，精准评估层敏感度。按分析层级划分如下：
   - **linear层级**衡量算法：`std`、`quantile`、`kurtosis`
@@ -39,7 +39,7 @@ toc_depth: 3
 - **灵活配置**：支持自定义校准数据集（JSON/JSONL 格式）、层名匹配以及丰富的参数选项，满足不同场景的量化需求。
 - **智能输出**：支持打印 Top K 敏感层列表，实际打印数量可能会大于或等于目标数量，如 QKV 一起打印。
 
-### 注意事项
+### 3.2 注意事项
 
 - transformers 版本依赖于模型，与量化功能无关。
 - 实际回退的层数受推理引擎实现的限制，因此可能与 topk 参数设置存在一些差异。
@@ -47,7 +47,7 @@ toc_depth: 3
 - 由于安全规范，trust_remote_code 默认为 False。
 - 敏感层分析目前仅支持大语言模型。
 
-### 命令格式
+### 3.3 命令格式
 
 ```bash
 msmodelslim analyze [scope] [参数选项]
@@ -66,9 +66,9 @@ msmodelslim analyze [scope] [参数选项]
 > - **旧命令仍可用但后续将日落**：仍支持旧写法 `msmodelslim analyze --model_type ... --model_path ...`（不显式写 scope），但旧写法下 `--metrics` 仅支持 `"std"`, `"quantile"`, `"kurtosis"`, `"attention_mse"` 四种类型，其中 `"attention_mse"` 对应新写法 `msmodelslim analyze attn --metrics mse`。新写法下 attn scope 的 `--metrics` 可选值为 `"mse"`，不再保留 `"attention_mse"` 这一名称。
 > - **推荐使用新写法**：显式指定 scope（`linear/attn/layer`），可获得更清晰的 help 和更稳定的参数语义。
 
-### 参数说明
+### 3.4 参数说明
 
-#### 通用参数（所有 scope 共享）
+#### 3.4.1 通用参数（所有 scope 共享）
 
 | 参数 | 类型 | 默认值 | 描述 | 示例值 |
 |------|------|--------|------|--------|
@@ -80,7 +80,7 @@ msmodelslim analyze [scope] [参数选项]
 | `--trust_remote_code` | `bool` | `False` | 是否信任远程代码，需要用户自行保障安全性。可选值：`True`, `False`。 | `False` |
 | `-h, --help` | - | - | 命令行参数帮助信息 | - |
 
-#### `linear` 参数（线性层分析）
+#### 3.4.2 `linear` 参数（线性层分析）
 
 命令格式：
 
@@ -93,7 +93,7 @@ msmodelslim analyze linear [通用参数] [linear参数]
 | `--pattern` | `List[str]` | `["*"]` | 待分析的层名称列表，支持通配符匹配。支持设置多个pattern，使用空格分隔。 | `"*down_proj"` `"*up_proj"` |
 | `--metrics` | `str` | `"kurtosis"` | 分析使用的度量算法，可选值：`"std"`, `"quantile"`, `"kurtosis"` | `"kurtosis"` |
 
-#### `attn` 参数（attention 结构分析）
+#### 3.4.3 `attn` 参数（attention 结构分析）
 
 命令格式：
 
@@ -105,7 +105,7 @@ msmodelslim analyze attn [通用参数] [attn参数]
 |------|------|--------|------|--------|
 | `--metrics` | `str` | `"mse"` | 分析使用的度量算法，可选值：`"mse"` | `"mse"` |
 
-#### `layer` 参数（decoder层级输出）
+#### 3.4.4 `layer` 参数（decoder层级输出）
 
 命令格式：
 
@@ -118,7 +118,7 @@ msmodelslim analyze layer [通用参数] [layer参数]
 | `--quant_modules` | `List[str]` | `["*"]` | 目标模块列表，支持通配符匹配，用于指定参与对比的模块范围。 | `"*self_attn*"` `"*mlp*"` |
 | `--metrics` | `str` | `"mse_layer_wise"` | 分析使用的度量算法，可选值：`"mse_model_wise"`, `"mse_layer_wise"` | `"mse_layer_wise"` |
 
-#### 参数选择注意事项
+#### 3.4.5 参数选择注意事项
 
 **model_type 支持说明**
 
@@ -136,13 +136,13 @@ msmodelslim analyze layer [通用参数] [layer参数]
 - `attn`：对注意力模块做敏感度分析，目前多用于需配合 Flash Attention 3 激活量化的场景，帮助识别需要回退的注意力层。
 - `layer`：对 Decoder 块做整体敏感度分析，输出块粒度排序结果，用于需要整层或整块（Attention/MoE/MLP）回退的场景。
 
-各层级下不同算法（metrics）的选择，参见下方[分析算法说明](#分析算法说明)。
+各层级下不同算法（metrics）的选择，参见下方[分析算法说明](#35-分析算法说明)。
 
-### 分析算法说明
+### 3.5 分析算法说明
 
 敏感度度量按分析范围（scope）与输出粒度分为三类，各类下 `--metrics` 的详细说明见下列分篇。
 
-#### linear（线性层）
+#### 3.5.1 linear（线性层）
 
 对模型中**单个线性层**（及实现支持的卷积层等）做敏感度分析，结果为**线性层粒度**排序。可选 `--metrics`：`std`、`quantile`、`kurtosis`；均无需模型适配器额外实现分析接口。各算法详细说明请参见：
 
@@ -152,13 +152,13 @@ msmodelslim analyze layer [通用参数] [layer参数]
 
 > **推荐**：`linear` 可首选 `kurtosis`，该指标对激活尖峰敏感，能有效识别分布极端值对量化的影响；若数据含较多离群点可配合 `quantile`，若关注范围与离散度比值可配合 `std`。
 
-#### attn（attention 结构）
+#### 3.5.2 attn（attention 结构）
 
 对模型中**attention 结构**做敏感度分析，结果为**attention 模块粒度**排序。可选 `--metrics`：`mse`。需对应 `model_type` 的模型适配器实现 **AttentionMSEAnalysisInterface**。各算法详细说明请参见：
 
 - 《[Attention MSE（mse）：敏感层分析算法说明](../../quantization_algorithms/sensitive_layer_analysis/attention_mse.md)》
 
-#### layer（decoder 层级输出）
+#### 3.5.3 layer（decoder 层级输出）
 
 对**Decoder block**做敏感度分析，结果为**层级粒度**排序，用于整层回退或整块回退（如整块 attention/MLP）。可选 `--metrics`：`mse_layer_wise`、`mse_model_wise`；均无需模型适配器额外实现分析接口。各算法详细说明请参见：
 
@@ -167,7 +167,7 @@ msmodelslim analyze layer [通用参数] [layer参数]
 
 > **推荐**：`layer` 优先使用 `mse_layer_wise`。`mse_model_wise` 依赖链式前向将上一层输出传入下一层来模拟真实推理路径，部分架构上可能因张量形状无法对齐而跳过后续层，且校准规模与中间缓存也会增加显存压力。
 
-### 使用示例
+### 3.6 使用示例
 
 以下示例中 `${model_path}` 表示原始模型路径，`${calib_dataset}` 表示校准数据集文件路径，请根据实际情况替换为实际值。
 
@@ -209,17 +209,18 @@ msmodelslim analyze layer \
     --device npu
 ```
 
-### 输出说明
+### 3.7 输出说明
 
 运行分析后，控制台会输出两部分关键信息：**敏感层排序列表**（Score 从高到低，分数越高表示该层对量化越敏感）和 **可直接粘贴的 YAML 配置片段**。YAML 片段中已按敏感度排序生成回退层列表，用户可直接复制到量化配置文件中使用。
 
 根据 scope 的不同，输出格式分为以下三类。
 
-> [!note] 注意
+> [!NOTE] 注意
+>
 > - 进行linear层级分析时，对于 QKV（`q_proj`、`k_proj`、`v_proj`）等成组模块，同一组具有相同的分数，输出时会一起列出。
 > - 某些成组模块必须同时排除，如 MLP 中的 `up_proj` 与 `gate_proj`，若只回退其中一个可能会导致模型无法部署。
 
-#### linear 输出
+#### 3.7.1 linear 输出
 
 输出结果按层粒度排序，每行包含具体的层名称和对应的敏感度分数：
 
@@ -247,7 +248,7 @@ top 80:
 === End of YAML Format ===
 ```
 
-#### attn 输出
+#### 3.7.2 attn 输出
 
 输出结果按注意力模块粒度排序，每行包含注意力模块名称和对应的敏感度分数：
 
@@ -275,7 +276,7 @@ top 36:
 === End of YAML Format ===
 ```
 
-#### layer 输出
+#### 3.7.3 layer 输出
 
 输出结果按 Decoder 块粒度排序。YAML 中回退层名默认包含通配符（如 `model.layers.2.*`），表示回退该 Decoder 层内的所有子模块。若只需要回退该层内的某个具体结构（如仅 MLP 或仅 Attention），可在 YAML 中将通配符替换为具体模块名，或在量化配置中配合 `include` 指定需要量化的子模块范围。
 
@@ -303,9 +304,9 @@ top 36:
 === End of YAML Format ===
 ```
 
-## FAQ
+## 4. FAQ
 
-### 问题现象：校准数据集文件格式错误或无法读取
+### 4.1 问题现象：校准数据集文件格式错误或无法读取
 
 **解决方案**：
 
@@ -314,7 +315,7 @@ top 36:
 3. 验证文件路径是否正确。
 4. 确认校准集文件存在可读权限。
 
-### 问题现象：输入不支持的model_type会发生什么？
+### 4.2 问题现象：输入不支持的model_type会发生什么？
 
 **解决方案**：
 当输入的model_type不在支持列表中时：
@@ -322,4 +323,4 @@ top 36:
 - 系统会打印warning日志，提示使用默认模型。
 - 自动使用默认模型进行处理。
 - 可能无法获得最佳的分析效果。
-- **建议**：优先使用与所选 `--metrics` 及[参数选择注意事项](#参数选择注意事项)约定一致的标准 `model_type`，以获得最佳兼容性与分析效果。
+- **建议**：优先使用与所选 `--metrics` 及[参数选择注意事项](#345-参数选择注意事项)约定一致的标准 `model_type`，以获得最佳兼容性与分析效果。

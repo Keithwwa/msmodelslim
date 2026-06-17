@@ -535,7 +535,7 @@ spec:
   default_text: "Describe this image in detail."  # 图片默认的文本prompt
 ```
 
-配置中各字段说明详见[量化配置协议详解](../feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)。
+配置中各字段说明详见[量化配置协议详解](../feature_guide/quick_quantization_v1/usage.md#64-multimodal_vlm_modelslim_v1-配置详解)。
 
 ## 量化自有模型
 

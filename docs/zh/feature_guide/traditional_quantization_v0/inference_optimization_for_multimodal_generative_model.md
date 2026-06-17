@@ -1,22 +1,22 @@
 # 多模态生成模型推理优化
 
-## 简介
+## 1. 简介
 
 本工具提供了针对大规模多模态生成模型的推理优化解决方案，专注于提升推理效率和资源利用率。
 
-## 使用前准备
+## 2. 使用前准备
 
-## 硬件平台
+## 3. 硬件平台
 
 - 仅支持在以下产品中使用。
     - Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件。
 
-## 软件依赖
+## 4. 软件依赖
 
 - 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
 - 参考开源模型仓库[OpenSoraPlanV1.2](https://github.com/PKU-YuanGroup/Open-Sora-Plan/releases/tag/v1.2.0) 的readme，下载模型权重，完成模型所需的python环境依赖的安装。
 
-## 环境配置
+## 5. 环境配置
 
 ```bash
 # Install torch_npu and decord
@@ -35,19 +35,19 @@ cd /path/to/Open-Sora-Plan-1.2.0
 pip install -e .[train]
 ```
 
-## 功能介绍
+## 6. 功能介绍
 
-## 支持模型
+## 7. 支持模型
 
 | 模型名称 | 框架 | 优化特性 | 说明 |
 |---------|------|----------|------|
-| OpenSoraPlanV1.2 | PyTorch | [采样优化](#自适应采样优化), [DiT缓存优化](#dit缓存优化) | • [模型源码链接](https://github.com/PKU-YuanGroup/Open-Sora-Plan/releases/tag/v1.2.0)<br>• 采样优化目前仅支持29\*480p场景，可达到2×加速，vbench精度损失<1%。 |
+| OpenSoraPlanV1.2 | PyTorch | [采样优化](#13-自适应采样优化), [DiT缓存优化](#8-dit缓存优化) | • [模型源码链接](https://github.com/PKU-YuanGroup/Open-Sora-Plan/releases/tag/v1.2.0)<br>• 采样优化目前仅支持29\*480p场景，可达到2×加速，vbench精度损失<1%。 |
 
-## DiT缓存优化
+## 8. DiT缓存优化
 
 DiT缓存优化适配器，用于优化DiT（Diffusion Transformer）模型的推理性能，通过缓存中间计算结果来加速推理生成。
 
-## 原理介绍
+## 9. 原理介绍
 
 DiT模型在推理过程中需要多次计算transformer block的输出。传统的实现方式会在每个timestep重新计算所有block的输出，而缓存优化通过分析模型在不同timestep的行为，找到可以重复利用的中间计算结果。
 
@@ -84,7 +84,7 @@ sequenceDiagram
     S-->>U: 返回最优配置
 ```
 
-## 使用流程概览
+## 10. 使用流程概览
 
 ```mermaid
 %%{init: {'theme': 'forest'}}%%
@@ -95,17 +95,17 @@ graph TD
     D --> E[5.使用优化配置进行推理]
 ```
 
-## 详细使用步骤
+## 11. 详细使用步骤
 
 详细使用接口说明请参考 [DitCacheSearchConfig](../../python_api_v0/multimodal_inference_apis/DitCache/DitCacheSearchConfig.md) 和 [DitCacheAdaptor](../../python_api_v0/multimodal_inference_apis/DitCache/DitCacheAdaptor.md)。
 
-### 1. 准备环境和模型
+### 11.1 准备环境和模型
 
 首先确保已完成环境配置和模型下载：
 
-- 参考[使用前准备](#使用前准备)完成环境安装和模型权重下载
+- 参考[使用前准备](#2-使用前准备)完成环境安装和模型权重下载
 
-### 2. 定义pipeline运行函数
+### 11.2 定义pipeline运行函数
 
 需要定义一个闭包函数来运行pipeline并返回生成的视频。此函数将被缓存搜索过程调用，用于生成校准视频和评估不同缓存配置：
 
@@ -145,7 +145,7 @@ for step_id, t in enumerate(timesteps):
     model_output = pipeline(...)
 ```
 
-### 3. 配置和初始化缓存适配器
+### 11.3 配置和初始化缓存适配器
 
 ```python
 from msmodelslim.pytorch.multi_modal.dit_cache import DitCacheSearchConfig, DitCacheAdaptor
@@ -160,7 +160,7 @@ config = DitCacheSearchConfig(
 cache_adaptor = DitCacheAdaptor(pipeline, config)
 ```
 
-### 4. 执行缓存配置搜索
+### 11.4 执行缓存配置搜索
 
 ```python
 # 执行搜索并获取最优配置
@@ -188,9 +188,9 @@ torchrun --nnodes=1 --nproc_per_node 8 --master_port 29503 \
     --cache_save_path "./dit_cache_config.json"  # 保存搜索结果的路径
 ```
 
-### 5. 使用优化配置进行推理
+### 11.5 使用优化配置进行推理
 
-#### 5.1 工作流程
+#### 11.5.1 工作流程
 
 ```mermaid
 flowchart LR
@@ -202,7 +202,7 @@ flowchart LR
     F --> |下一时间步| E
 ```
 
-#### 5.2 使用示例
+#### 11.5.2 使用示例
 
 ```python
 import json
@@ -252,7 +252,7 @@ for step_id, t in enumerate(timesteps):
 }
 ```
 
-#### 5.3 完整推理脚本
+#### 11.5.3 完整推理脚本
 
 完整的推理脚本示例 [dit_cache_sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/dit_cache_sample_t2v_sp.sh)：
 
@@ -275,7 +275,7 @@ torchrun --nnodes=1 --nproc_per_node 8 --master_port 29503 \
     --dit_cache_config "./dit_cache_config.json"  # 使用搜索得到的缓存配置
 ```
 
-## 注意事项
+## 12. 注意事项
 
 1. **必须设置timestep**: 在每个timestep开始时调用`DitCacheAdaptor.set_timestep_idx(step_id)`
 2. **搜索时间**: 缓存配置搜索过程包含校准视频生成和配置评估，可能需要较长时间
@@ -284,11 +284,11 @@ torchrun --nnodes=1 --nproc_per_node 8 --master_port 29503 \
 5. **参数一致性**: 确保在搜索和推理时使用相同的模型参数配置（如采样步数、图像尺寸等）
 6. **加速效果**: 在29\*480p和93\*720p场景下，生成结果可达到约1.3倍加速，同时保持生成质量
 
-## 自适应采样优化
+## 13. 自适应采样优化
 
 采样优化适配器，用于搜索和优化稳定扩散模型的采样步骤，以提高推理效率。
 
-## 原理介绍
+## 14. 原理介绍
 
 稳定扩散模型在推理过程中需要多步采样来生成高质量的图像或视频。传统的均匀采样方法可能会在某些不重要的时间步上浪费计算资源，而在关键时间步上采样不足。采样优化的目标是找到一组更高效的采样步骤，在保持生成质量的同时减少计算开销。
 
@@ -305,11 +305,11 @@ torchrun --nnodes=1 --nproc_per_node 8 --master_port 29503 \
 3. 评估每个采样方案生成的结果与校准视频的差异。
 4. 选择能在减少计算量的同时保持生成质量的最优采样步骤。
 
-## 使用步骤
+## 15. 使用步骤
 
 详细使用接口说明请参考 [ReStepAdaptor.md](../../python_api_v0/multimodal_inference_apis/sampling_optimization_apis/ReStepAdaptor.md) 和 [ReStepSearchConfig.md](../../python_api_v0/multimodal_inference_apis/sampling_optimization_apis/ReStepSearchConfig.md)
 
-### 1. 运行原始模型推理，生成baseline视频搜索校准
+### 15.1 运行原始模型推理，生成baseline视频搜索校准
 
 ```bash
 cd /path/to/Open-Sora-Plan-1.2.0
@@ -317,7 +317,7 @@ cd /path/to/Open-Sora-Plan-1.2.0
 bash scripts/text_condition/gpu/sample_t2v_sp.sh
 ```
 
-### 2. 搜索 timestep
+### 15.2 搜索 timestep
 
 获取到模型pipeline对象后，设置采样优化参数，传入生成的校准视频文件夹目录，调用`ReStepAdaptor`类进行 `timestep` 搜索，完整示例脚本： [search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/search_t2v_sp.sh)。
 
@@ -343,7 +343,7 @@ restep_adaptor = ReStepAdaptor(pipeline, config)
 scheduler_timestep = restep_adaptor.search()
 ```
 
-### 3. 用搜索的 timestep 进行推理
+### 15.3 用搜索的 timestep 进行推理
 
 示例推理命令（完整脚本请参考[sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/sample_t2v_sp.sh)）： 
 

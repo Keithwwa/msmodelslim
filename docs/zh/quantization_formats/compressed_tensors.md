@@ -26,7 +26,7 @@ spec:
 
 ## 导出产物结构
 
-```
+```text
 save_directory/
 ├── config.json                          # 注入 quantization_config 字段
 ├── model.safetensors                    # 或 model-00001-of-0000N.safetensors（分片）

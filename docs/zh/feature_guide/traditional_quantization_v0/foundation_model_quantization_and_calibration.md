@@ -2,22 +2,22 @@
 
 本文聚焦大模型场景，包含低显存量化、混合校准数据集与 FA3 量化。
 
-## 低显存量化
+## 1. 低显存量化
 
-### 简介
+### 1.1 简介
 
 在量化大模型的时候，显存受限或模型参数过多（如千亿级）时模型无法完整加载到显存中，量化报显存不足错误，可以启用低显存量化模式。  
 该模式将模型大部分模块存放于内存中，仅计算时使用NPU，可以限制显存使用。
 
-### 注意
+### 1.2 注意
 
 本文中的**显存**实际含义为**NPU片上内存**，为方便用户理解，借用**显存**的表述。
 
-### 使用前准备
+### 1.3 使用前准备
 
 依赖版本：accelerate >= 0.28.0
 
-### 功能介绍
+### 1.4 功能介绍
 
 <font color="red">注意：开启后量化耗时更久！！！</font>
 
@@ -47,17 +47,17 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 ```
 
-### 使用样例
+### 1.5 使用样例
 
 [Deepseek w8a8量化示例](https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md)
 
-## 混合校准数据集使用方法说明
+## 2. 混合校准数据集使用方法说明
 
-### 简介
+### 2.1 简介
 
 混合校准集接口，通过CalibrationData类混合指定的数据集，支持用户自定义数据集
 
-### 使用前准备
+### 2.2 使用前准备
 
 前提条件：config文件，用于配置基础数据集的路径，名称包括 boolq、ceval_5_shot、gsm8k、mmlu
 
@@ -68,9 +68,9 @@ model = AutoModelForCausalLM.from_pretrained(
 - [mmlu](https://huggingface.co/datasets/cais/mmlu)
 - [gsm8k](https://huggingface.co/datasets/openai/gsm8k)
 
-### 功能介绍
+### 2.3 功能介绍
 
-### 接口说明
+### 2.4 接口说明
 
 请参考 [CalibrationData](../../python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/CalibrationData.md)
 
@@ -84,7 +84,7 @@ model = AutoModelForCausalLM.from_pretrained(
 6. 设置随机种子，通过set_shuffle_seed()接口
 7. 调用process接口运行，生成混合校准集
 
-### config文件示例
+### 2.5 config文件示例
 
 - 第一层为dict，key为"configurations"，value为一个list，包含多个数据集信息
 
@@ -113,7 +113,7 @@ model = AutoModelForCausalLM.from_pretrained(
 }
 ```
 
-### 调用示例
+### 2.6 调用示例
 
 请注意`trust_remote_code`为`True`时可能执行浮点模型权重中的代码文件，请确保浮点模型来源安全可靠。
 
@@ -192,7 +192,7 @@ mixed_dataset = calib_select.process()
 print(mixed_dataset)
 ```
 
-### 混合校准集解析使用示例
+### 2.7 混合校准集解析使用示例
 
 通过get_anti_dataset()方法，以混合校准集生成的mixed_dataset为输入，输出可以应用于离群值抑制模块``AntiOutlier(model, calib_data=mixed_dataset, cfg=anti_config)``中``calib_data``的输入 <br>
 
@@ -237,21 +237,21 @@ def get_calib_dataset(tokenizer, mixed_dataset, device='npu'):
     return dataset_calib
 ```
 
-## FA3量化
+## 3. FA3量化
 
 **Flash Attention 3（FA3）**，在KV-Cache的基础上增强了在硬件设备上的利用率，提升了整体在推理场景中的计算效率，以低精度的数据格式完成更快的处理和更少的内存占用。
 
-### 使用前准备
+### 3.1 使用前准备
 
-前提条件参考大模型量化的[使用前准备](foundation_model_compression.md#使用前准备)。
+前提条件参考大模型量化的[使用前准备](foundation_model_compression.md#11-使用前准备)。
 
 说明：仅Atlas 800I A2推理产品支持FA3量化功能。当前 FA3 量化功能已完成对大语言模型 Llama3.1-70B、Qwen2.5-72B 和多模态模型 Flux.1-dev、HunyuanVideo 的验证。
 
-### 功能介绍
+### 3.2 功能介绍
 
-### 大语言模型FA3量化关键步骤说如下
+### 3.3 大语言模型FA3量化关键步骤说如下
 
-#### 1.修改modeling文件
+#### 3.3.1 修改modeling文件
 
 （1）找到对应版本的modeling文件：
 
@@ -471,7 +471,7 @@ from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
 
 **注意**：在量化脚本里面通过transformers库对模型进行加载时，调用`from_pretrained`函数时一定要指定`trust_remote_code=True`让修改后的modeling文件能够正确的被加载。(请确保加载的modeling文件的安全性)
 
-#### 2.配置config
+#### 3.3.2 配置config
 
 `config = QuantConfig().fa_quant()`
 
@@ -483,7 +483,7 @@ from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
 | ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | fa_quant(fa_amp=5) | fa_amp用于配置自动精度回退，根据想要回退的layer的数量来设置。<br>数据类型为int，默认值为0。数据取值范围是大于等于0，并且小于等于模型layer数量，如果超出模型的layer数量将会取模型的最大layer数量为回退层数。 | quant_config=QuantConfig(w_bit=8,  a_bit=8, disable_names=disable_names,dev_type='npu',dev_id=0).fa_quant(fa_amp=5)|
 
-### 量化步骤（以Qwen2.5-7B为例）
+### 3.4 量化步骤（以Qwen2.5-7B为例）
 
 1. 用户自行准备模型、权重文件和校准数据，将修改好的modeling文件和config放入权重目录下，本样例以Qwen2.5-7B为例，目录示例如下：
 
@@ -506,11 +506,11 @@ from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
 ```
 
 2.新建模型的量化脚本quant.py，
-此处可以参考：[量化脚本（NPU）](#量化脚本npu)
+此处可以参考：[量化脚本（NPU）](#361-量化脚本npu)
 
-3.启动模型量化任务，并在指定的输出目录获取模型量化参数，量化后权重文件的介绍请参见[量化后权重文件](#量化后权重文件)，若使用MindIE进行后续的推理部署任务，请保存为safetensors格式，具体请参见[大语言模型列表](https://www.hiascend.com/software/mindie/modellist)章节中已适配量化的模型。
+3.启动模型量化任务，并在指定的输出目录获取模型量化参数，量化后权重文件的介绍请参见[量化后权重文件](#35-量化后权重文件)，若使用MindIE进行后续的推理部署任务，请保存为safetensors格式，具体请参见[大语言模型列表](https://www.hiascend.com/software/mindie/modellist)章节中已适配量化的模型。
 
-### 量化后权重文件
+### 3.5 量化后权重文件
 
 - **npy格式**
 
@@ -582,9 +582,9 @@ from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
 }
 ```
 
-### FA3精度调优
+### 3.6 FA3精度调优
 
-#### 量化脚本（NPU）
+#### 3.6.1 量化脚本（NPU）
 
 当前 FA 量化脚本和命令可以参考 example 的相关内容。跳转链接见下表：
 
@@ -595,7 +595,7 @@ from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
 
 #### 本文仅给出FA3场景下Llama3.1-70B和Qwen2.5-72B的量化推荐配置，可按实际情况进行参数调整，详见[精度调优策略](../../case_studies/w8a8_accuracy_tuning_policy.md) 
 
-#### Llama3.1-70B 量化参数设置
+#### 3.6.2 Llama3.1-70B 量化参数设置
 
 - 离群值抑制(AntiOutlier) ：anti_method = "m3"
 
@@ -653,7 +653,7 @@ for layer_index in disable_idx_lst:
 fa_quant(fa_amp=5)
 ```
 
-#### Qwen2.5-72B 量化参数设置
+#### 3.6.3 Qwen2.5-72B 量化参数设置
 
 - （可选）离群值抑制(AntiOutlier) ：无需离群值抑制精度即可达标
 
@@ -706,6 +706,6 @@ for layer_index in disable_idx_lst:
 fa_quant(fa_amp=5)
 ```
 
-### 多模态FA3量化关键步骤说明如下
+### 3.7 多模态FA3量化关键步骤说明如下
 
 请参考[Flux FA3量化](../../../../example/multimodal_sd/Flux/README.md#flux-fa3-quantization)与[HunyuanVideo FA3](../../../../example/multimodal_sd/HunYuanVideo/README.md#hunyuanvideo-fa3-量化)的详细使用说明。

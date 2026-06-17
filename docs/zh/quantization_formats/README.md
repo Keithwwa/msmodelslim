@@ -11,7 +11,7 @@ msModelSlim 支持多种量化权重落盘格式。格式决定量化结果的**
 | 格式 | YAML 配置 | 目标推理框架 | 支持量化模式（概要） | 分布式导出 | 详细说明 |
 |------|-----------|-------------|---------------------|-----------|----------|
 | AscendV1 | `- type: "ascendv1_saver"`<br>`part_file_size: 4` | MindIE、vLLM Ascend | W8A8 / W8A16 / W4A8 / W4A4 / MXFP / KV Cache / FA 等 20+ | 支持 | [AscendV1 格式说明](ascendv1.md) |
-| MindIE-SD | `- type: "mindie_format_saver"`<br>`part_file_size: 0` | MindIE（多模态生成） | 多模态生成模型专用 | 支持 | [MindIE 保存器配置](../feature_guide/quick_quantization_v1/usage.md#mindie_format_saver) |
+| MindIE-SD | `- type: "mindie_format_saver"`<br>`part_file_size: 0` | MindIE（多模态生成） | 多模态生成模型专用 | 支持 | [MindIE 保存器配置](../feature_guide/quick_quantization_v1/usage.md#6341-mindie_format_saver) |
 | compressed-tensors | `- type: "compressed_tensors"`<br>`part_file_size: 4` | vLLM | W8A8 Static / W8A8 Dynamic | 不支持 | [compressed-tensors 格式说明](compressed_tensors.md) |
 
 ## YAML 配置示例

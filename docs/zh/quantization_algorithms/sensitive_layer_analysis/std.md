@@ -46,7 +46,7 @@ msmodelslim analyze linear \
 | `--metrics` | 指定分析算法，取值为 `std` 时使用本算法 |
 | `--pattern` | 层名通配符，过滤待分析线性层 |
 
-完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#参数说明)。
+完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
 
 ## FAQ
 

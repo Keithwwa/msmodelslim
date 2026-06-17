@@ -188,7 +188,7 @@ flowchart TD
 
 **场景一：单网络 DiT（HunyuanVideo）—— 7 个分区**
 
-```
+```text
 分区 1：公共流水线接口       # validate_calib_samples, handle_dataset, init_model, generate_model_visit/forward, enable_kv_cache
 分区 2：公共运行时配置       # get_inference_config_class, configure_runtime
 分区 3：公共校准执行         # prepare_calib_data, inference_dump_calib_data, quantization_context
@@ -200,7 +200,7 @@ flowchart TD
 
 **场景二：双专家 DiT（Wan2.2）—— 8 个分区（基类）**
 
-```
+```text
 分区 1：公共流水线接口       # validate_calib_samples, handle_dataset, init_model(抽象), generate_model_visit/forward, enable_kv_cache
 分区 2：公共运行时配置       # get_inference_config_class(子类), configure_runtime(基类)
 分区 3：公共校准执行         # prepare_calib_data, inference_dump_calib_data(抽象), quantization_context(抽象)
@@ -250,7 +250,7 @@ class HunyuanVideoModelAdapter(
 
 #### Step 0：目录结构
 
-```
+```text
 msmodelslim/model/hunyuan_video/
 ├── __init__.py
 ├── model_adapter.py      # 主适配器（含分区 1~7）
@@ -716,7 +716,7 @@ def inject_fa3_placeholders(
 
 #### Step 0：目录结构
 
-```
+```text
 msmodelslim/model/wan2_2/
 ├── base_model_adapter.py    # 分区 1~8（基类，不可直接实例化）
 ├── expert_sub_adapter.py    # 专家子适配器（非 BaseModelAdapter 子类）
@@ -1349,7 +1349,7 @@ spec:
 | `save` | 多模态生成默认 `mindie_format_saver`，输出 MindIE-SD 格式 |
 | `multimodal_sd_config.inference_config` | **推理参数桥接**（Pydantic 校验），字段须与原 Wan2.2 推理仓 CLI 一致；`task` 须与当前 `model_type` 对应（T2V 为 `t2v-A14B`） |
 
-`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../feature_guide/quick_quantization_v1/usage.md#multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
+`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../feature_guide/quick_quantization_v1/usage.md#63-multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
 
 ### 执行量化
 
@@ -1388,6 +1388,7 @@ msmodelslim quant \
 **原因**：`inference_config` 中写了原推理仓不支持的字段。
 
 **排查**：
+
 1. 确认字段名与 CLI 参数对应。
 2. 使用 `_allowed_*_config_keys()` 探测合法字段。
 3. 检查 `extra="forbid"` 是否误删必要字段。
@@ -1397,6 +1398,7 @@ msmodelslim quant \
 **原因**：`_build_default_quant_cli` 提供的默认值与原仓该任务的校验冲突。
 
 **排查**：
+
 1. 查看原仓 `_validate_args` 或 `WAN_CONFIGS` 中该任务的约束。
 2. 确保 `scene_task` 与默认值匹配（如 ti2v-5B 只支持 704x1280 或 1280x704）。
 
@@ -1417,6 +1419,7 @@ msmodelslim quant \
 **原因**：`init_model()` 返回的专家名与 `prepare_calib_data` / dump 产出的 `calib_data` key 不一致，或 dump 未成功却缺少对应 key。
 
 **排查**：
+
 1. 确认 `init_model` 返回的 dict key 与 `get_expert_adapter`、pth 文件名中的 `expert_name` 一致（双专家为 `low_noise_model`、`high_noise_model`）。
 2. 检查 `dump_config.enable_dump`、`dump_data_dir` 下 pth 是否齐全。
 3. 全动态量化仍需为每个 expert 提供 key（值可为 `None`），不能只配置单个专家。

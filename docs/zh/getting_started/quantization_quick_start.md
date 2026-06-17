@@ -1,6 +1,6 @@
 # 量化快速入门
 
-## 概述
+## 1. 概述
 
 msModelSlim 提供了两种量化方式：**一键量化（V1）**和**传统量化（V0）**。
 
@@ -9,45 +9,45 @@ msModelSlim 提供了两种量化方式：**一键量化（V1）**和**传统量
 
 下面将以 Qwen2.5-7B-Instruct 为例完成量化并基于vllm-ascend完成一次推理。
 
-## 环境准备
+## 2. 环境准备
 
-### 1. 镜像准备
+### 2.1 镜像准备
 
 vllm-ascend提供用于部署的Docker镜像，可以从镜像仓库[ascend/vllm-ascend](https://quay.io/repository/ascend/vllm-ascend?tab=tags)拉取预构建镜像，具体参考[vllm-ascend快速入门](https://docs.vllm.ai/projects/ascend/en/latest/)。
 
-### 2. 镜像内安装 msModelSlim
+### 2.2 镜像内安装 msModelSlim
 
 安装命令具体参考[msModelSlim安装指导](./install_guide.md)
 
-### 3. 下载大模型原始浮点权重
+### 2.3 下载大模型原始浮点权重
 
 以 Qwen2.5-7B-Instruct 为例，可前往 [Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) 获取原始模型权重。
 
-### 4. 安装其他依赖（与模型相关，参考huggingface Model card）
+### 2.4 安装其他依赖（与模型相关，参考huggingface Model card）
 
 ```shell
 pip install transformers==4.43.1
 ```
 
-### 5. 准备校准数据
+### 2.5 准备校准数据
 
 传统量化方式需要准备校准数据文件（`.jsonl` 格式），用于量化过程中的校准。示例数据文件位于 `example/common/` 目录下，如 `boolq.jsonl`、`teacher_qualification.jsonl` 等。
 
-## 量化方式选择
+## 3. 量化方式选择
 
-### 方式一：一键量化（推荐）
+### 3.1 方式一：一键量化（推荐）
 
 一键量化通过命令行方式启动，系统会自动匹配最佳实践配置。
 
-#### 命令格式
+#### 3.1.1 命令格式
 
 ```bash
 msmodelslim quant [ARGS]
 ```
 
-#### 参数说明
+#### 3.1.2 参数说明
 
-参数说明可以参考[一键量化参数说明](../feature_guide/quick_quantization_v1/usage.md#参数说明)
+参数说明可以参考[一键量化参数说明](../feature_guide/quick_quantization_v1/usage.md#42-参数说明)
 
 **说明：**
 
@@ -55,7 +55,7 @@ msmodelslim quant [ARGS]
 - 若最佳实践库中未匹配到符合条件的最优配置，系统将依据预设规则为你推荐其他可用配置，并向你确认是否使用该推荐配置继续量化。
 - 如果需要打印量化运行日志，可通过环境变量 `MSMODELSLIM_LOG_LEVEL` 进行设置，可选值为 `INFO`（默认）或 `DEBUG`。
 
-#### 使用示例
+#### 3.1.3 使用示例
 
 使用一键量化功能量化 Qwen2.5-7B-Instruct 模型，量化方式采用 w8a8：
 
@@ -68,11 +68,11 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
 - `${MODEL_PATH}` 为 Qwen2.5-7B-Instruct 原始浮点权重路径
 - `${SAVE_PATH}` 为用户自定义的量化权重保存路径
 
-### 方式二：传统量化（Python 脚本方式）
+### 3.2 方式二：传统量化（Python 脚本方式）
 
 传统量化通过 Python 脚本执行。
 
-#### 命令格式
+#### 3.2.1 命令格式
 
 不同模型有对应的量化脚本，以 Qwen 模型为例：
 
@@ -80,7 +80,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
 python3 example/Qwen/quant_qwen.py [ARGS]
 ```
 
-#### 主要参数说明
+#### 3.2.2 主要参数说明
 
 | 参数名称 | 解释 | 是否可选 | 说明 |
 |---------|------|---------|------|
@@ -97,7 +97,7 @@ python3 example/Qwen/quant_qwen.py [ARGS]
 
 **更多参数：** 传统量化支持更多高级参数，如 `disable_names`（手动回退的量化层）、`fraction`（稀疏量化异常值占比）、`use_kvcache_quant`（KV Cache 量化）等。详细参数说明请参考各模型目录下的 README.md 文件。
 
-#### 使用示例
+#### 3.2.3 使用示例
 
 **示例 1：Qwen2.5-7B-Instruct W8A8 量化**
 
@@ -124,7 +124,7 @@ python3 example/Qwen/quant_qwen.py \
   export PYTORCH_NPU_ALLOC_CONF=expandable_segments:False
   ```
 
-## 量化结果输出
+## 4. 量化结果输出
 
 量化完成后，在保存路径目录下会生成以下文件：
 
@@ -146,15 +146,15 @@ python3 example/Qwen/quant_qwen.py \
 - `{model_type}_best_practice.yaml` - 记录本次量化所使用的完整配置信息，可用于复现该量化权重
 - 其他文件为模型推理所需的配置和词汇表文件，来自原始浮点目录
 
-## 量化后权重的使用
+## 5. 量化后权重的使用
 
 量化完成后，您可以使用生成的量化权重进行推理。根据不同的推理框架，使用方法如下：
 
-### 1. 在 vllm-ascend 中使用
+### 5.1 在 vllm-ascend 中使用
 
 可参考 vllm-ascend 官方文档 [Qwen3-32B-W4A4 教程](https://docs.vllm.ai/projects/ascend/en/latest/tutorials/models/Qwen3-32B-W4A4.html)运行Docker容器。
 
-#### 1.1 环境准备与模型目录结构
+#### 5.1.1 环境准备与模型目录结构
 
 假设您已经参考前文使用 msModelSlim 完成了 Qwen2.5-7B-Instruct 的 W8A8 量化，量化后权重保存路径为：
 
@@ -162,7 +162,7 @@ python3 example/Qwen/quant_qwen.py \
 SAVE_PATH=/home/models/Qwen2.5-7B-w8a8
 ```
 
-#### 1.2 单卡在线服务部署
+#### 5.1.2 单卡在线服务部署
 
 在 Ascend 设备上使用 vllm-ascend 提供在线服务时，可执行：
 
@@ -199,7 +199,7 @@ curl http://localhost:8000/v1/completions \
 - `model` 字段需要与 `--served-model-name` 保持一致。
 - 推理时仅需指定量化后模型目录，无需再传入原始浮点权重。
 
-#### 1.3 单卡离线推理（Python API）
+#### 5.1.3 单卡离线推理（Python API）
 
 如果希望在 Python 脚本中直接加载量化后模型进行离线推理，可以使用 vllm-ascend 的 `LLM` 接口：
 
@@ -236,27 +236,27 @@ for output in outputs:
 - `quantization="ascend"` 必须显式设置，以启用 Ascend 量化推理路径。
 - 其余采样参数可根据业务调整。
 
-## 其他说明
+## 6. 其他说明
 
-### 支持的模型和量化类型
+### 6.1 支持的模型和量化类型
 
 可通过[大模型支持矩阵](../model_support/foundation_model_support_matrix.md)查看不同模型的支持情况：
 
 - 标记了`一键量化`的模型支持一键量化方式
 - 所有在 `example/` 目录下有量化脚本的模型都支持传统量化方式
 
-### 大模型量化建议
+### 6.2 大模型量化建议
 
 对于过大的模型（7B 及以上），如果遇到显存不足的问题，可以尝试：
 
-1. **使用逐层量化**：在一键量化中默认生效[逐层量化](../feature_guide/quick_quantization_v1/usage.md#逐层量化及分布式逐层量化)，传统量化中不支持
+1. **使用逐层量化**：在一键量化中默认生效[逐层量化](../feature_guide/quick_quantization_v1/usage.md#51-逐层量化及分布式逐层量化)，传统量化中不支持
 2. **使用 CPU 量化**：设置 `--device cpu`（一键量化）或 `--device_type cpu`（传统量化），速度较慢但显存占用低
 
-### 支持的量化算法
+### 6.3 支持的量化算法
 
 对于一键量化支持的多种算法，可以参考[一键量化 V1 架构支持的算法](../quantization_algorithms/README.md)。
 
-### 常见问题
+### 6.4 常见问题
 
 **Q: 量化过程中出现显存不足怎么办？**
 

@@ -25,7 +25,7 @@ spec:
 
 ## 导出产物
 
-```
+```text
 save_directory/
 ├── quant_model_description.json         # 量化权重描述文件
 ├── quant_model_weights.safetensors      # 量化权重（可分片）
@@ -55,7 +55,7 @@ save_directory/
 
 当模型中存在多种量化类型时，`model_quant_type` 按以下优先级（列表越靠后优先级越高）选取：
 
-```
+```text
 FLOAT → W16A16S → W8A16 → W8A8_DYNAMIC → W8A8_MIX → W8A8
 → WFP8AFP8_DYNAMIC → W8A8_MXFP8 → W4A8_MXFP
 → W4A4_DYNAMIC → W4A4_MXFP4 → W4A4_MXFP4_DUALSCALE
@@ -158,6 +158,7 @@ $$output = (quant\_act \cdot quant\_weight + quant\_bias) \times deq\_scale$$
 - 否则：将 float32 的位模式 reinterpret 为 **int64** 存储，以满足昇腾量化矩阵乘算子对 `deqScale` 的 **UINT64** 入参要求（推理侧按算子约定直接使用，不会 cast 回 float32）。
 
 #### 特性介绍
+
 - [W8A8 量化特性（MindIE LLM）](https://www.hiascend.com/document/detail/zh/mindie/20RC2/mindiellm/llmdev/mindie_llm0288.html) — 导出字段与推理集成说明。
 
 #### NPU 算子实现
@@ -329,13 +330,12 @@ MX（Microscaling）格式使用 FP8/FP4 权重与 block-wise scale。
 | `kv_cache_offset` | float32/float16 | KV Cache 量化 zero-point |
 
 #### 特性介绍
-- [KV Cache int8（MindIE LLM）](https://www.hiascend.com/document/detail/zh/mindie/20RC2/mindiellm/llmdev/mindie_llm0292.html) — `kv_cache_scale` / `kv_cache_offset` 字段说明。
 
+- [KV Cache int8（MindIE LLM）](https://www.hiascend.com/document/detail/zh/mindie/20RC2/mindiellm/llmdev/mindie_llm0292.html) — `kv_cache_scale` / `kv_cache_offset` 字段说明。
 
 #### NPU 算子实现
 
 - [aclnnDequantRopeQuantKvcache](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha001/API/aolapi/context/aclnnDequantRopeQuantKvcache.md) — KV Cache 量化写入与 RoPE 融合算子。
----
 
 ### FAQuant（Flash Attention 量化）
 
@@ -345,6 +345,7 @@ MX（Microscaling）格式使用 FP8/FP4 权重与 block-wise scale。
 | `offset` | float16/bfloat16 | 量化 zero-point |
 
 #### 特性介绍
+
 - [Attention 量化（MindIE LLM）](https://www.hiascend.com/document/detail/zh/mindie/20RC2/mindiellm/llmdev/mindie_llm0294.html) — `fa_quant_type` 与 scale/offset 字段说明。
 
 #### NPU 算子实现
