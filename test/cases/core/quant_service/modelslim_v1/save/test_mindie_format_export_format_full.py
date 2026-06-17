@@ -401,3 +401,17 @@ class TestMindIEFormatSaverFA3:
         module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.INT4, scope=QScope.PER_TOKEN))
         with pytest.raises(SchemaValidateError):
             saver.update_fa_quant_type("blocks.0.self_attn.fa3_q", module)
+
+    def test_MindIEFormatSaver_json_writes_mxfp8_dynamic_quant_type_when_on_activation_per_block(self, saver):
+        """on_activation_per_block 在 dtype=MXFP8 时应写入 Q_MXFP8_DYNAMIC。"""
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.MXFP8, scope=QScope.PER_BLOCK))
+        saver.on_activation_per_block("model.layers.0.self_attn.fa3_q", module)
+        saver.json_writer.write.assert_called_once_with("model.layers.0.self_attn.quant_type", "Q_MXFP8_DYNAMIC")
+
+    def test_MindIEFormatSaver_update_fa_quant_type_merges_mxfp8_qkv_when_same_config(self, saver):
+        """update_fa_quant_type 在 Q/K/V 均为 MXFP8 PER_BLOCK 时应输出 MXFP8_DYNAMIC。"""
+        module = SimpleNamespace(x_q_scheme=SimpleNamespace(dtype=QDType.MXFP8, scope=QScope.PER_BLOCK))
+        saver.on_activation_per_block("blocks.0.self_attn.fa3_q", module)
+        saver.on_activation_per_block("blocks.0.self_attn.fa3_k", module)
+        saver.on_activation_per_block("blocks.0.self_attn.fa3_v", module)
+        saver.json_writer.write.assert_called_with("blocks.0.self_attn.quant_type", "MXFP8_DYNAMIC")

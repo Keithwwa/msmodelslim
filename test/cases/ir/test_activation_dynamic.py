@@ -25,7 +25,7 @@ import torch
 
 from msmodelslim.ir.activation_dynamic import FakeQuantActivationPerToken, FakeQuantActivationPerBlock
 from msmodelslim.ir.qal import QParam, QScope, QDType
-from msmodelslim.ir.const import fp8_e4m3_per_token_sym, mxfp4_per_block_sym
+from msmodelslim.ir.const import fp8_e4m3_per_token_sym, mxfp4_per_block_sym, mxfp8_per_block_sym
 
 
 class TestFakeQuantActivationPerToken(unittest.TestCase):
@@ -171,6 +171,51 @@ class TestFakeQuantActivationPerBlock(unittest.TestCase):
         ir_module = FakeQuantActivationPerBlock(self.q_param)
         self.assertEqual(ir_module.x_q_scheme.scope, QScope.PER_BLOCK)
         self.assertEqual(ir_module.x_q_scheme.dtype, QDType.MXFP4)
+        self.assertTrue(ir_module.x_q_scheme.symmetric)
+
+
+class TestFakeQuantActivationPerBlockMXFP8(unittest.TestCase):
+    """测试 FakeQuantActivationPerBlock（MXFP8 per-block 动态量化）"""
+
+    def setUp(self):
+        self.q_param = QParam(scheme=mxfp8_per_block_sym)
+
+    def test_init_returns_correct_scheme_when_mxfp8(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        self.assertEqual(ir_module.x_q_scheme, mxfp8_per_block_sym)
+
+    def test_forward_returns_same_shape_when_4d_input(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        x = torch.randn(2, 4, 10, 128)
+        with torch.no_grad():
+            output = ir_module(x)
+        self.assertEqual(output.shape, x.shape)
+
+    def test_forward_preserves_dtype_when_float32_input(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        x = torch.randn(2, 4, 10, 128, dtype=torch.float32)
+        with torch.no_grad():
+            output = ir_module(x)
+        self.assertEqual(output.dtype, torch.float32)
+
+    def test_forward_returns_same_shape_when_non_block_aligned_dim(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        x = torch.randn(2, 4, 10, 50)
+        with torch.no_grad():
+            output = ir_module(x)
+        self.assertEqual(output.shape, x.shape)
+
+    def test_forward_produces_finite_output_when_normal_input(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        x = torch.randn(2, 4, 10, 128)
+        with torch.no_grad():
+            output = ir_module(x)
+        self.assertTrue(torch.isfinite(output).all())
+
+    def test_scheme_property_returns_mxfp8_when_mxfp8_scheme(self):
+        ir_module = FakeQuantActivationPerBlock(self.q_param)
+        self.assertEqual(ir_module.x_q_scheme.scope, QScope.PER_BLOCK)
+        self.assertEqual(ir_module.x_q_scheme.dtype, QDType.MXFP8)
         self.assertTrue(ir_module.x_q_scheme.symmetric)
 
 

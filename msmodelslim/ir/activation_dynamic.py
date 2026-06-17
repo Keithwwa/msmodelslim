@@ -26,7 +26,7 @@ from msmodelslim.ir.qal import QABCRegistry, QScope, QDType, QParam, QStorage
 from msmodelslim.ir.api import calculate_qparam
 from msmodelslim.utils.logging import logger_setter
 from .auto import AutoFakeQuantActivation
-from .const import fp8_e4m3_per_token_sym, mxfp4_per_block_sym
+from .const import fp8_e4m3_per_token_sym, mxfp4_per_block_sym, mxfp8_per_block_sym
 from msmodelslim.core.observer import MsMinMaxBlockObserver, MinMaxBlockObserverConfig
 from msmodelslim.ir.utils import reshape_to_blocks, undo_reshape_to_blocks
 
@@ -79,6 +79,7 @@ class FakeQuantActivationPerToken(AutoFakeQuantActivation):
 @QABCRegistry.multi_register(
     dispatch_key=[
         mxfp4_per_block_sym,
+        mxfp8_per_block_sym,
     ],
     abc_type=AutoFakeQuantActivation,
 )
