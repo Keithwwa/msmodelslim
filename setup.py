@@ -96,7 +96,7 @@ setup(
     data_files=[('', ['requirements.txt'])],
     license='Mulan PSL v2',
     keywords='msmodelslim',
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     install_requires=required,
     entry_points={
         'console_scripts': [

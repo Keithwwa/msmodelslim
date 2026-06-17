@@ -24,7 +24,6 @@ from functools import wraps
 from logging import Logger
 from contextlib import contextmanager
 from typing_extensions import Any, Callable, Type, Union
-import torch.distributed as dist
 
 from msmodelslim.utils.exception import SchemaValidateError, ToDoError
 
@@ -39,6 +38,8 @@ class MsgConst:
 class DistributedFilter(logging.Filter):
     def filter(self, record):
         # DEBUG 级别显示所有 rank，其他级别只显示 rank 0
+        # 避免torch在顶层自动注册 ，从而触发CANN环境检查，故放在行间并通过E402忽略pre-commit检测
+        import torch.distributed as dist  # noqa: E402
         if record.levelno == logging.DEBUG:
             return True
         return dist.get_rank() == 0 if dist.is_initialized() else True
@@ -98,7 +99,7 @@ def get_logger(name: str = ''):
 
 
 def get_root_logger():
-    root_logger = logging.getLogger(__name__.split('.')[0])
+    root_logger = logging.getLogger(__name__.split('.', maxsplit=1)[0])
     root_logger.propagate = False
     root_logger.setLevel(logging.INFO)
     filter_logger(root_logger)
@@ -124,14 +125,13 @@ LOG_LEVEL = {
 }
 
 LOGGER_FUNC = {
-    "debug": lambda msg: logger.debug(msg),
-    "info": lambda msg: logger.info(msg),
-    "warn": lambda msg: logger.warning(msg),
-    "warning": lambda msg: logger.warning(msg),
-    "error": lambda msg: logger.error(msg),
-    "critical": lambda msg: logger.critical(msg),
+    "debug": logger.debug,
+    "info": logger.info,
+    "warn": logger.warning,
+    "warning": logger.warning,
+    "error": logger.error,
+    "critical": logger.critical,
 }
-
 
 def set_logger_level(level="info"):
     if not isinstance(level, str):
@@ -331,7 +331,7 @@ class LoggerSetter:
             del frame
 
         # 如果无法获取模块名，返回根日志记录器名
-        return __name__.split('.')[0]
+        return __name__.split('.', maxsplit=1)[0]
 
     def _get_logger_name(self, obj: Union[Type[Any], Callable] = None):
         """获取日志记录器名称"""
