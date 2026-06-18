@@ -1,4 +1,4 @@
-# LLaMA量化说明
+﻿# LLaMA量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide/install_guide.md)。
 
 ## 支持的模型版本与量化策略
 
@@ -35,8 +35,8 @@
 
 ### 量化参数说明
 
-| 参数名 | 含义 | 默认值 | 使用方法 | 
-| ------ | ---- | --- | -------- | 
+| 参数名 | 含义 | 默认值 | 使用方法 |
+| ------ | ---- | --- | -------- |
 | model_path | 浮点权重路径 | 无默认值 | 必选参数；<br>输入LLaMA权重目录路径。 |
 | save_directory | 量化权重路径 | 无默认值 | 必选参数；<br>输出量化结果目录路径。 |
 | part_file_size | 生成量化权重文件大小，单位是GB | 无默认值 | 可选参数；<br>生成量化权重文件大小，请用户自定义单个量化权重文件的最大限制。 |
@@ -171,7 +171,7 @@
 #### <span id="llama31-70b-w8a8量化搭配attention量化">LLaMA3.1-70B W8A8量化搭配Attention量化</span>
 
 - 当前仅支持基于BF16权重生成量化权重
-- 需修改`modeling_llama.py`文件和`config.json`文件，配置方法参考[FA量化使用说明](../../docs/zh/quantization_algorithms/quantization_algorithms/fa3_quant.md)。 
+- 需修改`modeling_llama.py`文件和`config.json`文件，配置方法参考[FA量化使用说明](../../docs/zh/quantization_algorithms/quantization_algorithms/fa3_quant.md)。
 - 相比于W8A8量化，需额外设置`use_fa_quant`参数为True
 
   ```shell

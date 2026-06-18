@@ -43,8 +43,8 @@ def test_generate_oneshot(tokenizer, model):
     print("model is inferring...")
     model.eval()
     generate_ids = model.generate(
-        test_input.input_ids.to(f"npu:{model.device.index}"), 
-        attention_mask=test_input.attention_mask.to(f"npu:{model.device.index}"), 
+        test_input.input_ids.to(f"npu:{model.device.index}"),
+        attention_mask=test_input.attention_mask.to(f"npu:{model.device.index}"),
         max_new_tokens=SEQ_LEN_OUT
     )
     out_str = tokenizer.decode(generate_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=False)
@@ -70,9 +70,9 @@ tokenizer = AutoTokenizer.from_pretrained(
 )
 
 model = AutoModelForCausalLM.from_pretrained(
-    pretrained_model_name_or_path=args.model_path, 
+    pretrained_model_name_or_path=args.model_path,
     local_files_only=True,
-    torch_dtype=torch.float16, 
+    torch_dtype=torch.float16,
     device_map=args.device)
 
 """
@@ -96,7 +96,7 @@ def get_calib_dataset(tokenizer, calib_list, device):
     calib_dataset = []
     for calib_data in calib_list:
         inputs = tokenizer(calib_data, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])     
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 
 calib_set = []  # Start with an empty list, then read and append calibration data from the calibration set file.

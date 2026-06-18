@@ -68,14 +68,14 @@ Currently, the model adapter is verified to support only w8a8 quantization, alon
         # Quantization configuration (modify it as needed)
         # Specify quantization parameters and return a quantization configuration instance by using QuantConfig.
         quant_config = QuantConfig(
-            w_bit=8,  
-            a_bit=8,         
-            disable_names=disable_names, 
+            w_bit=8,
+            a_bit=8,
+            disable_names=disable_names,
             dev_type='npu',
             mm_tensor=False
-        )  
+        )
         #Use the CalibratorAdapter interface to define calibration by passing the loaded original model, quantization configuration, and calibration data.
-        calibrator = CalibratorAdapter(model, quant_config, calib_data=dataset_calib, disable_level='L0')  
+        calibrator = CalibratorAdapter(model, quant_config, calib_data=dataset_calib, disable_level='L0')
         calibrator.run()     # Use run() to perform quantization.
         calibrator.save('./quant_weight', save_type=[ 'numpy', 'safe_tensor'])      # Save model quantization parameters by using save(). Modify the path as needed.
         print('Save quant weight success!')
@@ -92,7 +92,7 @@ Currently, the model adapter is verified to support only w8a8 quantization, alon
         args = get_args()
         model = MegatronModuleForCausalLM.from_pretrained(
             model_provider=model_provider,
-            pretrained_model_name_or_path=args.load, 
+            pretrained_model_name_or_path=args.load,
             local_files_only=True
         )
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path, trust_remote_code=True, local_files_only=True)

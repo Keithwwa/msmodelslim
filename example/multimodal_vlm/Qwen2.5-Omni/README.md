@@ -12,7 +12,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
 - 针对 Qwen2.5-Omni，transformers 版本需为 4.57.3：
 
   ```bash
@@ -47,17 +47,17 @@
 
 ## 校准数据说明
 
-校准数据支持的方式，详见 [dataset 配置说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)：
+校准数据支持的方式，详见 [dataset 配置说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)：
 
 对 Qwen2.5-Omni，推荐使用 index.json 或 index.jsonl（文件路径或仅含一个 index.json 或 index.jsonl 的目录），支持多模态字段。校准时每条样本提供 `text` 及与推理场景一致的多模态组合（`image`、`audio`、`video`），当前缺项的样本会被跳过。
 
-`dataset` 可配置为短名称（在 `lab_calib` 等目录下查找）、绝对路径或相对路径。配置示例见 [qwen2_5_omni_thinker_w8a8.yaml](../../../lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)：`dataset` 指定校准数据集，`default_text` 可设为如 "What are the elements can you see and hear in these medias." 等多模态描述 prompt。
+`dataset` 可配置为短名称（在 `lab_calib` 等目录下查找）、绝对路径或相对路径。配置示例见 [qwen2_5_omni_thinker_w8a8.yaml](../../../lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)：`dataset` 指定校准数据集，`default_text` 可设为如 "What are the elements can you see and hear in this media." 等多模态描述 prompt。
 
 ## 生成量化权重
 
 ### <span id="qwen25-omni-7b-w8a8-量化">Qwen2.5-Omni-7B W8A8 动态量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。
 
 ```shell
 msmodelslim quant \
@@ -71,4 +71,4 @@ msmodelslim quant \
 
 ## 附录
 
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#64-multimodal_vlm_modelslim_v1-配置详解)

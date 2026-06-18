@@ -114,7 +114,7 @@ def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> L
     from msmodelslim.infra.dataset_loader.vlm_dataset_loader import VlmCalibSample
     from transformers import AutoProcessor
     self._processor = AutoProcessor.from_pretrained(self.model_path, trust_remote_code=True, local_files_only=True)
-    
+
     model_inputs = []
     for sample in dataset:
         image_path = sample.image
@@ -137,7 +137,7 @@ def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> L
             return_dict=True,
             return_tensors="pt"
         )
-        
+
         # Move tensors to the target device.
         # The keys and defaults here need to match the original model definition file.
         # For Qwen3-VL-235B-A22B, for example, you need to inspect transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe.py
@@ -161,9 +161,9 @@ def handle_dataset(self, dataset: Any, device: DeviceType = DeviceType.NPU) -> L
             ],
             defaults={'logits_to_keep': 0}
         )
-        
+
         model_inputs.append(inputs)
-    
+
     return model_inputs
 ```
 
@@ -194,14 +194,14 @@ def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
     """
     # 1. Load the configuration.
     from transformers import Qwen3VLMoeForConditionalGeneration
-    
+
     # 2. Disable cache to save device memory.
     self.config.use_cache = False
-    
+
     # 3. Save the original number of language layers and temporarily set it to 1 to load only the first layer.
     origin_layers = self.config.text_config.num_hidden_layers
     self.config.text_config.num_hidden_layers = 1
-    
+
     # 4. Load the model with from_pretrained.
     # The vision part is fully loaded, and the language part loads only one layer.
     model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
@@ -213,11 +213,11 @@ def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
         device_map="cpu",
         attn_implementation='eager'
     ).eval()
-    
+
     # 5. Restore the original layer count and attention mode.
     self.config.text_config.num_hidden_layers = origin_layers
     self.config.text_config._attn_implementation = 'eager'
-    
+
     # 6. Load the complete state_dict.
     state_dict = self._get_state_dict(model)
     model.load_state_dict(state_dict)
@@ -225,7 +225,7 @@ def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
     # 7. If the first language layer is an MoE layer, convert the weights.
     if self._is_moe_layer(0):
         self._convert_single_moe_layer(model.model.language_model.layers[0], 0)
-    
+
     return model
 ```
 
@@ -244,7 +244,7 @@ Yield each module that needs to be quantized in the topological order of the mod
 def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, Any, None]:
     """
     Generate model visit sequence for layer-wise processing.
-    
+
     Order (critical):
     model.visual (treat the entire vision part as a whole)
     2. language_model.layers[0], language_model.layers[1], ..., language_model.layers[L-1]
@@ -256,28 +256,28 @@ def generate_model_visit(self, model: nn.Module) -> Generator[ProcessRequest, An
         args=(),
         kwargs={}
     )
-    
+
     # 2. Process the language part layer by layer.
     yield from generated_decoder_layer_visit_func(
-        model, 
+        model,
         transformer_blocks=self.generate_decoder_layer(model)
     )
 
 def generate_decoder_layer(self, model: nn.Module) -> Generator[Tuple[str, nn.Module], None, None]:
     """
     Generate decoder layers, loading them on-demand.
-    
+
     Yields:
         (layer_name, layer_module) tuples
     """
     num_layers = self.config.text_config.num_hidden_layers
-    
+
     for layer_idx in range(num_layers):
         name = f"model.language_model.layers.{layer_idx}"
-        
+
         # Dynamically load the layer if it is not loaded yet.
         layer = self._load_decoder_if_not_exist(model, name, layer_idx)
-        
+
         yield name, layer
 ```
 
@@ -307,7 +307,7 @@ def _load_decoder_if_not_exist(self, model: nn.Module, name: str, layer_idx: int
             pass  # It is on the meta device and needs to be loaded.
     except AttributeError:
         pass  # The layer does not exist and needs to be created.
-    
+
     # Disable reset_parameters to avoid unnecessary initialization.
     from unittest.mock import patch
     with patch.object(nn.Linear, 'reset_parameters', lambda _self: None):
@@ -317,23 +317,23 @@ def _load_decoder_if_not_exist(self, model: nn.Module, name: str, layer_idx: int
             self.config.text_config,
             layer_idx=layer_idx
         )
-        
+
         # Load weights from safetensors.
         state_dict = self._get_state_dict(decoder, prefix=name)
         decoder.load_state_dict(state_dict)
         decoder.eval()
-        
+
         # Add the layer to the layer list of the model.
         module_list = model.model.language_model.layers
         if len(module_list) <= layer_idx:
             module_list.append(decoder)
         else:
             module_list[layer_idx] = decoder
-    
+
     # Only models with 3D fused MoE weights need this step. If it is an MoE layer, convert the weights.
     if self._is_moe_layer(layer_idx):
         self._convert_single_moe_layer(decoder, layer_idx)
-    
+
     return decoder
 
 def _is_moe_layer(self, layer_idx: int) -> bool:
@@ -344,7 +344,7 @@ def _is_moe_layer(self, layer_idx: int) -> bool:
 def _convert_single_moe_layer(self, layer: nn.Module, layer_idx: int):
     """
     Convert MoE layer's 3D fused weights to standard nn.Linear layers.
-    
+
     Args:
         layer: The decoder layer module
         layer_idx: Layer index (for logging)
@@ -376,7 +376,7 @@ Implement the full forward pass of the model and yield the processing request fo
 def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[ProcessRequest, Any, None]:
     """
     Generate model forward sequence.
-    
+
     Flow:
     1. Run vision encoder as a whole -> get image features
     2. Merge image features into text embeddings
@@ -387,13 +387,13 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
         sample = inputs[0]
     else:
         sample = inputs
-    
+
     # ========== Stage 1: Full forward propagation of the vision encoder ==========
     # Determine the input parameters for the vision part based on fields in inputs that are not None.
     # See the original model definition for the exact implementation.
     pixel_values = sample['pixel_values']
     image_grid_thw = sample['image_grid_thw']
-    
+
     with torch.no_grad():
         # Run the entire vision part in one pass.
         image_embeds, deepstack_image_embeds = yield ProcessRequest(
@@ -402,21 +402,21 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
             args=(pixel_values, image_grid_thw),
             kwargs={},
         )
-    
+
     # ========== Stage 2: Language model input construction (fusing visual features) ==========
     # Determine the input parameters for the language part based on fields in inputs that are not None.
     # See the original model definition for the exact implementation.
     input_ids = sample['input_ids']
     attention_mask = sample['attention_mask']
-    
+
     # Get text embeddings.
     inputs_embeds = model.model.language_model.embed_tokens(input_ids)
-    
+
     # Fuse visual features by replacing the <image> placeholder positions with image_embeds.
     """
     Implement visual feature fusion.
     """
-    
+
     # ========== Stage 3: Layer-by-layer forward propagation of the text decoder ==========
     # See the original model definition for the exact implementation.
     """
@@ -446,7 +446,7 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
                     'use_cache': False,
                 },
             )
-            
+
             # DeepStack injection, if this layer needs it
             """
             Implement DeepStack injection.
@@ -525,7 +525,7 @@ spec:
         - "*merger*"
         - "*deepstack_merger_list*"
         - "*mlp.gate"
-  
+
   # ========== Saving configuration ==========
   save:
     - type: "ascendv1_saver"
@@ -606,15 +606,15 @@ from msmodelslim.model.interface_hub import IterSmoothInterface
 class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
                               ModelSlimPipelineInterfaceV1,
                               IterSmoothInterface):
-    
+
     def get_adapter_config_for_subgraph(self,) -> List[AdapterConfig]:
         """
         Get adapter config for subgraph-based anti-outlier processing (iter_smooth).
-        
+
         Defines the subgraph structure for norm-linear, ov, and other fusions.
         """
         adapter_config = []
-        
+
         # Add the outlier suppression mapping configuration for the text decoder in the language part.
         for layer_idx in range(self.config.text_config.num_hidden_layers):
             # Norm-Linear: input_layernorm -> QKV
@@ -658,7 +658,7 @@ from msmodelslim.model.interface_hub import QuaRotInterface
 class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,
                               ModelSlimPipelineInterfaceV1,
                               QuaRotInterface):
-    
+
     def get_ln_fuse_map(self) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
         """
         Obtain the fusion mapping between the LayerNorm and linear layers.

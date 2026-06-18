@@ -1,4 +1,4 @@
-# Adapt Rotation：自适应旋转优化算法说明
+﻿# Adapt Rotation：自适应旋转优化算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见 [msModelSlim 工具安装指南](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见 [msModelSlim 工具安装指南](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -79,9 +79,9 @@ sequenceDiagram
 
     Note over AdaptRotationStage2: pre_run
     AdaptRotationStage2->>Context: 读取优化后的旋转矩阵
-    Context-->>AdaptRotationStage2: 
+    Context-->>AdaptRotationStage2:
     AdaptRotationStage2->>QuaRotInterface: 获取旋转相关信息
-    QuaRotInterface-->>AdaptRotationStage2: 
+    QuaRotInterface-->>AdaptRotationStage2:
     AdaptRotationStage2->>AdaptRotationStage2: 用优化后旋转矩阵覆盖原始旋转并执行层融合与旋转操作
 
     Note over AdaptRotationStage2: process

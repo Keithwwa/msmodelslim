@@ -1,4 +1,4 @@
-# FLUX 量化使用说明
+﻿# FLUX 量化使用说明
 
 FLUX的推理量化依赖于FLUX.1-dev推理工程仓：[MindIE/FLUX.1-dev](https://modelers.cn/models/MindIE/FLUX.1-dev)，根据该工程仓完成配置后，使用以下示例代码进行量化。
 
@@ -17,7 +17,7 @@ FLUX的推理量化依赖于FLUX.1-dev推理工程仓：[MindIE/FLUX.1-dev](http
 - 非一键量化需要执行 `git checkout 12e09174353b1bd57bf7fcb80386f59b09fbbefe` 切换至指定版本；
 
 - 完成后续配置与量化步骤。
-  
+
 **注意**：未使用指定版本可能导致兼容性问题或功能异常。
 
 ## 支持的模型版本与量化策略

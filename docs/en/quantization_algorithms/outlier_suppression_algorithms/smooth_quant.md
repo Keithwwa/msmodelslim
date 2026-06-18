@@ -171,7 +171,7 @@ class SmoothQuantInterface(ABC):
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         """
         Return all subgraph configurations within the model eligible for SmoothQuant processing.
-        
+
         Returns:
             List[AdapterConfig]: A list of subgraph configurations, each containing:
                 - subgraph_type: indicates the subgraph type (must be "norm-linear")
@@ -212,12 +212,12 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 source=f"model.layers.{layer_idx}.input_layernorm",
                 targets=[
                     f"model.layers.{layer_idx}.self_attn.q_proj",
-                    f"model.layers.{layer_idx}.self_attn.k_proj", 
+                    f"model.layers.{layer_idx}.self_attn.k_proj",
                     f"model.layers.{layer_idx}.self_attn.v_proj"
                 ]
             )
         )
-        
+
         # 2. Norm-Linear mapping from the post-attention layer normalization to the MLP projection
         norm_linear_config2 = AdapterConfig(
             subgraph_type="norm-linear",
@@ -229,9 +229,9 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 ]
             )
         )
-        
+
         adapter_config.extend([norm_linear_config1, norm_linear_config2])
-    
+
     return adapter_config
 ```
 

@@ -33,14 +33,14 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
   - Automatically detect attention layers in the model and identify `self_attn` modules based on module naming rules.
   - Create a `DynamicCacheQuantizer` for each attention layer and configure the quantization parameters.
   - Install a trigger hook on the first target attention layer to detect the start of inference.
-  
+
 #### Calibration phase
 
   - Phase: `run`.
   - Use the hook mechanism to intercept key and value states when `DynamicCache.update()` is called.
   - Use `DynamicCacheQuantizer` to perform fake-quantization on cache states and collect quantization statistics.
   - Incremental calibration is supported to adapt to dynamic sequence length changes.
-  
+
 #### Fake-quantization deployment phase
 
   - Phase: `postprocess`.
@@ -102,7 +102,7 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
 
       ```python
       class CustomCache:
-          def update(self, key_states: torch.Tensor, value_states: torch.Tensor, 
+          def update(self, key_states: torch.Tensor, value_states: torch.Tensor,
                       layer_idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
               # Returns the updated key_states and value_states.
               pass
@@ -117,7 +117,7 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
 
      - The attention module must use the `layer_idx` parameter to indicate the current layer index.
      - Nested calls and recursive quantization are supported.
-  
+
 ## Function Description
 
 ### Supported Models

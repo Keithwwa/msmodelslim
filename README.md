@@ -1,9 +1,14 @@
 <h1 align="center"> MindStudio ModelSlim</h1>
-
 <div align="center">
+  <br />
+  <img src="docs/assets/modelslim_slogan.png" alt="ModelSlim Slogan" width="300" />
+  <p align="center">
+    <em>Simple, fast, and lean—msModelSlim is all you need.</em>
+  </p>
   <p><b><span style="font-size:24px;">昇腾模型压缩工具</span></b></p>
+  <!-- 用分隔线替代背景 -->
 
- [![快速入门](https://badgen.net/badge/快速入门/QuickStart/blue)](./docs/zh/getting_started/quantization_quick_start.md)
+ [![快速入门](https://badgen.net/badge/快速入门/QuickStart/blue)](./docs/zh/quick_start/quantization_quick_start.md)
  [![AI问答(DeepWiki)](https://badgen.net/badge/AI问答/DeepWiki/blue)](https://deepwiki.com/Keithwwa/msmodelslim)
  [![AI问答(ZRead)](https://badgen.net/badge/AI问答/ZRead/blue)](https://zread.ai/mindstudio-docs/master)
  [![精确搜索](https://badgen.net/badge/精确搜索/ReadTheDocs/blue)](https://msmodelslim.readthedocs.io/zh-cn/latest/)
@@ -16,7 +21,6 @@
 
 <span style="font-size:14px;">
 
-🔹 **[2026.06.17]**：新增对 `DeepSeek-V4-Pro`（W4A8/W8A8）模型的量化支持
 🔹 **[2026.06.01]**：新增对 `InternVL3_5-38B`（W8A8）、`InternVL3_5-241B-A28B`（W8A8）及 `Kimi-K2.6`（W4A8）模型的量化支持
 🔹 **[2026.04.01]**：新增对 `DeepSeek-V4-Flash`（W8A8）与 `Kimi-K2.5`（W4A8）模型的量化支持
 🔹 **[2026.03.01]**：新增对 `GLM-4.6V`（W8A8）模型的量化支持
@@ -88,11 +92,11 @@
 
 ## 🚀 快速入门
 
-帮助用户快速通过一键量化的方式完成大模型量化功能，请参见 《[msModelSlim 快速入门](./docs/zh/getting_started/quantization_quick_start.md)》。
+帮助用户快速通过一键量化的方式完成大模型量化功能，请参见 《[msModelSlim 快速入门](./docs/zh/quick_start/quantization_quick_start.md)》。
 
 ## 📦 安装指南
 
-介绍工具的环境依赖与安装方法，请参见 《[msModelSlim 工具安装指南](./docs/zh/getting_started/install_guide.md)》。
+介绍工具的环境依赖与安装方法，请参见 《[msModelSlim 工具安装指南](./docs/zh/install_guide/install_guide.md)》。
 
 ## 📘 使用指南
 
@@ -100,7 +104,7 @@
 
 ## 💡 典型案例
 
-通过典型问题场景帮助用户理解并掌握工具使用，请参见 《[msModelSlim 典型案例](./docs/zh/best_practices/basic_cases.md)》。
+通过典型问题场景帮助用户理解并掌握工具使用，请参见 《[msModelSlim 典型案例](./docs/zh/case_studies/basic_cases.md)》。
 
 ## ❓ FAQ
 
@@ -114,11 +118,11 @@
 
 ## 🛠️ 贡献指南
 
-具体请参见 《[贡献指南](./docs/zh/appendix/CONTRIBUTING.md)》。
+具体请参见 《[贡献指南](./docs/zh/contributing/contributing_guide.md)》。
 
 ## ⚖️ 相关说明
 
-🔹 《[版本说明](docs/zh/appendix/release_notes.md)》
+🔹 《[版本说明](docs/zh/release_notes/release_notes.md)》
 🔹 《[许可证声明](docs/zh/legal/license_notice.md)》
 🔹 《[安全声明](docs/zh/appendix/security_statement.md)》
 🔹 《[免责声明](docs/zh/legal/disclaimer.md)》

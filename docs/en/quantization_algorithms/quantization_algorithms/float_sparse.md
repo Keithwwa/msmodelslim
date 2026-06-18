@@ -38,16 +38,16 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
 
 ```python
 class AdmmPruner:
-    def __init__(self, layer: nn.Linear): 
+    def __init__(self, layer: nn.Linear):
         ...
-    
-    def add_batch(self, inp: torch.Tensor): 
+
+    def add_batch(self, inp: torch.Tensor):
         ...
-    
-    def fasterprune(self, sparse_ratio: float): 
+
+    def fasterprune(self, sparse_ratio: float):
         ...
-    
-    def free(self): 
+
+    def free(self):
         ...
 ```
 
@@ -55,13 +55,13 @@ class AdmmPruner:
 
 ```python
 class FloatSparseProcessor(AutoSessionProcessor):
-    def __init__(self, model, config, adapter): 
+    def __init__(self, model, config, adapter):
         ...
-    
-    def preprocess(self, request): 
+
+    def preprocess(self, request):
         ...
-    
-    def postprocess(self, request): 
+
+    def postprocess(self, request):
         ...
 ```
 

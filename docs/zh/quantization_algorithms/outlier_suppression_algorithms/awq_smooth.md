@@ -1,4 +1,4 @@
-# AWQ：激活感知权重量化算法说明
+﻿# AWQ：激活感知权重量化算法说明
 
 ## 简介
 
@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim 工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim 工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -275,42 +275,42 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
 
 ### 模块名不匹配
 
-**现象**: `include/exclude` 未命中时，日志提示未匹配模式。  
+**现象**: `include/exclude` 未命中时，日志提示未匹配模式。
 
 **解决方案**: 核对完整模块名是否与 `named_modules()` 返回的路径一致。
 
 ### 子图配置错误
 
-**现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。  
+**现象**: `get_adapter_config_for_subgraph()` 返回的配置不正确。
 
 **解决方案**: 检查配置中的 `source` 和 `targets` 字段是否正确。
 
 ### 模块不存在
 
-**现象**: 配置中指定的模块名称在模型中不存在。  
+**现象**: 配置中指定的模块名称在模型中不存在。
 
 **解决方案**: 通过 `model.named_modules()` 验证模块是否确实存在。
 
 ### 子图类型不支持
 
-**现象**: 配置的子图类型不被支持。  
+**现象**: 配置的子图类型不被支持。
 
 **解决方案**: 建议按模型实际已适配的子图类型填写，支持的取值为 `norm-linear`、`linear-linear`、`ov`、`up-down`。如无特殊需求，可保持默认配置。
 
 ### 祖先模块未找到
 
-**现象**: 日志提示 "No name found for inspect module of subgraph"，子图被跳过。  
+**现象**: 日志提示 "No name found for inspect module of subgraph"，子图被跳过。
 
 **解决方案**: 检查 `targets` 中的模块名称是否具有合理的共同路径前缀，确保其最低公共祖先模块在模型中存在。
 
 ### 激活统计信息缺失
 
-**现象**: 日志提示 "No activation mean for target module"，子图被跳过。  
+**现象**: 日志提示 "No activation mean for target module"，子图被跳过。
 
 **解决方案**: 确保校准数据（calibration data）足够且模型前向推理正常执行，使钩子能够正确收集激活统计信息。
 
 ### 中间参数缓存为空
 
-**现象**: 日志提示 "No kwargs cache for parent module"，子图被跳过。  
+**现象**: 日志提示 "No kwargs cache for parent module"，子图被跳过。
 
 **解决方案**: 确保通过 LCA 自动发现的祖先模块在前向推理中被正确触发，检查 `targets` 中的模块路径是否正确。

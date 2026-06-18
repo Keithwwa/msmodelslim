@@ -47,7 +47,7 @@ class HistogramObserver(TorchHistogramObserver):
         super().__init__(qscheme=torch.per_tensor_affine)
         self.config = config
         self.clip_min = None
-        self.clip_max = None   
+        self.clip_max = None
         self.upsample_rate = 16  # Specifies the upsampling rate to reduce quantization error.
 ```
 
@@ -67,7 +67,7 @@ class HistogramObserver(TorchHistogramObserver):
    def update(self, x: torch.Tensor, sync: bool = False, group: Optional[dist.ProcessGroup] = None):
        """
        Update the histogram, search for the clipping values, and save the optimal quantization clipping values.
-       
+
        Main steps:
        1. Input verification: Check tensor validity and filter out NaN and infinite values.
        2. Histogram update: Call the forward method of the parent class to update histogram statistics.
@@ -76,7 +76,7 @@ class HistogramObserver(TorchHistogramObserver):
        Args:
             x: Specifies the input tensor.
             sync: Specifies whether to synchronize.
-            group: Specifies the process group.  
+            group: Specifies the process group.
 
        Returns:
             None
@@ -91,7 +91,7 @@ class HistogramObserver(TorchHistogramObserver):
    def _compute_l2_error(self, start_bin: int, end_bin: int):
        """
        Compute the L2 norm error between the real and quantized distributions.
-       
+
        Algorithm principles:
        1. Calculate the target bin width.
        2. Compute the mapping from the source bin to the target bin.
@@ -106,7 +106,7 @@ class HistogramObserver(TorchHistogramObserver):
    def _compute_kl_error(self, start_bin: int, end_bin: int):
        """
        Compute the KL divergence between the real and quantized distributions.
-       
+
        Algorithm principles:
        1. Calculate the real distribution p_i.
        2. Calculate the quantized distribution q_i.
@@ -120,7 +120,7 @@ class HistogramObserver(TorchHistogramObserver):
    def _non_linear_param_search(self) -> tuple[torch.Tensor, torch.Tensor]:
        """
        Use a binary search policy to find the optimal clipping range.
-       
+
        Search policy:
        1. Initialization: alpha=0.0 (lower bound), beta=1.0 (upper bound).
        2. Iterative search: Move a fixed percentile each time (stepsize=1e-5).
@@ -192,7 +192,7 @@ Histogram is used as the activation quantization method (`method: "histogram"`) 
 ```yaml
 spec:
   process:
-  - type: "linear_quant" 
+  - type: "linear_quant"
     qconfig:
       act:
         scope: "per_tensor"  # Specifies the quantization scope. Currently only per_tensor is supported.
@@ -201,7 +201,7 @@ spec:
         method: "histogram"  # Specifies the quantization algorithm: "histogram" activation quantization.
       weight:
         scope: "per_channel"
-        dtype: "int8" 
+        dtype: "int8"
         symmetric: true
         method: "minmax"     # Histogram weight quantization is not supported. Do not set it to "histogram" here.
 ```
@@ -258,7 +258,7 @@ class SearchMethod(str, Enum):
 - Check whether the YAML file is incorrectly configured.
 
 ```yaml
-- type: "linear_quant" 
+- type: "linear_quant"
   qconfig:
    act:
      scope: "per_tensor" # Specifies the quantization scope. Currently only per_tensor is supported.
@@ -267,7 +267,7 @@ class SearchMethod(str, Enum):
      method: "histogram" # Specifies the quantization method. "histogram" enables histogram activation quantization.
    weight:
      scope: "per_channel"
-     dtype: "int8" 
+     dtype: "int8"
      symmetric: True
      method: "minmax" # Histogram weight quantization is not supported. Do not set it to "histogram" here.
 ```

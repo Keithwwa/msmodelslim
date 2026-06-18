@@ -1,4 +1,4 @@
-# SVDQuant：基于低秩残差重构的扩散模型后训练量化算法说明
+﻿# SVDQuant：基于低秩残差重构的扩散模型后训练量化算法说明
 
 ## 简介
 
@@ -10,7 +10,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../getting_started/install_guide.md)》。
+安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../install_guide/install_guide.md)》。
 
 ## 原理和实现
 

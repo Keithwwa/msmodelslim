@@ -147,5 +147,5 @@ msModelSlim 当前仅对以下 QIR 模块实现了导出 handler：
 ## 相关文档
 
 - 《[格式支持矩阵](README.md)》
-- 《[量化格式接入指南](../developer_guide/iformat_integration_guide.md)》
+- 《[量化格式接入指南](../development_guide/iformat_integration_guide.md)》
 - 《[AscendV1 格式说明](ascendv1.md)》

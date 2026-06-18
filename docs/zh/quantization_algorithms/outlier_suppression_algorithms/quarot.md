@@ -1,4 +1,4 @@
-# QuaRot：基于旋转的离群值抑制算法说明
+﻿# QuaRot：基于旋转的离群值抑制算法说明
 
 ## 简介
 
@@ -9,7 +9,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -287,10 +287,10 @@ class QuaRotInterface:
     def get_rotate_map(self, block_size: int) -> Tuple[List[RotatePair], List[RotatePair]]:
         """
         获取旋转映射，包括左旋转和右旋转的配置
-        
+
         Args:
             block_size: 旋转的块大小
-            
+
         Returns:
             包含两个RotatePair列表的元组：
             - pre_run_pairs (List[RotatePair]): pre_run阶段的旋转映射对列表
@@ -312,7 +312,7 @@ class LAOSOnlineRotationInterface:
     def get_head_dim(self) -> int:
         """
         获取注意力头的维度
-        
+
         Returns:
             注意力头的维度大小
         """
@@ -322,7 +322,7 @@ class LAOSOnlineRotationInterface:
     def get_num_attention_heads(self) -> int:
         """
         获取注意力头的数量
-        
+
         Returns:
             注意力头的数量
         """
@@ -332,10 +332,10 @@ class LAOSOnlineRotationInterface:
     def get_layer_wise_ov_pair(self, decoder_module: nn.Module) -> Dict[nn.Module, nn.Module]:
         """
         获取单个decoder层对应的o_proj和v_proj映射对
-        
+
         Args:
             decoder_module: decoder层的模块对象
-            
+
         Returns:
             字典，key为o_proj模块，value为v_proj模块
         """
@@ -345,10 +345,10 @@ class LAOSOnlineRotationInterface:
     def get_layer_wise_up_down_pair(self, decoder_module: nn.Module) -> Dict[nn.Module, nn.Module]:
         """
         获取单个decoder层对应的up_proj和down_proj映射对
-        
+
         Args:
             decoder_module: decoder层的模块对象
-            
+
         Returns:
             字典，key为up_proj模块，value为down_proj模块
         """

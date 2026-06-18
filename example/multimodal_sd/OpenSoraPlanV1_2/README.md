@@ -1,4 +1,4 @@
-# Open-Sora-Plan V1.2 量化使用说明
+﻿# Open-Sora-Plan V1.2 量化使用说明
 
 Open-Sora-Plan V1.2的推理量化依赖于推理工程仓：[MindIE/open_sora_planv1_2](https://modelers.cn/models/MindIE/open_sora_planv1_2)，根据该工程仓完成配置后，使用以下示例代码进行量化。
 

@@ -275,42 +275,42 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
 
 ### Module Name Mismatch
 
-**Symptom**: When `include` and `exclude` patterns do not hit, the log indicates that no pattern was matched. 
+**Symptom**: When `include` and `exclude` patterns do not hit, the log indicates that no pattern was matched.
 
 **Solution**: Verify that the complete module name exactly matches the path returned by `named_modules()`.
 
 ### Subgraph Configuration Error
 
-**Symptom**: The configuration returned by `get_adapter_config_for_subgraph()` is incorrect. 
+**Symptom**: The configuration returned by `get_adapter_config_for_subgraph()` is incorrect.
 
 **Solution**: Check whether the `source` and `targets` fields in the configuration are correct.
 
 ### Module Does Not Exist
 
-**Symptom**: A module name specified in the configuration does not exist within the model. 
+**Symptom**: A module name specified in the configuration does not exist within the model.
 
 **Solution**: Verify the existence of the module by using `model.named_modules()`.
 
 ### Unsupported Subgraph Type
 
-**Symptom**: The configured subgraph type is not supported. 
+**Symptom**: The configured subgraph type is not supported.
 
 **Solution**: Set this parameter to a supported subgraph type that has been adapted to your model. The supported values are `norm-linear`, `linear-linear`, `ov`, and `up-down`. Unless you have specific requirements, retain the default configuration.
 
 ### Ancestor Module Not Found
 
-**Symptom**: The log displays "No name found for inspect module of subgraph", and the tool skips the target subgraph. 
+**Symptom**: The log displays "No name found for inspect module of subgraph", and the tool skips the target subgraph.
 
 **Solution**: Check whether the module names in the `targets` parameter share a common path prefix. Ensure that their lowest common ancestor module exists within the model architecture.
 
 ### Missing Activation Statistics
 
-**Symptom**: The log displays "No activation mean for target module", and the tool skips the target subgraph. 
+**Symptom**: The log displays "No activation mean for target module", and the tool skips the target subgraph.
 
 **Solution**: Ensure that your calibration data is sufficient and that model forward inference runs normally, allowing the hook to collect activation statistics correctly.
 
 ### Empty Intermediate Parameter Cache
 
-**Symptom**: The log displays "No kwargs cache for parent module", and the tool skips the target subgraph. 
+**Symptom**: The log displays "No kwargs cache for parent module", and the tool skips the target subgraph.
 
 **Solution**: Ensure that the ancestor module automatically discovered through `LCA` is correctly triggered during forward inference, and verify that the module paths specified in `targets` are correct.

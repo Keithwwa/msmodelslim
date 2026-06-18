@@ -164,7 +164,7 @@ The `model_type` values currently supported by the linear-layer metrics are the 
 - Calculate the MSE between the floating-point and quantized outputs of the same layer.
 - Formula: $\text{MSE} = \frac{1}{n} \sum_{i=1}^{n} (y_{\text{float}}^{(i)} - y_{\text{quant}}^{(i)})^2$
 - This reflects the sensitivity of the attention module to quantization.
-  
+
 ##### Applicable Scenarios
 
 - **Recommended for**: scenarios where you need to quantize attention modules

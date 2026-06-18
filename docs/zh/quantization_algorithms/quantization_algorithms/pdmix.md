@@ -1,4 +1,4 @@
-# PDMIX：激活值阶段间混合量化算法说明
+﻿# PDMIX：激活值阶段间混合量化算法说明
 
 ## 简介
 
@@ -11,7 +11,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理与实现
 
@@ -55,7 +55,7 @@ spec:
           dtype: "int8"        # 暂时仅支持 INT8
           symmetric: false     # PDMIX 量化总体为非对称
           method: "minmax"     # 暂时仅支持 MinMax 算法
-        weight: # 权重量化配置   
+        weight: # 权重量化配置
           scope: "per_channel" # 暂时仅支持搭配权重 per_channel 量化
           dtype: "int8"        # 暂时仅支持搭配权重 INT8 量化
           symmetric: true      # 仅支持搭配权重对称量化

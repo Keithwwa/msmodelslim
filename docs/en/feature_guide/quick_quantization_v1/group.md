@@ -76,7 +76,7 @@ spec:
         - type: "linear_quant" # Sub-processor 1: targeted at the Attention layer.
           qconfig: *w8a8_static
           include: ["*self_attn*"]
-          
+
         - type: "linear_quant" # Sub-processor 2: targeted at the MLP layer.
           qconfig: *w8a8_dynamic
           include: ["*mlp*"]

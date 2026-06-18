@@ -1,4 +1,4 @@
-# Qwen3.5 量化说明
+﻿# Qwen3.5 量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide/install_guide.md)。
 
 - transformers 版本需要配置安装 5.2.0 版本。
   - pip install transformers==5.2.0
@@ -41,7 +41,7 @@
 
 ##### <span id="Qwen3.5-397B-A17B-w8a8">Qwen3.5-397B-A17B W8A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-397B-A17B --quant_type w8a8 --trust_remote_code True
@@ -49,7 +49,7 @@
 
 ##### <span id="Qwen3.5-397B-A17B-w4a8">Qwen3.5-397B-A17B W4A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-397B-A17B --quant_type w4a8 --trust_remote_code True
@@ -59,7 +59,7 @@
 
 ##### <span id="Qwen3.5-122B-A10B-w8a8">Qwen3.5-122B-A10B W8A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-122B-A10B --quant_type w8a8 --trust_remote_code True
@@ -69,7 +69,7 @@
 
 ##### <span id="Qwen3.5-35B-A3B-w8a8">Qwen3.5-35B-A3B W8A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-35B-A3B --quant_type w8a8 --trust_remote_code True
@@ -79,7 +79,7 @@
 
 ##### <span id="Qwen3.5-27B-w8a8">Qwen3.5-27B W8A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-27B --quant_type w8a8 --trust_remote_code True
@@ -89,7 +89,7 @@
 
 ##### <span id="Qwen3.6-27B-w8a8">Qwen3.6-27B W8A8量化</span>
 
-该模型的量化已集成至《[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.6-27B --quant_type w8a8 --trust_remote_code True

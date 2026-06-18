@@ -124,7 +124,7 @@ default_w8a8_dynamic: &default_w8a8_dynamic
     symmetric: True           # Specifies whether to enable symmetric quantization.
     method: "minmax"          # Specifies the activation quantization method. The MinMax algorithm is used in this example.
 
-# W4A4 dynamic quantization configuration template 
+# W4A4 dynamic quantization configuration template
 default_w4a4_dynamic: &default_w4a4_dynamic
   weight:
     scope: "per_group"

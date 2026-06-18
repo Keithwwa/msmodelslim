@@ -79,9 +79,9 @@ sequenceDiagram
 
     Note over AdaptRotationStage2: pre_run
     AdaptRotationStage2->>Context: Load the optimized rotation matrix.
-    Context-->>AdaptRotationStage2: 
+    Context-->>AdaptRotationStage2:
     AdaptRotationStage2->>QuaRotInterface: Obtain rotation configuration.
-    QuaRotInterface-->>AdaptRotationStage2: 
+    QuaRotInterface-->>AdaptRotationStage2:
     AdaptRotationStage2->>AdaptRotationStage2: Overwrite original rotation with optimized rotation matrix and execute layer fusion and rotation.
 
     Note over AdaptRotationStage2: process

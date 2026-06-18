@@ -1,4 +1,4 @@
-# 浮点稀疏：基于 ADMM （Alternating Direction Method of Multipliers，交替方向乘子法）的模型稀疏化算法说明
+﻿# 浮点稀疏：基于 ADMM （Alternating Direction Method of Multipliers，交替方向乘子法）的模型稀疏化算法说明
 
 ## 简介
 
@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -38,16 +38,16 @@
 
 ```python
 class AdmmPruner:
-    def __init__(self, layer: nn.Linear): 
+    def __init__(self, layer: nn.Linear):
         ...
-    
-    def add_batch(self, inp: torch.Tensor): 
+
+    def add_batch(self, inp: torch.Tensor):
         ...
-    
-    def fasterprune(self, sparse_ratio: float): 
+
+    def fasterprune(self, sparse_ratio: float):
         ...
-    
-    def free(self): 
+
+    def free(self):
         ...
 ```
 
@@ -55,13 +55,13 @@ class AdmmPruner:
 
 ```python
 class FloatSparseProcessor(AutoSessionProcessor):
-    def __init__(self, model, config, adapter): 
+    def __init__(self, model, config, adapter):
         ...
-    
-    def preprocess(self, request): 
+
+    def preprocess(self, request):
         ...
-    
-    def postprocess(self, request): 
+
+    def postprocess(self, request):
         ...
 ```
 

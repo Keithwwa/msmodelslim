@@ -10,13 +10,13 @@ Transformers 版本适配说明：ChatGLM2-6B 模型需依赖 4.40.2 版本的 T
 
 ## 前期准备
 
-参考以下两篇文档完成工具使用前准备工作  
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../getting_started/install_guide.md)  
-以及[大模型量化工具依赖安装](../feature_guide/traditional_quantization_v0/foundation_model_compression.md#11-使用前准备)。
+参考以下两篇文档完成工具使用前准备工作
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide/install_guide.md)
+以及[大模型量化工具依赖安装](../user_guide/feature_guide/traditional_quantization_v0/foundation_model_compression.md#11-使用前准备)。
 
 ## 代码示例
 
-W8A16量化及伪量化测精度过程示例（NPU）：  
+W8A16量化及伪量化测精度过程示例（NPU）：
 
 ```python
 import os
@@ -77,7 +77,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])     
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 
 entry = "/path/to/calib_dataset" # 此示例中校准数据选取"precision_tool/dataset/boolq/dev.jsonl"
@@ -145,8 +145,8 @@ print("model is inferring...")
 model = model.to(f"npu:{device_id}")
 model.eval()
 generate_ids = model.generate(
-    test_input.input_ids.to(f"npu:{device_id}"), 
-    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"), 
+    test_input.input_ids.to(f"npu:{device_id}"),
+    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"),
     max_new_tokens=SEQ_LEN_OUT
 )
 
@@ -164,7 +164,7 @@ for idx, item in enumerate(res):
  msModelSlim工具使用AntiOutlierConfig生成离群值抑制配置，以使用离群值抑制功能。原理：通过抑制量化过程当中的异常值，从而提高量化模型的精度。W8A16量化建议使用m3，m3为AWQ算法，也是仅权重量化算法，可以理解为抑制权重中出现的异常值，但逻辑和激活值异常抑制算法是一样的。设置方式为：
 
 ```python
-anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", dev_id=device_id)  
+anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", dev_id=device_id)
 anti_outlier = AntiOutlier(model, calib_data=dataset_calib, cfg=anti_config)
 anti_outlier.process()
 ```
@@ -195,14 +195,14 @@ GPTQ是一种针对大规模预训练模型的高效后量化算法。
 
 ### 3 校准集调整
 
-1.当算法层面无法提升精度时，可以增大校准数据集(10~50条)。  
+1.当算法层面无法提升精度时，可以增大校准数据集(10~50条)。
 正常情况下，可以增加数据得到精度提升，但是到一定数据后，提高数据对精度影响有限。有些场景下，减少数据反而得到精度提升, 例如长数据场景。
-2.针对特定场景切换成应用场景的数据作为校准集。  
+2.针对特定场景切换成应用场景的数据作为校准集。
 在选取时需要考虑模型部署时的具体推理场景，例如中文模型需要使用中文输入作为校准集；
 英文模型使用英文输入；代码生成类模型则使用代码生成类任务；
-中英文兼顾的模型考虑使用中英文混合的校准集合。  
-3.剔除量化前后模型输出变化较大的数据作为校准集。  
-4.注意校准集格式：  
+中英文兼顾的模型考虑使用中英文混合的校准集合。
+3.剔除量化前后模型输出变化较大的数据作为校准集。
+4.注意校准集格式：
 在下述示例中，get_calib_dataset的作用是调整校准集格式，以boolq数据集作为校准集为例，boolq数据集格式为 dict={"question":str, "title":str, "answer":bool, "passage":str}，而tokenizer中需要传入的数据格式为："str"（单个提示词）、"List[str]"（批量或单个提示词）或 "List[List[str]]"（批量提示词）。
 
 ```python
@@ -214,17 +214,17 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])       
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 ```
 
-注： [Precision Tool 使用方法说明及数据集下载链接](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)  
+注： [Precision Tool 使用方法说明及数据集下载链接](../user_guide/feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)
 
 ### 4 量化回退
 
 量化回退的原因：某些网络层对于量化比较敏感，量化后会带来较大的精度损失，这些层是不太适合量化的，应该使用浮点数进行计算，这个过程称之为回退（回退的都是线性层），可以通过设置disable_names控制哪些层应该被回退。
-为什么回退的都是线性层：大模型中的线性层层数多、权重数量庞大且存在矩阵相乘（计算量大），通过量化线性层的权重和激活值，可以达到降低模型大小，减少计算量，降低内存占用，提升推理速度。  
-怎么判定敏感：终端的日志中会显示每一层算子激活量化输入的range_parm数值，range_parm数值越大越敏感。  
+为什么回退的都是线性层：大模型中的线性层层数多、权重数量庞大且存在矩阵相乘（计算量大），通过量化线性层的权重和激活值，可以达到降低模型大小，减少计算量，降低内存占用，提升推理速度。
+怎么判定敏感：终端的日志中会显示每一层算子激活量化输入的range_parm数值，range_parm数值越大越敏感。
 
 仅权重量化操作流程：
 1.判断需要回退的层，通过看日志中range_parm的数值，数值越大表明越需要回退。比如down_proj层，o_proj层。
@@ -271,7 +271,7 @@ disable_names=[
 
 ### 5 KV Cache int8量化
 
-可在QuantConfig后调用kv_quant函数来开启KV Cache int8量化。 
+可在QuantConfig后调用kv_quant函数来开启KV Cache int8量化。
 
 ```python
 quant_config = QuantConfig(
@@ -284,6 +284,6 @@ quant_config = QuantConfig(
 
 ```
 
-长序列场景下KV Cache占用显存空间较大，通过KV Cache量化可以节约显存占用，增加并发数。  
-调用kv_quant函数会自动将QuantConfig中use_kvcache_quant设置为True。  
+长序列场景下KV Cache占用显存空间较大，通过KV Cache量化可以节约显存占用，增加并发数。
+调用kv_quant函数会自动将QuantConfig中use_kvcache_quant设置为True。
 use_kvcache_quant=True启用KV Cache量化，支持与W8A8、W8A16和稀疏量化同时使用。

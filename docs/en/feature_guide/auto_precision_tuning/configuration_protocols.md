@@ -48,7 +48,7 @@ evaluation:
 
 **Model adapter (by strategy)**
 
-When a tuning strategy needs **automatic layer sensitivity analysis** (to build rollback candidates), the model adapter must implement **`ModelSlimPipelineInterfaceV1`** (`PipelineInterface` in `core/runner/pipeline_interface.py`, consistent with the CLI `msmodelslim analyze` command and [Sensitive Layer Analysis](../sensitive_layer_analysis/usage.md)). The strategy calls `PipelineAnalysisService`, which invokes `init_model`, `handle_dataset`, and visit/forward pipeline methods; the strategy **does not** call `load_model` upfront.
+When a tuning strategy needs **automatic layer sensitivity analysis** (to build rollback candidates), the model adapter must implement **`ModelSlimPipelineInterfaceV1`** (`PipelineInterface` in `core/runner/pipeline_interface.py`, consistent with the CLI `msmodelslim analyze` command and [Sensitive Layer Analysis](../sensitive_layer_analysis/analyze_api_usage.md)). The strategy calls `PipelineAnalysisService`, which invokes `init_model`, `handle_dataset`, and visit/forward pipeline methods; the strategy **does not** call `load_model` upfront.
 
 **Additional** requirements per strategy:
 
@@ -372,5 +372,5 @@ inference_engine:
 
 Refer to the following files for complete automatic tuning configuration examples:
 
-- Configuration for the `standing_high` tuning strategy: [`standing_high.yaml`](./example/standing_high.yaml)
+- Configuration for the `standing_high` tuning strategy: [`standing_high.yaml`](./example/standing_high_with_experience.yaml)
 - Configuration for the `standing_high_with_experience` tuning strategy: [`standing_high_with_experience.yaml`](./example/standing_high_with_experience.yaml)

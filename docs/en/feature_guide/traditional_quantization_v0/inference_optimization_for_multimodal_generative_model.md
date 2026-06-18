@@ -24,9 +24,9 @@ pip install torch_npu==2.1.0.post6
 # ref https://github.com/dmlc/decord
 git clone --recursive https://github.com/dmlc/decord
 cd decord
-mkdir build && cd build 
-cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release -DFFMPEG_DIR=/usr/local/ffmpeg 
-make 
+mkdir build && cd build
+cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release -DFFMPEG_DIR=/usr/local/ffmpeg
+make
 cd ../python
 PYTHONPATH=$PYTHONPATH:. python3 setup.py install --user
 
@@ -71,7 +71,7 @@ sequenceDiagram
     participant U as user
     participant S as search system
     participant M as model
-    
+
     U->>S: starts configuration search.
     S->>M: generates calibration videos.
     M-->>S: returns the benchmark result.
@@ -112,10 +112,10 @@ You must define a closure function to execute the pipeline and return the genera
 ```python
 def run_pipeline_and_save_videos(pipeline):
     """Execute the pipeline and return the generated video list.
-    
+
     Args:
         pipeline: model pipeline instance
-        
+
     Returns:
         List[np.ndarray]: generated video list. The shape of each video is (num_frames, h, w, c).
     """
@@ -123,7 +123,7 @@ def run_pipeline_and_save_videos(pipeline):
     (masterpiece), (best quality), (ultra-detailed),
     {}
     """
-    
+
     videos = pipeline(
         positive_prompt.format("a dog running on the beach"),
         num_frames=93,
@@ -132,7 +132,7 @@ def run_pipeline_and_save_videos(pipeline):
         num_inference_steps=100,
         guidance_scale=7.5
     ).images
-    
+
     return videos
 ```
 

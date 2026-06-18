@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../getting_started/install_guide.md)》。
+安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../install_guide/install_guide.md)》。
 
 ## 原理
 
@@ -46,12 +46,12 @@ msmodelslim analyze linear \
 | `--metrics` | 指定分析算法，取值为 `std` 时使用本算法 |
 | `--pattern` | 层名通配符，过滤待分析线性层 |
 
-完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
+完整参数见[敏感层分析工具使用指南参数说明](../../user_guide/feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
 
 ## FAQ
 
 ### 与其他 linear 指标（quantile、kurtosis）如何选用？
 
-**现象**: 不确定 `std` 与 `quantile`、`kurtosis` 如何取舍，或希望了解各指标侧重点。  
+**现象**: 不确定 `std` 与 `quantile`、`kurtosis` 如何取舍，或希望了解各指标侧重点。
 
 **解决方案**: 三者均针对线性层激活分布，`std` 侧重范围与离散度比值；若数据含较多离群点可配合 `quantile`；若关注尖峰与尾部可配合 `kurtosis`。可阅读对应算法说明后按场景选择。

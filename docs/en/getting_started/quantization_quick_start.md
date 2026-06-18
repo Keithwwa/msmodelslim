@@ -130,7 +130,7 @@ After quantization is complete, the following files are generated in the save di
 
 ```yaml
 ├── config.json                          # Original model configuration file
-├── generation_config.json               # Original generation configuration file 
+├── generation_config.json               # Original generation configuration file
 ├── quant_model_description.json         # Description file for quantized weights
 ├── quant_model_weight_w8a8.safetensors  # Quantized weight file
 ├── tokenizer_config.json                # Original tokenizer configuration file

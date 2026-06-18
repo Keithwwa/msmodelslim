@@ -1,4 +1,4 @@
-# Iterative Smooth：离群值抑制算法说明
+﻿# Iterative Smooth：离群值抑制算法说明
 
 ## 简介
 
@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -230,7 +230,7 @@ class IterSmoothInterface(ABC):
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         """
         返回模型中所有可进行Smooth处理的子图配置
-        
+
         Returns:
             List[AdapterConfig]: 子图配置列表，每个配置包含：
                 - subgraph_type: 子图类型
@@ -278,12 +278,12 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 source=f"model.layers.{layer_idx}.input_layernorm",
                 targets=[
                     f"model.layers.{layer_idx}.self_attn.q_proj",
-                    f"model.layers.{layer_idx}.self_attn.k_proj", 
+                    f"model.layers.{layer_idx}.self_attn.k_proj",
                     f"model.layers.{layer_idx}.self_attn.v_proj"
                 ]
             )
         )
-        
+
         # 2. 后注意力层归一化到MLP投影的Norm-Linear映射
         norm_linear_config2 = AdapterConfig(
             subgraph_type="norm-linear",
@@ -295,7 +295,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 ]
             )
         )
-        
+
         # 3. 注意力机制中的OV映射
         ov_config = AdapterConfig(
             subgraph_type="ov",
@@ -304,7 +304,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 targets=[f"model.layers.{layer_idx}.self_attn.o_proj"]
             )
         )
-        
+
         # 4. MLP门控机制的Up-Down映射
         up_down_config = AdapterConfig(
             subgraph_type="up-down",
@@ -313,7 +313,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 targets=[f"model.layers.{layer_idx}.mlp.down_proj"]
             )
         )
-        
+
         # 5. 非融合子图示例：仅对若干线性层做平滑，不融合到前置层（source 设为 None）
         # non_fusion_config = AdapterConfig(
         #     subgraph_type="norm-linear",
@@ -325,9 +325,9 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         #     )
         # )
         # adapter_config.append(non_fusion_config)
-        
+
         adapter_config.extend([norm_linear_config1, norm_linear_config2, ov_config, up_down_config])
-    
+
     return adapter_config
 ```
 

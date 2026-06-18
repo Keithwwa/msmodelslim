@@ -6,7 +6,7 @@ This document focuses on foundation model scenarios, including low-memory quanti
 
 ### Overview
 
-During the quantization of a foundation model, if the model cannot be fully loaded due to constrained hardware resources or excessive parameters (such as hundreds of billions), the quantization process throws an out-of-memory error. To resolve this, you can enable low-memory quantization mode. 
+During the quantization of a foundation model, if the model cannot be fully loaded due to constrained hardware resources or excessive parameters (such as hundreds of billions), the quantization process throws an out-of-memory error. To resolve this, you can enable low-memory quantization mode.
 This mode keeps most model modules stored in the host memory and offloads execution to the NPU only during computation, minimizing NPU memory consumption.
 
 ### Note
@@ -42,7 +42,7 @@ model = AutoModelForCausalLM.from_pretrained(
         1: "25GiB",  # NPU1 can use a maximum of 25 GiB NPU memory.
         2: "25GiB",  # NPU2 can use a maximum of 25 GiB NPU memory.
         3: "25GiB",  # NPU3 can use a maximum of 25 GiB NPU memory.
-        "cpu": "500GiB",  # The system uses a maximum of 500 GiB host memory when loading the model.   
+        "cpu": "500GiB",  # The system uses a maximum of 500 GiB host memory when loading the model.
     }
 )
 ```
@@ -91,7 +91,7 @@ Procedure:
 - Each dataset entry is represented as a `dict`, using the keys `"dataset_name"` and `"dataset_path"` to configure the respective dataset identity and path.
 
 ```json
-{"configurations": 
+{"configurations":
     [
         {
           "dataset_name": "boolq",
@@ -109,7 +109,7 @@ Procedure:
           "dataset_name": "mmlu",
           "dataset_path": "./mmlu/"
         }
-    ]  
+    ]
 }
 ```
 
@@ -119,7 +119,7 @@ If `trust_remote_code` is set to `True`, code files in the weights directory of 
 
 ```python
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig 
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
 
 from msmodelslim.pytorch.llm_ptq.mix_calibration.calib_select import CalibrationData
 from msmodelslim.pytorch.llm_ptq.mix_calibration.dataset_processor_base import DatasetProcessorBase # Required only for custom dataset processing.
@@ -130,21 +130,21 @@ class CustomizedProcessor(DatasetProcessorBase):
         super().__init__(dataset_path, tokenizer, model)
         self.ori_prompts = []
         self.ori_answers = []
-    
+
     def process_data(self, indexs):
         """Retrieves a group of samples. Output format: [{"prompt": prompt1, "ans": ans1},{"prompt": prompt2, "ans": ans2}]"""
         prmpts_anses = []
         for idx in indexs:
             prmpts_anses.append({"prompt": self.ori_prompts[idx], "ans": self.ori_answers[idx]})
         return prmpts_anses
-    
+
     def verify_positive_prompt(self, prompts, labels):
         """Validates positive samples within a group of prompts. Output format: [{"prompt": prompt1, "ans": ans1},{"prompt": prompt2, "ans": ans2}]"""
         prpt_ans = []
         with torch.no_grad():
             inputs = self.tokenizer(prompts, padding=True, return_tensors="pt").to(self.model.device)
             outputs = self.model.generate(**inputs, do_sample=False, max_new_tokens=20)
-            
+
             answers = []
             for idx in range(len(outputs)):
                 output = outputs.tolist()[idx][len(inputs["input_ids"][idx]):]
@@ -164,13 +164,13 @@ SAVE_PATH = "./mix_dataset.json"
 
 config = AutoConfig.from_pretrained(MODEL_PATH, trust_remote_code=True, local_files_only=True)
 tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=MODEL_PATH,
-                                          trust_remote_code=True, 
+                                          trust_remote_code=True,
                                           local_files_only=True)
 model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=MODEL_PATH,
                                              trust_remote_code=True,
                                              config=config,
                                              torch_dtype='auto',
-                                             device_map='auto', 
+                                             device_map='auto',
                                              local_files_only=True)
 
 # Basic supported calibration datasets: boolq, ceval_5_shot, gsm8k, and mmlu. The key "customized_dataset_name" maps to user-defined datasets.
@@ -212,15 +212,15 @@ def get_anti_dataset(tokenizer, mixed_dataset, device="npu"):
         for calib_data in calib_list:
             inputs = tokenizer(calib_data, return_tensors='pt')
             calib_dataset.append(inputs.data['input_ids'].to(device))
-            max_len = max(max_len, inputs.data['input_ids'].size(1)) 
+            max_len = max(max_len, inputs.data['input_ids'].size(1))
         for i in range(len(calib_dataset)):
             calib_dataset[i] = F.pad(calib_dataset[i], (0, max_len - calib_dataset[i].size(1)), value=0)
         anti_data.append(torch.cat(calib_dataset))
-    
+
     anti_dataset = []
     for data in anti_data:
         anti_dataset.append([data])
-    
+
     return anti_dataset
 
 def get_calib_dataset(tokenizer, mixed_dataset, device='npu'):
@@ -302,8 +302,8 @@ Determine the exact attention implementation utilized by the target architecture
 - Import the required dependencies:
 
 ```python
-from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.fa_quant import FAQuantizer 
-from msmodelslim import logger 
+from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.fa_quant import FAQuantizer
+from msmodelslim import logger
 ```
 
 - Call the tool within the attention mechanism being used:
@@ -328,8 +328,8 @@ Note: Place the quantization hooks for `query_states`, `key_states`, and `value_
 - The overall modification is as follows:
 
 ```python
-from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.fa_quant import FAQuantizer 
-from msmodelslim import logger 
+from msmodelslim.pytorch.llm_ptq.llm_ptq_tools.fa_quant import FAQuantizer
+from msmodelslim import logger
 
 class Qwen2Attention(nn.Module):
     """
@@ -344,7 +344,7 @@ class Qwen2Attention(nn.Module):
         ...
         # Other unchanged code
         ...
-        
+
      # New code
         # --------------------------------------------------
      self.fa_quantizer = FAQuantizer(self.config, logger)
@@ -360,26 +360,26 @@ class Qwen2Attention(nn.Module):
         use_cache: bool = False,
         cache_position: Optional[torch.LongTensor] = None,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
-        
+
         ...
         # Other unchanged code
         ...
-        
+
         if past_key_value is not None:
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            
+
       # New code
         # --------------------------------------------------
         query_states = self.fa_quantizer.quant(query_states, qkv="q")
         key_states = self.fa_quantizer.quant(key_states, qkv="k")
         value_states = self.fa_quantizer.quant(value_states, qkv="v")
         # --------------------------------------------------
-       
+
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
-       
+
         ...
         # Other unchanged code
         ...
@@ -621,11 +621,11 @@ quant_config = QuantConfig(
 ).fa_quant(fa_amp=0)
 
 calibrator = Calibrator(
-    model, 
-    quant_config, 
-    calib_data=dataset_calib, 
+    model,
+    quant_config,
+    calib_data=dataset_calib,
     disable_level='L5'
-)  
+)
 ```
 
 - Calibration data (`calib_set`)
@@ -675,11 +675,11 @@ quant_config = QuantConfig(
 ).fa_quant(fa_amp=0)
 
 calibrator = Calibrator(
-    model, 
-    quant_config, 
-    calib_data=dataset_calib, 
+    model,
+    quant_config,
+    calib_data=dataset_calib,
     disable_level='L0'
-)  
+)
 ```
 
 - Calibration data (`calib_set`)

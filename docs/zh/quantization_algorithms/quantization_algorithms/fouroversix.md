@@ -1,4 +1,4 @@
-# FouroverSix：自适应块缩放权重量化算法说明
+﻿# FouroverSix：自适应块缩放权重量化算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 

@@ -1,4 +1,4 @@
-# DualScale：w4a4量化方案说明
+﻿# DualScale：w4a4量化方案说明
 
 ## 简介
 
@@ -46,7 +46,7 @@ $$\text{Output} = X_{q\_dq} \cdot W_{q\_dq}^T + \text{bias}$$
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../getting_started/install_guide.md)》。
+安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../install_guide/install_guide.md)》。
 
 ## 适用要求
 

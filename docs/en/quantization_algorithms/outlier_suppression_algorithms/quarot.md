@@ -5,7 +5,7 @@
 - **Source**: Academic research or industry proposed method.
 - **Introduction**: Quantization with Rotation (QuaRot)
   An innovative algorithm for the quantization of large language models that suppresses outliers in activation tensors through mathematical transformation. This algorithm "scatters" outliers into multiple channels by performing specific rotation transformations on weights and activation values. This significantly smoothes the data distribution before quantization and effectively reduces quantization error.
-- **Core idea**: QuaRot applies a well-constructed orthogonal transformation (rotation matrix) to balance the maximum value of the transformed activation tensor on each channel as much as possible. This prevents a single channel from requiring an excessively large scaling factor due to extreme outliers, thereby improving overall quantization accuracy. 
+- **Core idea**: QuaRot applies a well-constructed orthogonal transformation (rotation matrix) to balance the maximum value of the transformed activation tensor on each channel as much as possible. This prevents a single channel from requiring an excessively large scaling factor due to extreme outliers, thereby improving overall quantization accuracy.
 
 ## Preparations
 
@@ -23,7 +23,7 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
    Maintain computational equivalence: `X' × W' = (X × Q) × (QT × W) = X × W`.
 3. **Computational invariance**
    The rotation transformation maintains the input-output mapping of each Transformer layer. Even if a layer includes an RMSNorm operation, computational invariance remains valid because `RMSNorm(X) = RMSNorm(X × Qᵀ) × Q`.
-    
+
 4. **Optimization effect**
    This algorithm redistributes parameters through rotation to effectively suppress outliers in activation values. This results in a smoother value distribution and significantly reduces the quantization error of subsequent operations, laying the foundation for low-bit quantization.
 
@@ -116,7 +116,7 @@ The `preprocess` phase executes when the `Runner` schedules each `DecoderLayer`,
     - Extract `layer_idx`.
     - Call `online_rotate_o_proj_input()` to perform online rotation on the input of `o_proj` if conditions are met.
     - Call `online_rotate_down_proj()` to perform online rotation on `down_proj` (using a Kronecker product rotation matrix) if `layer_idx` exists in the `down_proj_online_layers` configuration.
-       
+
     - Register `QuarotKroneckerRotationHookIR` for `down_proj` and `QuarotHeadsRotationHookIR` for `o_proj`. These hooks perform rotation operations during forward propagation.
 
 #### `post_run` Phase
@@ -287,10 +287,10 @@ class QuaRotInterface:
     def get_rotate_map(self, block_size: int) -> Tuple[List[RotatePair], List[RotatePair]]:
         """
         Obtain the rotation mapping, including the left and right rotation configurations.
-        
+
         Args:
             block_size: Specifies the block size of the rotation.
-            
+
         Returns:
             A tuple containing two RotatePair lists:
             - pre_run_pairs (List[RotatePair]): Specifies a list of rotation mapping pairs in the pre_run phase.
@@ -312,7 +312,7 @@ class LAOSOnlineRotationInterface:
     def get_head_dim(self) -> int:
         """
         Obtain the dimension of the attention head.
-        
+
         Returns:
             Dimension of the attention head
         """
@@ -322,7 +322,7 @@ class LAOSOnlineRotationInterface:
     def get_num_attention_heads(self) -> int:
         """
         Obtain the number of attention heads.
-        
+
         Returns:
             Number of attention heads
         """
@@ -332,10 +332,10 @@ class LAOSOnlineRotationInterface:
     def get_layer_wise_ov_pair(self, decoder_module: nn.Module) -> Dict[nn.Module, nn.Module]:
         """
         Obtain the o_proj and v_proj mapping pair corresponding to a single decoder layer.
-        
+
         Args:
             decoder_module: Specifies the module object of the decoder layer.
-            
+
         Returns:
             Dictionary where the key is the o_proj module and the value is the v_proj module
         """
@@ -345,10 +345,10 @@ class LAOSOnlineRotationInterface:
     def get_layer_wise_up_down_pair(self, decoder_module: nn.Module) -> Dict[nn.Module, nn.Module]:
         """
         Obtain the up_proj and down_proj mapping pair corresponding to a single decoder layer.
-        
+
         Args:
             decoder_module: Specifies the module object of the decoder layer.
-            
+
         Returns:
             Dictionary where the key is the up_proj module and the value is the down_proj module
         """

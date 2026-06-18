@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../getting_started/install_guide.md)》。
+安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../install_guide/install_guide.md)》。
 
 ## 原理
 
@@ -44,18 +44,18 @@ msmodelslim analyze layer \
 | `--metrics` | 指定分析算法，取值为 `mse_model_wise` 时使用本算法 |
 | `--quant_modules` | 通配符列表，指定参与量化对比的模块范围 |
 
-完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
+完整参数见[敏感层分析工具使用指南参数说明](../../user_guide/feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
 
 ## FAQ
 
 ### 分析中途出现 warning 且后续层未出现在结果中？
 
-**现象**: 日志出现 warning，且后续 Decoder 层未出现在分析结果中。  
+**现象**: 日志出现 warning，且后续 Decoder 层未出现在分析结果中。
 
 **解决方案**: 多为链式前向在某层无法对齐输入输出；可查阅日志定位层号，对该层或特殊结构（如 MTP）优先回退或换用 `mse_layer_wise` 做块级评估。
 
 ### 与 `mse_layer_wise` 的主要差异？
 
-**现象**: 需要在 `mse_layer_wise` 与 `mse_model_wise` 之间选择，不清楚二者度量视角差异。  
+**现象**: 需要在 `mse_layer_wise` 与 `mse_model_wise` 之间选择，不清楚二者度量视角差异。
 
 **解决方案**: `mse_layer_wise` 关注**单块输出**上的局部重构误差，反映该块自身的量化影响；`mse_model_wise` 关注**模型最终输出**上的全局累积误差，更贴近端到端效果，但计算与对齐要求更高。

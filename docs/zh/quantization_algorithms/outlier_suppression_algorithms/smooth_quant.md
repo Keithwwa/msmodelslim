@@ -1,4 +1,4 @@
-# SmoothQuant：离群值抑制算法说明
+﻿# SmoothQuant：离群值抑制算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -171,7 +171,7 @@ class SmoothQuantInterface(ABC):
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         """
         返回模型中所有可进行SmoothQuant处理的子图配置
-        
+
         Returns:
             List[AdapterConfig]: 子图配置列表，每个配置包含：
                 - subgraph_type: 子图类型（应为"norm-linear"）
@@ -212,12 +212,12 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 source=f"model.layers.{layer_idx}.input_layernorm",
                 targets=[
                     f"model.layers.{layer_idx}.self_attn.q_proj",
-                    f"model.layers.{layer_idx}.self_attn.k_proj", 
+                    f"model.layers.{layer_idx}.self_attn.k_proj",
                     f"model.layers.{layer_idx}.self_attn.v_proj"
                 ]
             )
         )
-        
+
         # 2. 后注意力层归一化到MLP投影的norm-linear映射
         norm_linear_config2 = AdapterConfig(
             subgraph_type="norm-linear",
@@ -229,9 +229,9 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 ]
             )
         )
-        
+
         adapter_config.extend([norm_linear_config1, norm_linear_config2])
-    
+
     return adapter_config
 ```
 

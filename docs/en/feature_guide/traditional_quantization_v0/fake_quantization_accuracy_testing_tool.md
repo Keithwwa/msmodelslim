@@ -34,10 +34,10 @@ import torch
 if __name__ == '__main__':
     model_path = "meta-llama/Llama-2-7b-chat-hf"
     model = AutoModelForCausalLM.from_pretrained(
-        model_path, 
-        torch_dtype=torch.float16, 
-        device_map="auto", 
-        use_safetensors=True, 
+        model_path,
+        torch_dtype=torch.float16,
+        device_map="auto",
+        use_safetensors=True,
         local_files_only=True
         ).eval()
     tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
@@ -105,7 +105,7 @@ def test(self):
         |   `-- human-eval-v2-20210705.jsonl
     ```
 
-    Maintain exact consistency for all directory names and structural paths. 
+    Maintain exact consistency for all directory names and structural paths.
     Dataset download links:
 
     ```text
@@ -115,6 +115,6 @@ def test(self):
     https://github.com/sylinrl/TruthfulQA/blob/main/data/v0/TruthfulQA.csv
     ```
 
-2. Save the dataset directory structure to the same path containing `precision_tool.py`, as shown in the following figure.  
-    ![Accuracy test dataset directory](./figures/[pytorch]accuracy_testing_dataset_directory_structure.png) 
+2. Save the dataset directory structure to the same path containing `precision_tool.py`, as shown in the following figure.
+    ![Accuracy test dataset directory](./figures/[pytorch]accuracy_testing_dataset_directory_structure.png)
 3. To validate the `HumanEval` dataset, you must install the official evaluation extension through <https://github.com/openai/human-eval>.

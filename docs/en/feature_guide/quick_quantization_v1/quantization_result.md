@@ -729,7 +729,7 @@ with open("debug_info/debug_info.json", "r") as f:
 with safe_open("debug_info/debug_info.safetensors", framework="pt") as f:
     # Obtain the key names of all tensors
     tensor_keys = f.keys()
-    
+
     # Load specific tensors
     for key in tensor_keys:
         tensor = f.get_tensor(key)

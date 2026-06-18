@@ -1,4 +1,4 @@
-# KVCache量化：缓存量化算法说明
+﻿# KVCache量化：缓存量化算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -33,14 +33,14 @@
   - 自动检测模型中的注意力层，基于模块命名规则识别 `self_attn` 模块。
   - 为每个注意力层创建对应的 `DynamicCacheQuantizer`，配置量化参数。
   - 在目标注意力层的第一层安装触发钩子，检测推理开始。
-  
+
 #### 校准阶段
 
   - 阶段：`run`。
   - 通过钩子机制在 `DynamicCache.update()` 调用时拦截 Key/Value 状态。
   - 使用 `DynamicCacheQuantizer` 对缓存状态进行伪量化，收集量化统计信息。
   - 支持增量式校准，适应动态序列长度变化。
-  
+
 #### 伪量化部署阶段
 
   - 阶段：`postprocess`。
@@ -102,7 +102,7 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
 
       ```python
       class CustomCache:
-          def update(self, key_states: torch.Tensor, value_states: torch.Tensor, 
+          def update(self, key_states: torch.Tensor, value_states: torch.Tensor,
                       layer_idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
               # 返回更新后的 key_states 和 value_states
               pass
@@ -117,7 +117,7 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
 
      - 注意力模块需要通过 `layer_idx` 参数指示当前层索引。
      - 支持嵌套调用和递归量化。
-  
+
 ## 功能介绍
 
 ### 模型支持
@@ -167,4 +167,4 @@ class FakeQuantDynamicCache(AutoFakeQuantDynamicCache):
 
 **现象**：新缓存类型不支持。
 
-**解决方案**：确认自定义缓存实现了标准的 `update` 接口，并正确处理返回值。 
+**解决方案**：确认自定义缓存实现了标准的 `update` 接口，并正确处理返回值。

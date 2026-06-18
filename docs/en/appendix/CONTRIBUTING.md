@@ -32,7 +32,7 @@ Refer to the developer documentation [Model Integration Guide](https://msmodelsl
 For changes that affect user-facing features, update the corresponding user and developer documentation at the same time.
 
 Add or update a test in the continuous integration (CI) workflow. If no test is required, provide the reason.
-  
+
 After you finish the preceding preparations, submit the code and enter the `compile` command to trigger the automated build pipeline.
 
 After the pipeline builds successfully, contact the [repository management and maintenance members](https://gitcode.com/Ascend/msmodelslim/member) to request review and merge.

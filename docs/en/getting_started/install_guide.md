@@ -48,7 +48,7 @@ bash install.sh
 
 # Note: To perform sparse quantization and compression, proceed with the following operations.
 # 3. Go to the site-packages package management directory under the Python environment, where ${python_envs} specifies the Python environment path.
-cd ${python_envs}/site-packages/msmodelslim/pytorch/weight_compression/compress_graph/  
+cd ${python_envs}/site-packages/msmodelslim/pytorch/weight_compression/compress_graph/
 # In the following example, /usr/local/ is the user directory and the Python version is 3.11.10.
 cd /usr/local/lib/python3.11/site-packages/msmodelslim/pytorch/weight_compression/compress_graph/
 

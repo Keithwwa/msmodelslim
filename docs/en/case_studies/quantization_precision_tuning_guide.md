@@ -28,7 +28,7 @@ Step 4: Adjust the calibration dataset.
 Step 5: Perform quantization rollback (last resort).
 ```
 
-**objective:** 
+**objective:**
 Deploy the model efficiently while keeping accuracy loss within an acceptable range.
 
 ## Preparation

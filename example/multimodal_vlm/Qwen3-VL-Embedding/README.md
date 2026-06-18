@@ -1,4 +1,4 @@
-# Qwen3-VL-Embedding & Reranker 量化案例
+﻿# Qwen3-VL-Embedding & Reranker 量化案例
 
 ## 模型介绍
 
@@ -7,7 +7,7 @@
 
 ## 环境配置
 
-- 基础环境配置请参考《[安装指南](../../../docs/zh/getting_started/install_guide.md)》，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为≥2.2版本。
+- 基础环境配置请参考《[安装指南](../../../docs/zh/install_guide/install_guide.md)》，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为≥2.2版本。
 - 针对 Qwen3-VL-Embedding & Reranker模型transformers 版本需要 4.57.1：
 
   ```bash
@@ -22,7 +22,6 @@
 | Qwen3-VL-Embedding-8B | [Qwen3-VL-Embedding-8B](https://www.modelscope.cn/models/Qwen/Qwen3-VL-Embedding-8B) | W8A8量化 | vLLM Ascend v0.19.0及之后版本支持 |
 | Qwen3-VL-Reranker-2B  | [Qwen3-VL-Reranker-2B](https://www.modelscope.cn/models/Qwen/Qwen3-VL-Reranker-2B)   | W8A8量化 | vLLM Ascend v0.19.0及之后版本支持 |
 | Qwen3-VL-Reranker-8B  | [Qwen3-VL-Reranker-8B](https://www.modelscope.cn/models/Qwen/Qwen3-VL-Reranker-8B)   | W8A8量化 | vLLM Ascend v0.19.0及之后版本支持 |
-
 
 ### 使用案例
 
@@ -41,6 +40,7 @@ msmodelslim quant --model_path /path/to/Qwen3-VL-Embedding-2B \
 --model_type Qwen3-VL-Embedding-2B \
 --quant_type w8a8
   ```
+
 #### 2. Qwen3-VL-Reranker
 
 该示例在NPU上生成Qwen3-VL-Reranker-2B模型的量化权重。
@@ -55,8 +55,7 @@ msmodelslim quant --model_path /path/to/Qwen3-VL-Reranker-2B \
 --quant_type w8a8
   ```
 
-- 更多参数配置要求，请参考《[参数说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md)》。
-
+- 更多参数配置要求，请参考《[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
 
 > [!Note]
 >

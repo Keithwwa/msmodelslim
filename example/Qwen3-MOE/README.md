@@ -1,4 +1,4 @@
-# Qwen3-MOE 量化说明
+﻿# Qwen3-MOE 量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide/install_guide.md)。
 - transformers版本需要配置安装4.51.0版本
     - pip install transformers==4.51.0
 
@@ -97,8 +97,8 @@
 
 ### quant_qwen_moe_w8a8.py 量化参数说明
 
-| 参数名           | 含义           | 默认值  | 使用方法                          | 
-|---------------|--------------|------|-------------------------------| 
+| 参数名           | 含义           | 默认值  | 使用方法                          |
+|---------------|--------------|------|-------------------------------|
 | model_path    | 浮点权重路径       | 无默认值 | 必选参数；<br>输入Qwen3-MOE权重目录路径。    |
 | save_path     | 量化权重路径       | 无默认值 | 必选参数；<br>输出量化结果目录路径。          |
 | layer_count   | 模型层数       | 0 | 可选参数；<br>用于调试，实际量化的层数。0表示使用所有层。        |

@@ -573,6 +573,6 @@ quant_model(model, session_cfg)
 ### 相关资源
 
 - [HunyuanVideo 模型仓库（魔乐）](https://modelers.cn/models/MindIE/hunyuan_video)
-- 《[多模态生成模型接入指南（开发者）](../../../docs/zh/developer_guide/integrating_multimodal_generation_model.md)》
+- 《[多模态生成模型接入指南（开发者）](../../../docs/zh/development_guide/integrating_multimodal_generation_model.md)》
 - [一键量化配置协议说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/feature_guide/quick_quantization_v1/usage/#%E9%87%8F%E5%8C%96%E9%85%8D%E7%BD%AE%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3)
 - [逐层量化特性说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/feature_guide/quick_quantization_v1/usage/#%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96%E5%8F%8A%E5%88%86%E5%B8%83%E5%BC%8F%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96)

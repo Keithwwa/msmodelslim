@@ -4,7 +4,7 @@
 
 The W8A8 quantization accuracy tuning strategy is implemented by using the msModelSlim quantization tool and precision tool for accuracy verification and tuning. LLMs can lose a lot of accuracy after W8A8 quantization, so you can use this strategy for tuning.
 
-Notes:  
+Notes:
 
 1. Model-specific recommendation: If you use a ChatGLM model such as ChatGLM2-6B, set the thread count manually to improve runtime efficiency. Other models do not need extra thread settings.
 
@@ -17,8 +17,8 @@ export OMP_NUM_THREADS=48
 
 ## Preparation
 
-Follow these two documents before you use the tool: 
-Install the msModelSlim tool. For details, see [msModelSlim Installation Guide](../getting_started/install_guide.md). 
+Follow these two documents before you use the tool:
+Install the msModelSlim tool. For details, see [msModelSlim Installation Guide](../getting_started/install_guide.md).
 Install the dependencies for the large-model quantization tool. See [Preparations](../feature_guide/traditional_quantization_v0/foundation_model_compression.md#preparations).
 
 ## Code Example
@@ -89,7 +89,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])     
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 
 entry = "/path/to/calib_dataset" # In this example, calibration data is taken from precision_tool/dataset/boolq/dev.jsonl.
@@ -159,14 +159,14 @@ print("model is inferring...")
 model = model.to(f"npu:{device_id}")
 model.eval()
 generate_ids = model.generate(
-    test_input.input_ids.to(f"npu:{device_id}"), 
-    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"), 
+    test_input.input_ids.to(f"npu:{device_id}"),
+    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"),
     max_new_tokens=SEQ_LEN_OUT
 )
 
 res = tokenizer.batch_decode(
-    generate_ids, 
-    skip_special_tokens=True, 
+    generate_ids,
+    skip_special_tokens=True,
     clean_up_tokenization_spaces=False
 )
 for idx, item in enumerate(res):
@@ -174,7 +174,7 @@ for idx, item in enumerate(res):
 
 ```
 
-After calling the `Calibrator.run()` method, the tool replaces the `model` passed during `Calibrator` construction with the fake quantization model. You can directly call this model to perform forward inference and test dialogue effects. 
+After calling the `Calibrator.run()` method, the tool replaces the `model` passed during `Calibrator` construction with the fake quantization model. You can directly call this model to perform forward inference and test dialogue effects.
 If the fake-quantization result is unsatisfactory, perform the following optimization operations:
 
 ## Accuracy Tuning Steps for W8A8 Quantized Models
@@ -191,13 +191,13 @@ anti_config = AntiOutlierConfig(
 )
 ```
 
-Optimizable parameter `anti_method`: 
+Optimizable parameter `anti_method`:
 
-`m1`: SmoothQuant algorithm 
-`m2`: upgraded SmoothQuant 
-`m3`: AWQ algorithm (applicable to W8A16/W4A16) 
-`m4`: optimized SmoothQuant algorithm 
-`m5`: CBQ algorithm 
+`m1`: SmoothQuant algorithm
+`m2`: upgraded SmoothQuant
+`m3`: AWQ algorithm (applicable to W8A16/W4A16)
+`m4`: optimized SmoothQuant algorithm
+`m5`: CBQ algorithm
 `m6`: Flex smooth quantization algorithm
 
 W8A8 supports `m1`, `m2`, `m4`, `m5`, and `m6`.
@@ -219,46 +219,46 @@ quant_config = QuantConfig(
 )
 
 calibrator = Calibrator(
-    model, 
-    quant_config, 
-    calib_data=dataset_calib, 
+    model,
+    quant_config,
+    calib_data=dataset_calib,
     disable_level='L0'
-)  
+)
 ```
 
-Optimizable parameters `disable_names`, `disable_level`, and `act_method`: 
+Optimizable parameters `disable_names`, `disable_level`, and `act_method`:
 Add rollback layers. You are advised to adjust this parameter last. You can manually set rollback layers by using `disable_names` based on experience, or use the automatic rollback function of `disable_level` to automatically roll back `Linear` layers that have a relatively large impact on accuracy according to certain criteria.
 
 `disable_names`: specifies rollback layers based on theoretical experience and log information.
 `disable_level='L0'`: enables automatic rollback.
 
-`act_method`: specifies the activation quantization method. 
-    The default value of `act_method` is `1`. The value of this parameter can be `1`, `2`, or `3`. 
-    `1` indicates the min-max quantization method. 
-    `2` indicates the histogram quantization method. 
-    `3` indicates a hybrid quantization method that combines min-max and histogram. 
+`act_method`: specifies the activation quantization method.
+    The default value of `act_method` is `1`. The value of this parameter can be `1`, `2`, or `3`.
+    `1` indicates the min-max quantization method.
+    `2` indicates the histogram quantization method.
+    `3` indicates a hybrid quantization method that combines min-max and histogram.
     In LLM scenarios, you are advised to use `3`.
 
 ### 3. Calibration Set Adjustment
 
-1. When algorithm changes do not improve accuracy, increase the calibration set size to 10 to 50 samples. 
-(Normally, increasing the data volume improves accuracy, but beyond a certain threshold, the accuracy gains become limited. In some cases, reducing the data volume can actually improve accuracy, such as in long-sequence scenarios.) 
-2. Switch to data from practical application scenarios as the calibration set for specific use cases. 
-When selecting data, consider the specific inference scenarios where the model will be deployed. For example, Chinese models require Chinese inputs as the calibration dataset, English models require English inputs, and code-generation models require code-generation tasks. Models supporting both languages should use a mixed Chinese-English calibration set. 
-3. Eliminate data with significant output differences between the original and quantized models when constructing the calibration dataset. 
-4. Pay attention to the calibration set format. 
+1. When algorithm changes do not improve accuracy, increase the calibration set size to 10 to 50 samples.
+(Normally, increasing the data volume improves accuracy, but beyond a certain threshold, the accuracy gains become limited. In some cases, reducing the data volume can actually improve accuracy, such as in long-sequence scenarios.)
+2. Switch to data from practical application scenarios as the calibration set for specific use cases.
+When selecting data, consider the specific inference scenarios where the model will be deployed. For example, Chinese models require Chinese inputs as the calibration dataset, English models require English inputs, and code-generation models require code-generation tasks. Models supporting both languages should use a mixed Chinese-English calibration set.
+3. Eliminate data with significant output differences between the original and quantized models when constructing the calibration dataset.
+4. Pay attention to the calibration set format.
 In the following example, `get_calib_dataset` adjusts the calibration set format. Using boolq as the example, the boolq dataset format is `dict={"question":str, "title":str, "answer":bool, "passage":str}`, while the tokenizer expects `"str"` for a single prompt, `"List[str]"` for a batch or a single prompt, or `"List[List[str]]"` for batched prompts.
- 
+
 ```python
 def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
     calib_dataset = []
     for calib_data in calib_list:
         title = calib_data["title"]
-        text = calib_data["question"] 
+        text = calib_data["question"]
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])       
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 ```
 
@@ -272,7 +272,7 @@ Why only linear layers are rolled back: LLMs contain many linear layers, with a 
 
 Reason for quantization rollback: Some linear layers are sensitive to quantization, which can cause certain accuracy loss after quantization. These layers are not suitable for quantization and should use floating-point computation instead. This process is called rollback. You can use `disable_names` to control which linear layers should be rolled back.
 
-How to determine sensitivity: The terminal logs show the `range_parm` value for the activation quantization input of each operator. A larger `range_parm` indicates higher sensitivity.  
+How to determine sensitivity: The terminal logs show the `range_parm` value for the activation quantization input of each operator. A larger `range_parm` indicates higher sensitivity.
 Example terminal log entry:
 
 ```python
@@ -285,14 +285,14 @@ Quantization rollback approaches: Two approaches are available: manual rollback 
 
 Note: Quantization rollback reduces performance to some extent.
 
-#### Manual Rollback: `disable_names` 
+#### Manual Rollback: `disable_names`
 
 `disable_names=[]` specifies rolled-back layer names. If it is left empty, rollback is not applied to any layer.
 
-Rollback priorities (descending order): 
+Rollback priorities (descending order):
 
-1. Roll back `down_proj` layers first, since they are often accuracy-sensitive. These are the MLP down-sampling layers. If `down_proj` is not marked explicitly, check `out_features`. The smaller value is the down-sampling layer. 
-2. Roll back `o_proj` layers next, since they are usually accuracy-sensitive. These are the last linear layers used in self-attention. The order printed in the model is only the initialization order. Check the actual call order in the model code. 
+1. Roll back `down_proj` layers first, since they are often accuracy-sensitive. These are the MLP down-sampling layers. If `down_proj` is not marked explicitly, check `out_features`. The smaller value is the down-sampling layer.
+2. Roll back `o_proj` layers next, since they are usually accuracy-sensitive. These are the last linear layers used in self-attention. The order printed in the model is only the initialization order. Check the actual call order in the model code.
 3. Use theoretical experience or the `range_parm` values in the terminal log to identify other sensitive layers and roll them back.
 
 The following example manually rolls back all `down_proj` layers in ChatGLM2-6B:
@@ -350,13 +350,13 @@ quant_config = QuantConfig(
 ).kv_quant()
 ```
 
-In long-sequence scenarios, KV cache takes up a large amount of memory. KV cache quantization can save memory and increase concurrency. 
-Calling `kv_quant` automatically sets `use_kvcache_quant` in `QuantConfig` to `True`. 
+In long-sequence scenarios, KV cache takes up a large amount of memory. KV cache quantization can save memory and increase concurrency.
+Calling `kv_quant` automatically sets `use_kvcache_quant` in `QuantConfig` to `True`.
 `use_kvcache_quant=True` enables KV Cache quantization and it can be used together with W8A8, W8A16, and sparse quantization.
 
 ### 6. FA3 Quantization
 
-[FA quantization usage](../feature_guide/traditional_quantization_v0/foundation_model_quantization_and_calibration.md#fa3-quantization)待确认章节标题 
+[FA quantization usage](../feature_guide/traditional_quantization_v0/foundation_model_quantization_and_calibration.md#fa3-quantization)待确认章节标题
 
 ### 7. Accuracy Changes after Step-By-Step Tuning for ChatGLM2-6B
 

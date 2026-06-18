@@ -107,7 +107,7 @@ This type applies to scenarios where **several linear layers are smoothed withou
 - Register a forward pre-hook on each linear layer. Apply the corresponding inverse scaling (1/scales) to the **input** during inference by using the forward hook. This operation maintains numerical consistency with the weight scaling and is numerically equivalent to dividing the input by the scale and then multiplying it back.
 - **Shift (bias translation) is not supported**. If shift is configured, the non-fusion branch ignores the configuration and generates a log message.
 
-**Configuration method:** In the `AdapterConfig` returned by `get_adapter_config_for_subgraph()`, configure the `mapping` by using `MappingConfig(source=None, targets=[...])`. The `targets` parameter specifies the list of full paths for the linear layers to be smoothed, and you can set `subgraph_type` to `norm-linear` (indicating that all linear names are recorded when multiple objectives are present) or other supported types. This configuration affects only the internal naming and does not change the non-fusion behavior of the processor. 
+**Configuration method:** In the `AdapterConfig` returned by `get_adapter_config_for_subgraph()`, configure the `mapping` by using `MappingConfig(source=None, targets=[...])`. The `targets` parameter specifies the list of full paths for the linear layers to be smoothed, and you can set `subgraph_type` to `norm-linear` (indicating that all linear names are recorded when multiple objectives are present) or other supported types. This configuration affects only the internal naming and does not change the non-fusion behavior of the processor.
 
 ### Implementation
 
@@ -230,7 +230,7 @@ class IterSmoothInterface(ABC):
     def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         """
         Return all subgraph configurations within the model eligible for smoothing.
-        
+
         Returns:
             List[AdapterConfig]: A list of subgraph configurations, each containing:
                 - subgraph_type: indicates the subgraph type.
@@ -278,12 +278,12 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 source=f"model.layers.{layer_idx}.input_layernorm",
                 targets=[
                     f"model.layers.{layer_idx}.self_attn.q_proj",
-                    f"model.layers.{layer_idx}.self_attn.k_proj", 
+                    f"model.layers.{layer_idx}.self_attn.k_proj",
                     f"model.layers.{layer_idx}.self_attn.v_proj"
                 ]
             )
         )
-        
+
         # 2. Norm-Linear mapping from the post-attention layer normalization to the MLP projection
         norm_linear_config2 = AdapterConfig(
             subgraph_type="norm-linear",
@@ -295,7 +295,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 ]
             )
         )
-        
+
         # 3. OV mapping within the attention mechanism
         ov_config = AdapterConfig(
             subgraph_type="ov",
@@ -304,7 +304,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 targets=[f"model.layers.{layer_idx}.self_attn.o_proj"]
             )
         )
-        
+
         # 4. Up-Down mapping for the MLP gating mechanism
         up_down_config = AdapterConfig(
             subgraph_type="up-down",
@@ -313,7 +313,7 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
                 targets=[f"model.layers.{layer_idx}.mlp.down_proj"]
             )
         )
-        
+
         # 5. Example of a NonFusionSubgraph: Smoothing is performed only on several linear layers, without fusion into the preceding layer (source is set to None).
         # non_fusion_config = AdapterConfig(
         #     subgraph_type="norm-linear",
@@ -325,9 +325,9 @@ def get_adapter_config_for_subgraph(self) -> List[AdapterConfig]:
         #     )
         # )
         # adapter_config.append(non_fusion_config)
-        
+
         adapter_config.extend([norm_linear_config1, norm_linear_config2, ov_config, up_down_config])
-    
+
     return adapter_config
 ```
 

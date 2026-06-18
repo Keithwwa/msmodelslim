@@ -11,7 +11,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
 - 注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为2.7.1版本
 - 针对 Qwen3-VL-MoE，transformers 版本需要 4.57.1：
 
@@ -73,7 +73,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -87,7 +87,7 @@ msmodelslim quant \
 
 ### <span id="qwen3-vl-moe-w8a8-mxfp8">Qwen3-VL-MoE W8A8 + MXFP8 静态量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -116,9 +116,9 @@ msmodelslim quant \
 **A**: 有以下几种方式：
 
 1. 使用 `lab_calib/calibImages/` 目录，并统一自定义所有图像的文本prompt：通过yaml配置文件中default_text字段配置文本prompt；
-2. 使用 `lab_calib/calibImages/` 目录，并自定义每个图像的文本prompt：在图像目录添加一个JSON/JSONL文件，具体示例可参考[dataset - 校准数据路径配置](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)；
+2. 使用 `lab_calib/calibImages/` 目录，并自定义每个图像的文本prompt：在图像目录添加一个JSON/JSONL文件，具体示例可参考[dataset - 校准数据路径配置](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)；
 3. 使用自定义图像目录，并统一自定义所有图像的文本prompt：在yaml配置文件中修改 `dataset` 字段为自定义图像目录，并通过yaml配置文件中default_text字段配置文本prompt；
-4. 使用自定义图像目录，并自定义每个图像的文本prompt：在yaml配置文件中修改 `dataset` 字段为自定义图像目录，在图像目录添加一个JSON/JSONL文件，具体示例可参考[dataset - 校准数据路径配置](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)。
+4. 使用自定义图像目录，并自定义每个图像的文本prompt：在yaml配置文件中修改 `dataset` 字段为自定义图像目录，在图像目录添加一个JSON/JSONL文件，具体示例可参考[dataset - 校准数据路径配置](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)。
 
 建议使用与实际应用场景相似的图像作为校准集，数量一般不超过30张。
 
@@ -126,9 +126,9 @@ msmodelslim quant \
 
 ### 相关资源
 
-- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)
-- [一键量化配置协议说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#量化配置协议详解)
-- [逐层量化特性说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#逐层量化及分布式逐层量化)
+- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#62-modelslim_v1-配置详解)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#6-量化配置协议详解)
+- [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#51-逐层量化及分布式逐层量化)
 - [QuaRot 算法说明](../../../docs/zh/quantization_algorithms/outlier_suppression_algorithms/quarot.md)
 - [Iterative Smooth 算法说明](../../../docs/zh/quantization_algorithms/outlier_suppression_algorithms/iterative_smooth.md)
 - [LinearQuantProcess 线性层量化处理器说明](../../../docs/zh/quantization_algorithms/quantization_algorithms/linear_quant.md)

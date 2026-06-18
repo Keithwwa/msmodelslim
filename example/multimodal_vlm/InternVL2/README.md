@@ -1,4 +1,4 @@
-# InternVL 2.0 量化说明
+﻿# InternVL 2.0 量化说明
 
 ## 模型介绍
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
 - transformers版本需要配置安装为4.46.0
 
   ```bash
@@ -47,7 +47,7 @@
   ```
 
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`，让修改后的自定义代码文件能够正确地被加载。(请确保加载的自定义代码文件的安全性)
-  
+
 ### 1. InternVL 2.0系列
 
 #### InternVL2-8B W8A8静态量化
@@ -82,8 +82,8 @@
 
 ### 量化参数说明
 
-| 参数名 | 含义 | 默认值 | 使用方法 | 
-| ------ | ---- | --- | -------- | 
+| 参数名 | 含义 | 默认值 | 使用方法 |
+| ------ | ---- | --- | -------- |
 | model_path | 浮点权重路径 | 无默认值 | 必选参数；<br>输入InternVL 2.0原始浮点权重目录路径。 |
 | calib_images | 校准集图片路径 | ./textvqa_val | 必选参数；<br>输入校准数据集的目录路径。本示例中图片来源于公开数据集[textvqa](https://huggingface.co/datasets/maoxx241/textvqa_subset)。当前示例仅支持该校准数据集。|
 | calib_num     | 从校准数据中随机选择的数量 | 30 | 可选参数；<br>根据需要从校准集中选择一定数量的数据用于校准。建议选取30个数据。 |
@@ -93,7 +93,7 @@
 | a_bit | 激活值量化bit | 8 | 可选参数;<br>在InternVL 2.0量化场景下支持配置为8。|
 | act_method | 激活值量化方法 | 1 | 可选参数;<br>(1) 1代表Label-Free场景的min-max量化方式。<br>(2) 2代表Label-Free场景的histogram量化方式。<br>(3) 3代表Label-Free场景的自动混合量化方式。|
 | device_type | 量化运行设备类型 | 'npu' | 可选参数;<br>可选值：['cpu', 'npu']。 |
-| is_8B_model      | 是否使用8B的模型  | 不开启  | 可选参数；<br>根据需要选择使用8B大小模型或40B大小模型，开启即指定8B大小模型。 |  
+| is_8B_model      | 是否使用8B的模型  | 不开启  | 可选参数；<br>根据需要选择使用8B大小模型或40B大小模型，开启即指定8B大小模型。 |
 | trust_remote_code | 是否信任自定义代码 | False | 可选参数;<br>指定`trust_remote_code=True`让修改后的自定义代码文件能够正确地被加载(请确保所加载的自定义代码文件来源可靠，避免潜在的安全风险)。 |
 | mindie_format | 多模态理解模型量化后的权重配置文件是否兼容MindIE现有版本 | False | 开启`mindie_format`时保存的量化权重格式能够兼容MindIE当前的版本。 |
 

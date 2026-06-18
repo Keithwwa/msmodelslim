@@ -1,4 +1,4 @@
-# 线性量化算法说明
+﻿# 线性量化算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -304,7 +304,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    # ❌ 可能匹配失败：拼写错误
    include: ["*self_atttn*"]  # 拼写错误：多了一个t
    # 实际层名可能是: "*self_attention*"
-   
+
    include: ["*mlp*"]  # 可能匹配失败：不同模型使用不同命名
    # 实际层名可能是: "*ffn*" 或 "*feed_forward*"
    ```

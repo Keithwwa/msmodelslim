@@ -20,7 +20,7 @@
 <br><br>
 </div>
 
-<a id="What's New"></a>
+<a id="whats-new"></a>
 
 ## 🔥 What's New
 
@@ -223,15 +223,15 @@ If you do not want your dataset to be mentioned in the models of msModelSlim, or
 2. Security issue handling: For guidance on handling security issues in this project, please contact the core team via email for instructions.
 3. Resolving existing issues: Browse open Issues to identify issues that need attention, and attempt to fix them.
 4. Proposing new features: Use the **Feature** label when creating an issue for a new feature. We will review and confirm proposals periodically.
-5. How to contribute: 
-  a. Fork the repository of the project. 
-  b. Clone it to your local machine. 
-  c. Create a development branch. 
-  d. Conduct local testing. All unit tests, including any new test cases, must pass before submission. 
-  e. Submit your code. 
-  f. Create a pull request (PR). 
-  g. Code review: Modify the code according to review comments and resubmit your changes. This process may involve multiple rounds of iterations. 
-  h. After your PR is approved by the required number of reviewers, the committer will conduct the final review. 
+5. How to contribute:
+  a. Fork the repository of the project.
+  b. Clone it to your local machine.
+  c. Create a development branch.
+  d. Conduct local testing. All unit tests, including any new test cases, must pass before submission.
+  e. Submit your code.
+  f. Create a pull request (PR).
+  g. Code review: Modify the code according to review comments and resubmit your changes. This process may involve multiple rounds of iterations.
+  h. After your PR is approved by the required number of reviewers, the committer will conduct the final review.
   i. After your PR is approved and all tests pass, the CI system will merge it into the project's main branch.
 
 </details>

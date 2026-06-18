@@ -226,7 +226,7 @@ spec:
           dtype: "int8"
           symmetric: true
           method: "minmax"
-      include: 
+      include:
         - "*"
       exclude:
         - 'model.layers.3.mlp.down_proj'

@@ -72,11 +72,11 @@ The following example shows a YAML configuration when the algorithm is used as a
 ```yaml
 spec:
   process:
-    - type: "linear_quant" 
+    - type: "linear_quant"
       qconfig:
         weight:
           scope: "per_channel"
-          dtype: "int8" 
+          dtype: "int8"
           symmetric: true
           method: "ssz"
 ```

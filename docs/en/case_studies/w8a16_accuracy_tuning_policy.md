@@ -10,8 +10,8 @@ Transformers version compatibility: The ChatGLM2-6B model depends on Transformer
 
 ## Preparation
 
-Follow these two documents before you use the tool: 
-Install the msModelSlim tool. For details, see [msModelSlim Installation Guide](../getting_started/install_guide.md). 
+Follow these two documents before you use the tool:
+Install the msModelSlim tool. For details, see [msModelSlim Installation Guide](../getting_started/install_guide.md).
 Install the dependencies for the large-model quantization tool. See [Preparations](../feature_guide/traditional_quantization_v0/foundation_model_compression.md#preparations).
 
 ## Code Example
@@ -77,7 +77,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])     
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 
 entry = "/path/to/calib_dataset" # In this example, calibration data is taken from precision_tool/dataset/boolq/dev.jsonl.
@@ -145,8 +145,8 @@ print("model is inferring...")
 model = model.to(f"npu:{device_id}")
 model.eval()
 generate_ids = model.generate(
-    test_input.input_ids.to(f"npu:{device_id}"), 
-    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"), 
+    test_input.input_ids.to(f"npu:{device_id}"),
+    attention_mask=test_input.attention_mask.to(f"npu:{device_id}"),
     max_new_tokens=SEQ_LEN_OUT
 )
 
@@ -164,7 +164,7 @@ After calling the `Calibrator.run()` method, the tool replaces the `model` passe
  msModelSlim uses `AntiOutlierConfig` to generate outlier suppression settings. The principle is to suppress outliers during quantization to improve accuracy. For W8A16 quantization, `m3` is recommended. `m3` is the AWQ algorithm, which is also a weight-only quantization algorithm. You can think of it as suppressing outliers in the weights, but the logic is the same as activation outlier suppression. The setting method is as follows:
 
 ```python
-anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", dev_id=device_id)  
+anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", dev_id=device_id)
 anti_outlier = AntiOutlier(model, calib_data=dataset_calib, cfg=anti_config)
 anti_outlier.process()
 ```
@@ -195,14 +195,14 @@ Quantization rollback should be the last step. You can set them manually with `d
 
 ### 3. Calibration Set Adjustment
 
-1. When algorithm changes do not improve accuracy, increase the calibration set size to 10 to 50 samples. 
+1. When algorithm changes do not improve accuracy, increase the calibration set size to 10 to 50 samples.
 Normally, increasing the data volume improves accuracy, but beyond a certain threshold, the accuracy gains become limited. In some cases, reducing the data volume can actually improve accuracy (such as in long-sequence scenarios).
-2. Switch to data from practical application scenarios as the calibration set for specific use cases. 
+2. Switch to data from practical application scenarios as the calibration set for specific use cases.
 Consider the actual inference scenario during selection. For example, use Chinese input for Chinese models,
 English input for English models, code-generation tasks for code-generation models,
-and a mixed Chinese-English calibration set for bilingual models. 
-3. Eliminate data with significant output differences between the original and quantized models when constructing the calibration dataset. 
-4. Pay attention to the calibration set format. 
+and a mixed Chinese-English calibration set for bilingual models.
+3. Eliminate data with significant output differences between the original and quantized models when constructing the calibration dataset.
+4. Pay attention to the calibration set format.
 In the following example, `get_calib_dataset` adjusts the calibration set format. Using boolq as the example, the boolq dataset format is `dict={"question":str, "title":str, "answer":bool, "passage":str}`, while the tokenizer expects `"str"` for a single prompt, `"List[str]"` for a batch or a single prompt, or `"List[List[str]]"` for batched prompts.
 
 ```python
@@ -214,17 +214,17 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
         passage = calib_data["passage"]
         queries = build_prompt(title, text, passage)
         inputs = tokenizer(queries, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])       
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 ```
 
-Note: [Precision Tool usage and dataset download links](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md) 
+Note: [Precision Tool usage and dataset download links](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)
 
 ### 4. Quantization Rollback
 
 Reason for quantization rollback: Some network layers are sensitive to quantization, which can cause significant accuracy loss after quantization. These layers are not suitable for quantization and should use floating-point computation instead. This process is called rollback. The rolled-back layers are all linear layers, and you can use `disable_names` to control which layers should be rolled back.
-Why only linear layers are rolled back: LLMs contain many linear layers, with a large number of weights and matrix multiplication operations that involve heavy computation. Quantizing the weights and activations of linear layers can reduce the model size, computation, and memory usage, and improve inference speed. 
-How to determine sensitivity: The terminal logs show the `range_parm` value for the activation quantization input of each operator. A larger `range_parm` indicates higher sensitivity. 
+Why only linear layers are rolled back: LLMs contain many linear layers, with a large number of weights and matrix multiplication operations that involve heavy computation. Quantizing the weights and activations of linear layers can reduce the model size, computation, and memory usage, and improve inference speed.
+How to determine sensitivity: The terminal logs show the `range_parm` value for the activation quantization input of each operator. A larger `range_parm` indicates higher sensitivity.
 
 Weight-only quantization workflow:
 
@@ -285,6 +285,6 @@ quant_config = QuantConfig(
 
 ```
 
-In long-sequence scenarios, KV cache takes up a large amount of memory. KV cache quantization can save memory and increase concurrency. 
-Calling `kv_quant` automatically sets `use_kvcache_quant` in `QuantConfig` to `True`. 
+In long-sequence scenarios, KV cache takes up a large amount of memory. KV cache quantization can save memory and increase concurrency.
+Calling `kv_quant` automatically sets `use_kvcache_quant` in `QuantConfig` to `True`.
 `use_kvcache_quant=True` enables KV Cache quantization and it can be used together with W8A8, W8A16, and sparse quantization.

@@ -1,4 +1,4 @@
-# Flex Smooth Quant：灵活平滑量化算法说明
+﻿# Flex Smooth Quant：灵活平滑量化算法说明
 
 ## 简介
 
@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -19,7 +19,7 @@
 - 使用 `flex_smooth_quant` 算法对子图进行灵活平滑量化优化。
 - 支持可配置的平滑参数：`alpha`（激活缩放系数）、`beta`（权重缩放系数），若用户不配置的话，采用二阶段网格搜索方法搜索最佳alpha和beta参数。
 
-**算法公式：** 
+**算法公式：**
 
 ```text
 scales = (A_scale**alpha / W_scale**beta).clamp(min=1e-5)

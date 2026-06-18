@@ -304,7 +304,7 @@ exclude: [ "model.layers.*.self_attn.down_proj" ]
    # ❌ Possible matching failure: There is a spelling error.
    include: ["*self_atttn*"]  # Spelling error: There is an extra "t".
    # The actual layer name might be "*self_attention*".
-   
+
    include: ["*mlp*"]  # Possible matching failure: Different models use different naming conventions.
    # The actual layer name might be "*ffn*" or "*feed_forward*".
    ```

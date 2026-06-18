@@ -4,7 +4,7 @@
 
 AscendV1 是 msModelSlim 面向昇腾 NPU 推理的量化权重格式，由 `AscendV1Saver` 导出。推理框架（MindIE、vLLM Ascend等）通过 `quant_model_description.json` 识别各张量的量化类型，并从 `quant_model_weights.safetensors` 加载对应参数。
 
-> 关于一键量化输出目录结构、QuaRot 与 debug 信息，请参见《[一键量化生成结果](../feature_guide/quick_quantization_v1/quantization_result.md)》。
+> 关于一键量化输出目录结构、QuaRot 与 debug 信息，请参见《[一键量化生成结果](../user_guide/feature_guide/quick_quantization_v1/quantization_result.md)》。
 
 ## YAML 配置
 
@@ -337,6 +337,8 @@ MX（Microscaling）格式使用 FP8/FP4 权重与 block-wise scale。
 
 - [aclnnDequantRopeQuantKvcache](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha001/API/aolapi/context/aclnnDequantRopeQuantKvcache.md) — KV Cache 量化写入与 RoPE 融合算子。
 
+---
+
 ### FAQuant（Flash Attention 量化）
 
 | 参数名 | 数据类型 | 说明 |
@@ -427,5 +429,5 @@ $$x = x \cdot div.mul\_scale$$
 ## 相关文档
 
 - 《[格式支持矩阵](README.md)》
-- 《[一键量化生成结果](../feature_guide/quick_quantization_v1/quantization_result.md)》
+- 《[一键量化生成结果](../user_guide/feature_guide/quick_quantization_v1/quantization_result.md)》
 - 《[权重在加速库/MindIE 中的使用](../case_studies/quantization_weight_use_cases_in_acceleration_and_mindie_torch.md)》

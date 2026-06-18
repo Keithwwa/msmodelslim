@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-请参考 [多模态视图生成推理优化工具](../../docs/zh/feature_guide/traditional_quantization_v0/inference_optimization_for_multimodal_generative_model.md#使用前准备) 完成环境配置。
+请参考 [多模态视图生成推理优化工具](../../docs/zh/user_guide/feature_guide/traditional_quantization_v0/inference_optimization_for_multimodal_generative_model.md#2-使用前准备) 完成环境配置。
 
 ## 支持的模型版本与优化策略
 

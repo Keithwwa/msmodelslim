@@ -1,4 +1,4 @@
-# MiniMax-M2 量化说明
+﻿# MiniMax-M2 量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../docs/zh/getting_started/install_guide.md)》。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../docs/zh/install_guide/install_guide.md)》。
 - 由于模型量化对显存要求较高，请确保在满足模型加载和校准数据处理需求的环境下执行。
 
 ## 昇腾AI处理器支持情况

@@ -34,7 +34,7 @@ Notes
 This feature is supported only on Atlas training products, Atlas A2 training products, Atlas 800I A2 inference products, and A200I A2 Box heterogeneous components.
 
 - (Optional) To use the NF weight quantization method in the foundation model quantization tool, note that this feature is supported only on Atlas training products, Atlas A2 training products, Atlas 800I A2 inference products, and A200I A2 Box heterogeneous components.
- 
+
 - (Optional) To use the W4A4_FLATQUANT_DYNAMIC quantization method in the foundation model quantization tool, note that this feature is supported only on Atlas training products, Atlas A2 training products, Atlas 800I A2 inference products, and A200I A2 Box heterogeneous components.
 
 ### Function
@@ -109,7 +109,7 @@ The key steps are as follows:
 
     ```python
     # Import dependencies
-    import torch 
+    import torch
     import torch_npu   # To perform quantization on the CPU, skip this step.
     from transformers import AutoTokenizer, AutoModel
 
@@ -128,9 +128,9 @@ The key steps are as follows:
     def get_calib_dataset(tokenizer, calib_list):
         calib_dataset = []
         for calib_data in calib_list:
-            inputs = tokenizer([calib_data], return_tensors='pt').to(model.device)   
+            inputs = tokenizer([calib_data], return_tensors='pt').to(model.device)
             print(inputs)
-            calib_dataset.append([inputs.data['input_ids'], inputs.data['attention_mask']])     
+            calib_dataset.append([inputs.data['input_ids'], inputs.data['attention_mask']])
         return calib_dataset
 
     dataset_calib = get_calib_dataset(tokenizer, calib_list)  # Obtain calibration data.
@@ -139,17 +139,17 @@ The key steps are as follows:
     from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig    # Import quantization configuration interfaces.
     # Specify quantization parameters and return a quantization configuration instance by using QuantConfig.
     quant_config = QuantConfig(
-        a_bit=8, 
-        w_bit=8,       
-        disable_names=['transformer.encoder.layers.0.self_attention.query_key_value','transformer.encoder.layers.0.self_attention.dense', 'transformer.encoder.layers.0.mlp.dense_h_to_4h'], 
-        dev_id=model.device.index, 
+        a_bit=8,
+        w_bit=8,
+        disable_names=['transformer.encoder.layers.0.self_attention.query_key_value','transformer.encoder.layers.0.self_attention.dense', 'transformer.encoder.layers.0.mlp.dense_h_to_4h'],
+        dev_id=model.device.index,
         dev_type='npu',   # To perform quantization on the CPU, set dev_type='cpu' and remove the dev_id=model.device.index configuration.
         act_method=3,
-        pr=0.5, 
+        pr=0.5,
         mm_tensor=False
-    )  
+    )
     # Define calibration by using the Calibrator interface with the loaded original model, quantization configuration, and calibration data.
-    calibrator = Calibrator(model, quant_config, calib_data=dataset_calib, disable_level='L0')  
+    calibrator = Calibrator(model, quant_config, calib_data=dataset_calib, disable_level='L0')
     calibrator.run()     # Use run() to perform quantization.
     calibrator.save('./quant_weight', save_type=[ 'numpy', 'safe_tensor'])      # Save model quantization parameters by using save(). Modify the path as needed.
     print('Save quant weight success!')
@@ -164,7 +164,7 @@ The key steps are as follows:
     from transformers import AutoTokenizer, AutoModel
 
     # For local path
-    tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path='./chatglm2', local_files_only=True) 
+    tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path='./chatglm2', local_files_only=True)
     model = AutoModel.from_pretrained(
         pretrained_model_name_or_path='./chatglm2', local_files_only=True
         ).npu()    # To perform multi-device quantization on the NPU, refer to the prerequisites for configuration and set device_map='auto'. When creating a model, remove .npu(). To perform quantization on the CPU, set torch_dtype=torch.float32 and remove .npu().
@@ -190,15 +190,15 @@ The key steps are as follows:
     # Specify quantization parameters and return a quantization configuration instance by using QuantConfig.
     quant_config = QuantConfig(
         w_bit=8,     # In W4A16 scenarios, set w_bit to 4. In the W4A16 per_group scenario, refer to the W4A16 per_group quantization parameter settings.
-        a_bit=16,         
-        disable_names=[], 
-        dev_id=model.device.index, 
+        a_bit=16,
+        disable_names=[],
+        dev_id=model.device.index,
         dev_type='npu',   # To perform quantization on the CPU, set dev_type='cpu' and remove the dev_id=model.device.index configuration.
-        w_sym=False, 
+        w_sym=False,
         mm_tensor=False
-    )  
+    )
     # Define calibration by using the Calibrator interface with the loaded original model, quantization configuration, and calibration data.
-    calibrator = Calibrator(model, quant_config, calib_data=dataset_calib, disable_level='L0')  
+    calibrator = Calibrator(model, quant_config, calib_data=dataset_calib, disable_level='L0')
     calibrator.run()     # Use run() to perform quantization.
     calibrator.save('./quant_weight', save_type=[ 'numpy', 'safe_tensor'])      # Save model quantization parameters by using save(). Modify the path as needed.
     print('Save quant weight success!')
@@ -259,7 +259,7 @@ When [`save_type`](../../python_api_v0/foundation_model_compression_apis/foundat
 ```
 
 > Note: When the `w4a8_dynamic` quantization type is used, the `safe_tensor` content includes an additional `weight_scale_second` and `weight_offset_second` key and their corresponding tensor values.
-    
+
 - The JSON description file stores the overall quantization type (`model_quant_type`), the KV cache quantization enabling status (`kv_cache_type`), and the type of each individual weight. The weight types are defined as follows: `FLOAT` (from the original floating-point weights), `W8A8` (from W8A8 quantization), `W8A8S` (from sparse quantization), `W8A8SC` (from compression), `NF4` (from NF4 quantization), and `W4A4_FLATQUANT_DYNAMIC` (from the W4A4 Flatquant quantization method).
 
 ```text
@@ -369,7 +369,7 @@ pip3 install numpy==1.25.2
 pip3 install transformers       # The version must be 4.29.1 or later. For the LLaMA model, the 4.29.1 version must be installed.
 pip3 install torch==2.1.0        # Installs PyTorch 2.1.0.
 pip3 install accelerate==0.21.0 # If a model needs to be quantized in multi-NPU parallel mode, the version must be 0.28.0 or later.
-pip3 install tqdm==4.66.1 
+pip3 install tqdm==4.66.1
 pip3 install tensorboard      # The version must be 2.11.2 or later.
 pip3 install typepy           # The version must be 1.3.1 or later.
 pip3 install sacrebleu        # The version must be 2.3.1 or later.
@@ -398,12 +398,12 @@ This feature is supported only on Atlas training products, Atlas A2 training pro
 
 Table 1 lists verified foundation models that are currently supported for quantization. This list is non-exhaustive.
 
-Table 1 Verified models 
+Table 1 Verified models
 
-| Model Name| Framework|  
+| Model Name| Framework|
 |----------|-------|
-| ChatGLM2-6B | PyTorch |  
-| LLaMA2-7B | PyTorch |  
+| ChatGLM2-6B | PyTorch |
+| LLaMA2-7B | PyTorch |
 | LLaMA-13B | PyTorch |
 
 ### The key steps of the foundation model sparse quantization tool are as follows
@@ -489,12 +489,12 @@ import torch.utils.data
 from transformers import AutoTokenizer, AutoModel
 # for local path
 tokenizer = AutoTokenizer.from_pretrained(
-    pretrained_model_name_or_path='./chatglm2', 
+    pretrained_model_name_or_path='./chatglm2',
     local_files_only=True
-) 
+)
 model = AutoModel.from_pretrained(
     pretrained_model_name_or_path='./chatglm2',
-    torch_dtype=torch.float16, 
+    torch_dtype=torch.float16,
     local_files_only=True
   ).npu()    # To perform multi-device quantization on the NPU, refer to the prerequisites for configuration, set device_map='auto', and set torch_dtype to the default data type of the model. To perform quantization on the NPU, move the model to the NPU for single-device calibration (model = model.npu()). This is not required for multi-device calibration.
 # Prepare calibration data and modify the data as needed.
@@ -507,7 +507,7 @@ calib_list = ["Where is the capital of China?",
 def get_calib_dataset(tokenizer, calib_list):
     calib_dataset = []
     for calib_data in calib_list:
-        inputs = tokenizer([calib_data], return_tensors='pt').to(model.device) 
+        inputs = tokenizer([calib_data], return_tensors='pt').to(model.device)
         print(inputs)
         calib_dataset.append([inputs.data['input_ids'], inputs.data['attention_mask']])
     return calib_dataset
@@ -517,17 +517,17 @@ dataset_calib = get_calib_dataset(tokenizer, calib_list)  # Obtain calibration d
 from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig    # Import sparse quantization configuration interfaces.
 # Specify sparse quantization parameters and return a configuration instance by using QuantConfig.
 quant_config = QuantConfig(
-    w_bit=4, 
-    disable_names=['transformer.encoder.layers.0.self_attention.query_key_value','transformer.encoder.layers.0.self_attention.dense', 'transformer.encoder.layers.0.mlp.dense_h_to_4h'], 
+    w_bit=4,
+    disable_names=['transformer.encoder.layers.0.self_attention.query_key_value','transformer.encoder.layers.0.self_attention.dense', 'transformer.encoder.layers.0.mlp.dense_h_to_4h'],
     act_method=3,
     dev_type='npu',  # To perform quantization on the CPU, set dev_type='cpu' and remove the dev_id=model.device.index configuration.
     dev_id=model.device.index,
-    pr=2.0, 
-    fraction=0.011, 
-    nonuniform=False, 
-    mm_tensor=False, 
+    pr=2.0,
+    fraction=0.011,
+    nonuniform=False,
+    mm_tensor=False,
     co_sparse=True
- )  
+ )
 # Define calibration by using Calibrator with the loaded original model, sparse quantization configuration, and calibration data.
 calibrator = Calibrator(model, quant_config, calib_data=dataset_calib, disable_level='L0')
 calibrator.run()     # Use run() to perform quantization.
@@ -639,7 +639,7 @@ If you run the following commands as a non-root user, add `--user` to the end of
 
 ```bash
 pip3 install numpy==1.25.2
-pip3 install tqdm==4.66.1 
+pip3 install tqdm==4.66.1
 pip3 install typepy           # The version must be 1.3.1 or later.
 pip3 install sacrebleu        # The version must be 2.3.1 or later.
 pip3 install datasets         # The version must be 2.13.1 or later.
@@ -722,7 +722,7 @@ calib_list = ["Where is the capital of China?",
 def get_calib_dataset(tokenizer, calib_list):
     calib_dataset = []
     for calib_data in calib_list:
-        inputs = tokenizer(calib_data, return_tensors='np', padding=True) 
+        inputs = tokenizer(calib_data, return_tensors='np', padding=True)
         calib_dataset.append([inputs.data['input_ids']])
     return calib_dataset
 dataset_calib = get_calib_dataset(tokenizer, calib_list)  # Obtain calibration data.
@@ -789,7 +789,7 @@ for k, v in sparse_ckpt.items():
    if reg.search(k):
         if k in disable_names:
             continue
-        compressed_weight_dict[k] = v.numpy() 
+        compressed_weight_dict[k] = v.numpy()
 with SafeWriteUmask():
     np.save(f"quant_weight.npy", compressed_weight_dict)
 ```
@@ -870,7 +870,7 @@ If you run the following commands as a non-root user, add `--user` to the end of
 
 ```bash
 pip3 install numpy==1.26.4
-pip3 install transformers==4.43.1 
+pip3 install transformers==4.43.1
 pip3 install torch==2.1.0   # Install PyTorch 2.1.0 (CPU version) that does not depend on torch_npu.
 ```
 
@@ -924,14 +924,14 @@ config = RACompressConfig(theta=0.00001, alpha=100)   # Compression class config
 input_model_path = "/data1/models/baichuan/baichuan2-13b/float_path/"    # Save path for the model weight files. Modify it as needed.
 save_path = "./win.pt"   # Save path for the generated compression window. Modify it as needed.
 tokenizer = AutoTokenizer.from_pretrained(
-    pretrained_model_name_or_path=input_model_path, 
+    pretrained_model_name_or_path=input_model_path,
     local_files_only=True
-    ) 
+    )
 model = AutoModelForCausalLM.from_pretrained(
-    pretrained_model_name_or_path=input_model_path, 
+    pretrained_model_name_or_path=input_model_path,
     local_files_only=True
     ).float().cpu()   # NPU-based loading is not supported.
-ra = RACompressor(model, config) 
+ra = RACompressor(model, config)
 ra.get_alibi_windows(save_path)
 ```
 
@@ -969,7 +969,7 @@ If you run the following commands as a non-root user, add `--user` to the end of
 
 ```bash
 pip3 install numpy==1.26.4
-pip3 install transformers==4.43.1 
+pip3 install transformers==4.43.1
 pip3 install torch==2.1.0       # Install PyTorch 2.1.0 (CPU version) depending on torch_npu.
 pip3 install torch_npu-2.1.0.xxx.whl
 ```
@@ -1022,24 +1022,24 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch_npu
 torch.npu.set_compile_mode(jit_compile=False)
 config = RARopeCompressConfig(induction_head_ratio=0.14, echo_head_ratio=0.01)
-save_path = "./win.pt" 
+save_path = "./win.pt"
 model_path = "./Qwen2-72B-Instruct/"
- 
+
 model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_name_or_path=model_path,
-        torch_dtype=torch.bfloat16, 
-        device_map="auto", 
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
         local_files_only=True
     ).eval()
- 
+
 tokenizer = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path=model_path,
         pad_token='<|extra_0|>',
         eos_token='<|endoftext|>',
         padding_side='left',
         local_files_only=True
-    ) 
-ra = RARopeCompressor(model, tokenizer, config) 
+    )
+ra = RARopeCompressor(model, tokenizer, config)
 ra.get_compress_heads(save_path)
 ```
 
@@ -1131,7 +1131,7 @@ Deep learning operations, especially those in computer vision (CV) and natural l
 
 ### Preparations
 
-Currently, the low-rank decomposition tool is supported for models under the MindSpore and PyTorch frameworks on the training server. 
+Currently, the low-rank decomposition tool is supported for models under the MindSpore and PyTorch frameworks on the training server.
 Install msModelSlim. For details, see [msModelSlim Installation Guide](../../getting_started/install_guide.md).
 
 ### Function
@@ -1143,7 +1143,7 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
     ```python
     from msmodelslim.pytorch import low_rank_decompose
     # Import the library file for the corresponding framework as needed.
-    from ascend_utils.common.utils import count_parameters 
+    from ascend_utils.common.utils import count_parameters
     from ascend_utils.common.security import SafeWriteUmask
     ```
 
@@ -1166,7 +1166,7 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
 5. After the model is created, use the `Decompose` class interface to configure the low-rank decomposition mode. For details, refer to the `Decompose` configuration.
 
     ```python
-    decomposer = low_rank_decompose.Decompose(model).from_ratio(0.5) 
+    decomposer = low_rank_decompose.Decompose(model).from_ratio(0.5)
     ```
 
 6. Use the `decompose_network` method of the `Decompose` class to perform low-rank decomposition and return the decomposed model. For details, refer to the `decompose_network` configuration.

@@ -55,7 +55,7 @@ spec:
           dtype: "int8"        # Currently, only INT8 is supported.
           symmetric: false     # PDMIX quantization is fundamentally asymmetric.
           method: "minmax"     # Currently, only the MinMax algorithm is supported.
-        weight: # Weight quantization configuration  
+        weight: # Weight quantization configuration
           scope: "per_channel" # Currently, only per_channel weight quantization is supported.
           dtype: "int8"        # Currently, only INT8 weight quantization is supported.
           symmetric: true      # Only symmetric weight quantization is supported.

@@ -1,4 +1,4 @@
-# Qwen Image Edit 量化使用说明
+﻿# Qwen Image Edit 量化使用说明
 
 ## Qwen Image Edit 模型介绍
 

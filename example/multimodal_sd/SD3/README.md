@@ -1,4 +1,4 @@
-# SD3-Medium量化使用说明
+﻿# SD3-Medium量化使用说明
 
 当前仅支持对SD3模型的transformer部分进行W8A8静态量化。
 

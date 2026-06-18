@@ -71,8 +71,8 @@ from ascend_utils.common.security.pytorch import safe_torch_load
 from msmodelslim.pytorch.quant.ptq_tools import Calibrator, QuantConfig
 
 pipe = StableDiffusion3Pipeline.from_pretrained(
-    "/stable-diffusion-3-medium-diffusers/", 
-    torch_dtype=torch.float16, 
+    "/stable-diffusion-3-medium-diffusers/",
+    torch_dtype=torch.float16,
     local_files_only=True
     ).to("npu") # Specifies the model directory path.
 pipe.set_progress_bar_config(disable=True)
@@ -120,7 +120,7 @@ class Listener(torch.nn.Module):
         super(Listener, self).__init__()
         self.module = module
         self.inputs = []
-    
+
     def forward(self, *args, **kwargs):
         sample = {}
         for k in kwargs:
@@ -132,8 +132,8 @@ class Listener(torch.nn.Module):
         return self.module(*args, **kwargs)
 
 pipe = StableDiffusion3Pipeline.from_pretrained(
-    "path_to_stable-diffusion-3-medium-diffusers", 
-    torch_dtype=torch.float16, 
+    "path_to_stable-diffusion-3-medium-diffusers",
+    torch_dtype=torch.float16,
     local_files_only=True
     )
 pipe.to("npu")  # Set it to pipe.to("cuda") when using GPU.
@@ -172,7 +172,7 @@ ONNX model quantization supports multiple optimization modes, including label-fr
 
 - Label-Free Mode
     In label-free mode, a small number of datasets are required to calibrate quantization factors in the quantization process. This mode allows the tool to adjust quantization parameters based on actual data distributions, maximizing post-quantization model accuracy. The quantization procedure below demonstrates this workflow using the `post_training_quant` interface.
-    
+
 ### Preparations
 
 Install msModelSlim. For details, see [msModelSlim Installation Guide](../../getting_started/install_guide.md).
@@ -610,7 +610,7 @@ If you run the following commands as a non-root user, add `--user` to the end of
     dummy_input = torch.ones([args.batch_size, 3, 224, 224]).type(torch.float32)
     saved_ckpt = args.quant_ckpt
     input_names=['input1']
-    save_qsin_qat_model(model, save_onnx_name, dummy_input, saved_ckpt, input_names)  
+    save_qsin_qat_model(model, save_onnx_name, dummy_input, saved_ckpt, input_names)
     ```
 
 6. Run the quantization script to obtain the quantized ONNX model.

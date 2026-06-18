@@ -1,4 +1,4 @@
-# Qwen3-Next 量化说明
+﻿# Qwen3-Next 量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide/install_guide.md)。
 - 需要安装 transformers 4.57.1：
     - pip install transformers==4.57.1
 
@@ -36,7 +36,7 @@
 
 ##### <span id="qwen3-next-80b-a3b-instruct-w8a8量">Qwen3-Next-80B-A3B-Instruct W8A8量化</span>
 
-该模型的量化已经集成至[一键量化](../../docs/zh/feature_guide/quick_quantization_v1/usage.md)。
+该模型的量化已经集成至[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)。
 
   ```shell
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3-Next-80B-A3B-Instruct --quant_type w8a8 --trust_remote_code True

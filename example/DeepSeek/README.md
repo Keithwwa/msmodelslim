@@ -1,4 +1,4 @@
-# DeepSeek 量化说明
+﻿# DeepSeek 量化说明
 
 ## 模型介绍
 
@@ -19,7 +19,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../docs/zh/install_guide/install_guide.md)。
 - 对于DeepSeek-V3系列/DeepSeek-R1系列/DeepSeek-V4系列模型，由于模型比较大，请先完成"
   运行前必检"（[DeepSeek-V3运行前必检](#deepseek-v3-运行前必检) / [DeepSeek-R1运行前必检](#deepseek-r1-运行前必检) / [deepseek-v4运行前必检](#deepseek-v4-运行前必检)）。
 - 由于模型量化对显存要求较高，请确保在单卡显存不低于64G的环境下执行。

@@ -1,4 +1,4 @@
-# 稀疏量化精度调试案例
+﻿# 稀疏量化精度调试案例
 
 ## 概述
 
@@ -6,9 +6,9 @@
 
 ## 前期准备
 
-代码示例中额外使用了`precision_tool`工具，可以参考该文档进行配置 ：[精度测试工具](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)。
+代码示例中额外使用了`precision_tool`工具，可以参考该文档进行配置 ：[精度测试工具](../user_guide/feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)。
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../install_guide/install_guide.md)。
 
 ## 代码示例
 
@@ -43,8 +43,8 @@ def test_generate_oneshot(tokenizer, model):
     print("model is inferring...")
     model.eval()
     generate_ids = model.generate(
-        test_input.input_ids.to(f"npu:{model.device.index}"), 
-        attention_mask=test_input.attention_mask.to(f"npu:{model.device.index}"), 
+        test_input.input_ids.to(f"npu:{model.device.index}"),
+        attention_mask=test_input.attention_mask.to(f"npu:{model.device.index}"),
         max_new_tokens=SEQ_LEN_OUT
     )
     out_str = tokenizer.decode(generate_ids[0], skip_special_tokens=True, clean_up_tokenization_spaces=False)
@@ -70,9 +70,9 @@ tokenizer = AutoTokenizer.from_pretrained(
 )
 
 model = AutoModelForCausalLM.from_pretrained(
-    pretrained_model_name_or_path=args.model_path, 
+    pretrained_model_name_or_path=args.model_path,
     local_files_only=True,
-    torch_dtype=torch.float16, 
+    torch_dtype=torch.float16,
     device_map=args.device)
 
 """
@@ -96,7 +96,7 @@ def get_calib_dataset(tokenizer, calib_list, device):
     calib_dataset = []
     for calib_data in calib_list:
         inputs = tokenizer(calib_data, return_tensors='pt')
-        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])     
+        calib_dataset.append([inputs.data['input_ids'].to(device), inputs.data['attention_mask'].to(device)])
     return calib_dataset
 
 calib_set = []  # 初始化为空列表，后续从校准集文件中读取并追加相应的校准数据

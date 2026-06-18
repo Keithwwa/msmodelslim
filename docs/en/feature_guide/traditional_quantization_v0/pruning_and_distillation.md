@@ -8,7 +8,7 @@ msModelSlim provides model pruning APIs based on importance evaluation. You only
 
 ### Preparations
 
-Currently, model pruning is supported under the PyTorch framework. 
+Currently, model pruning is supported under the PyTorch framework.
 Install msModelSlim. For details, see [msModelSlim Installation Guide](../../getting_started/install_guide.md).
 
 - Note: This feature supports only PyTorch 2.0.0 or later.
@@ -60,7 +60,7 @@ msModelSlim provides API-based weight pruning for transformer models. This featu
 
 ### Preparations
 
-Currently, weight pruning for transformer models is supported under the MindSpore and PyTorch frameworks. 
+Currently, weight pruning for transformer models is supported under the MindSpore and PyTorch frameworks.
 Install msModelSlim. For details, see [msModelSlim Installation Guide](../../getting_started/install_guide.md).
 
 - Note: This feature supports only PyTorch 2.0.0 or later.
@@ -156,7 +156,7 @@ class SimpleModel(torch.nn.Module):
         super(SimpleModel, self).__init__()
         self.linear1 = torch.nn.Linear(100, 50)
         self.linear2 = torch.nn.Linear(50, 10)
-    
+
     def forward(self, x):
         x = self.linear1(x)
         x = self.linear2(x)
@@ -249,7 +249,7 @@ The following procedure uses a transformer model under the PyTorch framework as 
 
     - Change `model = modeling.BertForQuestionAnswering(config)` in the original code to `model = distill_model.student_model` to configure the optimizer for the student model.
     - Change `start_logits, end_logits = model(input_ids, segment_ids, input_mask)` in the original code to `loss, student_outputs, teacher_outputs = distill_model(input_ids, segment_ids, input_mask)` and comment out the original loss calculation section to train the `DistillDualModels` model instance.
- 
+
 7. Use the `get_student_model` method to obtain the trained student model after training is complete. (For models under the MindSpore framework, you cannot train the `DistillDualModels` model instance again after executing the `get_student_model` method.)
 
     ```python

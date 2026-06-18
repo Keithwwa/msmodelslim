@@ -1,4 +1,4 @@
-# InternVL 3.5 MoE 量化说明
+﻿# InternVL 3.5 MoE 量化说明
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/getting_started/install_guide.md)》。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 
 - 需安装依赖包：
 
@@ -29,7 +29,7 @@
 
 ### <span id="internvl3_5-241b-a28b-w8a8混合量化">InternVL3_5-241B-A28B W8A8 混合量化</span>
 
-该模型的量化已集成至一键量化，示例参数详见文档《一键量化完整指南》中的“[参数说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)”章节。
+该模型的量化已集成至一键量化，示例参数详见文档《一键量化完整指南》中的“[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)”章节。
 
 ```shell
 msmodelslim quant \
@@ -45,5 +45,5 @@ msmodelslim quant \
 
 ### 相关资源
 
-- [一键量化配置协议说明](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#量化配置协议详解)
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#multimodal_vlm_modelslim_v1-配置详解)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#6-量化配置协议详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#64-multimodal_vlm_modelslim_v1-配置详解)

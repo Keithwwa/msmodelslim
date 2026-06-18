@@ -7,7 +7,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../getting_started/install_guide.md)》。
+安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../install_guide/install_guide.md)》。
 
 ## 原理
 
@@ -73,12 +73,12 @@ msmodelslim analyze attn \
 | `attn` | 注意力结构敏感度分析 |
 | `--metrics` | 指定分析算法，取值为 `mse` 时使用本算法 |
 
-完整参数见[敏感层分析工具使用指南参数说明](../../feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
+完整参数见[敏感层分析工具使用指南参数说明](../../user_guide/feature_guide/sensitive_layer_analysis/usage.md#34-参数说明)。
 
 ## FAQ
 
 ### 报错提示未实现 `AttentionMSEAnalysisInterface`？
 
-**现象**: 运行 `analyze attn --metrics mse` 时报错，提示未实现 `AttentionMSEAnalysisInterface`。  
+**现象**: 运行 `analyze attn --metrics mse` 时报错，提示未实现 `AttentionMSEAnalysisInterface`。
 
 **解决方案**: 当前 `model_type` 的适配器未接入该分析路径；请换用支持列表中的模型类型，或在适配器中按接口实现 hook 类名与输出提取逻辑。

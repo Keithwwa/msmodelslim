@@ -1,4 +1,4 @@
-# AutoRound：低比特量化算法说明
+﻿# AutoRound：低比特量化算法说明
 
 ## 简介
 
@@ -8,7 +8,7 @@
 
 ## 使用前准备
 
-安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../getting_started/install_guide.md)。
+安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../install_guide/install_guide.md)。
 
 ## 原理和实现
 
@@ -124,7 +124,7 @@ default_w8a8_dynamic: &default_w8a8_dynamic
     symmetric: True           # 是否启用对称量化
     method: "minmax"          # 激活值量化方法：MinMax算法
 
-# W4A4 动态量化配置模板  
+# W4A4 动态量化配置模板
 default_w4a4_dynamic: &default_w4a4_dynamic
   weight:
     scope: "per_group"

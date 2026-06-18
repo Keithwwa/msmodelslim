@@ -1,4 +1,4 @@
-# Qwen2.5-VL 量化说明
+﻿# Qwen2.5-VL 量化说明
 
 ## 模型介绍
 
@@ -11,7 +11,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/getting_started/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
 - 还需要执行以下命令安装qwen_vl_utils依赖
     - pip install qwen_vl_utils
 - 针对Qwen2.5-VL，transformers版本需要配置安装为4.49.0
@@ -44,7 +44,7 @@
   ```
 
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`，让修改后的自定义代码文件能够正确地被加载。(请确保加载的自定义代码文件的安全性)
-  
+
 ### 1. Qwen2.5-VL系列
 
 #### 1.1 Qwen2.5-VL W8A8静态量化 异常值抑制算法使用m2
@@ -83,8 +83,8 @@
 
 ### 量化参数说明
 
-| 参数名 | 含义 | 默认值 | 使用方法 | 
-| ------ | ---- | --- | -------- | 
+| 参数名 | 含义 | 默认值 | 使用方法 |
+| ------ | ---- | --- | -------- |
 | model_path | 浮点权重路径 | 无默认值 | 必选参数；<br>输入Qwen2.5-VL原始浮点权重目录路径。 |
 | calib_images | 校准集图片路径 | ../calibImages | 可选参数；<br>输入校准数据集的目录路径。本示例中图片来源于公开数据集[COCO](https://cocodataset.org/#download)。 为保证量化精度需要根据示例扩充到30张图片。用户可根据实际场景替换为其他图片。|
 | save_directory | 量化权重路径 | 无默认值 | 必选参数；<br>输出量化权重路径。 |

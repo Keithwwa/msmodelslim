@@ -3,17 +3,17 @@
 ## Overview
 
 The weight formats used by msModelSlim differ from those used by the open-source tools AutoAWQ and AutoGPTQ. This guide explains how to convert msModelSlim quantized weights into weights that match the formats used by these tools, so that converted W4A16 weights for `qwen2-7b` can be loaded directly in Hugging Face format.
-This guide supports weight conversion only for the following configurations: 
-W4A16 + per_group + AWQ  
-W4A16 + per_group + GPTQ  
-W4A16 + per_channel + GPTQ  
-W8A16 + per_group + GPTQ  
+This guide supports weight conversion only for the following configurations:
+W4A16 + per_group + AWQ
+W4A16 + per_group + GPTQ
+W4A16 + per_channel + GPTQ
+W8A16 + per_group + GPTQ
 W8A16 + per_channel + GPTQ
 
-Supported platforms: 
-msModelSlim quantization: NPU 
-Conversion script: CPU 
-AutoAWQ: GPU 
+Supported platforms:
+msModelSlim quantization: NPU
+Conversion script: CPU
+AutoAWQ: GPU
 AutoGPTQ: GPU
 
 ## msModelSlim Quantization
@@ -27,20 +27,20 @@ For dependency installation, see [Preparations](../feature_guide/traditional_qua
 ### Quantization Instructions
 
 The quantization script is the same as a normal quantization script. Refer to [W8A8 Accuracy Tuning Policy](w8a8_accuracy_tuning_policy.md).
-This guide uses W4A16 quantization as an example. Pay attention to the following points: 
+This guide uses W4A16 quantization as an example. Pay attention to the following points:
 a. In the outlier suppression configuration (`AntiOutlierConfig`), set `a_bit` and `w_bit` according to the quantization mode. When `anti_method` is set to `"m3"`, the AWQ algorithm is used. For GPTQ, you do not need the outlier suppression module, so you can comment out the related configuration.
 
 ```python
-anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", a_bit=16, w_bit=4, dev_id=device_id, w_sym=True)  
+anti_config = AntiOutlierConfig(anti_method="m3", dev_type="npu", a_bit=16, w_bit=4, dev_id=device_id, w_sym=True)
 anti_outlier = AntiOutlier(model, calib_data=dataset_calib, cfg=anti_config)
 anti_outlier.process()
 ```
 
 b. `QuantConfig` configuration
 The parameters differ for `per_channel` and `per_group`.
-(1) `per_group` requires these parameters: `is_lowbit=True`, `open_outlier=False`, `group_size=128`. 
-(2) In the `per_channel` scenario, you do not need the following three parameters. Comment them out: `is_lowbit=True`, `open_outlier=False`, `group_size=128`. 
-(3) If you use AutoGPTQ, change `w_method` to `'GPTQ'`. GPTQ quantization also takes longer to run. 
+(1) `per_group` requires these parameters: `is_lowbit=True`, `open_outlier=False`, `group_size=128`.
+(2) In the `per_channel` scenario, you do not need the following three parameters. Comment them out: `is_lowbit=True`, `open_outlier=False`, `group_size=128`.
+(3) If you use AutoGPTQ, change `w_method` to `'GPTQ'`. GPTQ quantization also takes longer to run.
 The following is an example `per_group` configuration for AutoAWQ:
 
 ```python
@@ -50,17 +50,17 @@ quant_config = QuantConfig(
     disable_names=disable_names,   # Names of quantized layers that should be rolled back manually
     mm_tensor=False,               # Default: True for per_tensor quantization, False for per_channel quantization
     dev_type='npu',                # The quantization tool runs on NPU.
-    dev_id=0,                       
+    dev_id=0,
     w_sym=True,                    # Symmetric quantization
     w_method='MinMax',             # Weight quantization algorithm configuration
     is_lowbit=True,                # Parameters for the per_group scenario. Comment out these three parameters for per_channel quantization.
     open_outlier=False,
-    group_size=128                 
+    group_size=128
 )
 ```
 
 c. Saved weight files
-This script supports conversion only for unsliced safetensors weights. When you save the quantized weight file, do not use sharded saving. 
+This script supports conversion only for unsliced safetensors weights. When you save the quantized weight file, do not use sharded saving.
 For reference, see the [`save()` API description](../python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_save().md).
 
 ```python
@@ -73,7 +73,7 @@ The conversion script is located at [`ms_to_vllm.py`](https://gitcode.com/Ascend
 
 After you quantize the weights with msModelSlim in step 1.1 and generate `quant_model_description_w4a16.json` and `quant_model_weight_w4a16.safetensors`, run `ms_to_vllm.py` to convert the weight format and generate the converted `safetensors` file. Use the command as follows:
 
-```python 
+```python
 Command:
 python ms_to_vllm.py --model {weighted_safetensors_path} --json {weighted_json_path} --save_path  {converted_safetensors_path} --w_bit {weight_bit} --target_tool  {target_convert_tool}
 
@@ -86,7 +86,7 @@ Description:
 
 Example:
 Copy the conversion script into the directory that contains the quantized weights, then run the following command in that directory. The converted weight file `res.safetensors` is generated in the same directory:
-python ms_to_vllm.py --model ./quant_model_weight_w4a16.safetensors --json ./quant_model_description_w4a16.json --save_path res.safetensors --target_tool awq 
+python ms_to_vllm.py --model ./quant_model_weight_w4a16.safetensors --json ./quant_model_description_w4a16.json --save_path res.safetensors --target_tool awq
 
 ```
 
@@ -99,7 +99,7 @@ For environment setup, quantization, and inference, refer to the `readme.md` on 
 ### Quantization Instructions
 
 AutoAWQ quantization needs special attention. When `Version` uses `GEMM`, an error may occur if you do not pass a dataset. In that case, pass the `val.jsonl` file. See [AutoAWQ issue #506](https://github.com/casper-hansen/AutoAWQ/issues/506).
-Dataset download link: [val.jsonl.zst](https://huggingface.co/datasets/mit-han-lab/pile-val-backup/blob/main/val.jsonl.zst). If `trust_remote_code` is set to `True`, code files in the weights directory of the floating-point model may be executed. Ensure that the source of the floating-point model is secure.    
+Dataset download link: [val.jsonl.zst](https://huggingface.co/datasets/mit-han-lab/pile-val-backup/blob/main/val.jsonl.zst). If `trust_remote_code` is set to `True`, code files in the weights directory of the floating-point model may be executed. Ensure that the source of the floating-point model is secure.
 Example AutoAWQ quantization script:
 
 ```python
@@ -159,7 +159,7 @@ print("model is inferring...")
 model.eval()
 generate_ids = model.generate(
     test_input.input_ids.cuda(),
-    attention_mask=test_input.attention_mask.cuda(), 
+    attention_mask=test_input.attention_mask.cuda(),
     max_new_tokens=16
 )
 
@@ -170,9 +170,9 @@ for idx, item in enumerate(res):
 
 If you do not use AutoAWQ quantization to generate the quantization config file and instead run inference directly with the model converted by msModelSlim, follow these steps:
 
-1. Copy the floating-point model config file into the directory that contains the converted weights generated by msModelSlim quantization. 
-2. Modify the `model.safetensors.index.json` file in the quantized weight directory. Update the weight file names in `weight_map` to the weight file name generated by the conversion script in section 1.2. 
-3. Modify the `config.json` file and add the `quantization_config` parameter. Set `bits` to the quantized weight bit width, and keep `group_size` consistent with the `group_size` used by msModelSlim quantization. Refer to the `config.json` generated after AutoAWQ quantization in section 2.2.   
+1. Copy the floating-point model config file into the directory that contains the converted weights generated by msModelSlim quantization.
+2. Modify the `model.safetensors.index.json` file in the quantized weight directory. Update the weight file names in `weight_map` to the weight file name generated by the conversion script in section 1.2.
+3. Modify the `config.json` file and add the `quantization_config` parameter. Set `bits` to the quantized weight bit width, and keep `group_size` consistent with the `group_size` used by msModelSlim quantization. Refer to the `config.json` generated after AutoAWQ quantization in section 2.2.
     The following example uses Qwen2-7B-Instruct and W4A16 + AWQ. Add `quantization_config` to `config.json` as follows:
 
     ```json
@@ -196,11 +196,11 @@ If you do not use AutoAWQ quantization to generate the quantization config file 
 
 ### Preparation
 
-For environment setup, quantization, and inference, refer to the `readme.md` on GitHub: [AutoGPTQ README](https://github.com/AutoGPTQ/AutoGPTQ). 
+For environment setup, quantization, and inference, refer to the `readme.md` on GitHub: [AutoGPTQ README](https://github.com/AutoGPTQ/AutoGPTQ).
 
 ### Quantization Instructions
 
-Converting msModelSlim weights to the AutoGPTQ format for inference is similar to AutoAWQ. First, read the AutoGPTQ `readme.md` linked in section 3.1, refer to the quantization example, modify the related configuration parameters, and then run quantization to generate the quantized weight file. 
+Converting msModelSlim weights to the AutoGPTQ format for inference is similar to AutoAWQ. First, read the AutoGPTQ `readme.md` linked in section 3.1, refer to the quantization example, modify the related configuration parameters, and then run quantization to generate the quantized weight file.
 The modified configuration includes the path and the `BaseQuantizeConfig` interface. In `BaseQuantizeConfig`, `bits` is the quantized weight bit width and corresponds to `w_bit` in msModelSlim. In the `per_group` scenario, set `group_size` to the same value as msModelSlim. In the `per_channel` scenario, set `group_size` to `-1`.
 
 ### Inference Instructions
@@ -229,9 +229,9 @@ print(tokenizer.decode(model.generate(**tokenizer("auto_gptq is", return_tensors
 
 If you do not use AutoGPTQ quantization to generate the quantization config file and instead directly infer with the model converted by msModelSlim, follow these steps:
 
-1. Copy the floating-point model config files `config.json` and `model.safetensors.index.json` into the directory that contains the converted weights generated by msModelSlim quantization.  
-2. Modify the `model.safetensors.index.json` file in the quantized weight directory. Update the weight file names in `weight_map` to the weight file name generated by the conversion script in section 1.2. 
-3. Create a new `quantize_config.json` file in the quantized weight directory. Set `bits` to the quantized weight bit width, and keep `group_size` consistent with the `group_size` used by msModelSlim quantization. Refer to the `quantize_config.json` file generated after AutoGPTQ quantization. 
+1. Copy the floating-point model config files `config.json` and `model.safetensors.index.json` into the directory that contains the converted weights generated by msModelSlim quantization.
+2. Modify the `model.safetensors.index.json` file in the quantized weight directory. Update the weight file names in `weight_map` to the weight file name generated by the conversion script in section 1.2.
+3. Create a new `quantize_config.json` file in the quantized weight directory. Set `bits` to the quantized weight bit width, and keep `group_size` consistent with the `group_size` used by msModelSlim quantization. Refer to the `quantize_config.json` file generated after AutoGPTQ quantization.
     The following example uses Qwen2-7B-Instruct and W4A16 + GPTQ. Create `quantize_config.json` as follows:
 
     ```json

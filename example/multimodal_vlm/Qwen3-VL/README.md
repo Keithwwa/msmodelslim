@@ -1,4 +1,4 @@
-# Qwen3-VL 量化案例
+﻿# Qwen3-VL 量化案例
 
 ## 模型介绍
 
@@ -6,7 +6,7 @@
 
 ## 环境配置
 
-- 基础环境配置请参考[安装指南](../../../docs/zh/getting_started/install_guide.md)，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为≥2.2版本。
+- 基础环境配置请参考[安装指南](../../../docs/zh/install_guide/install_guide.md)，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为≥2.2版本。
 - 针对 Qwen3-VL，transformers 版本需要 4.57.1：
 
   ```bash
@@ -101,7 +101,7 @@ Atlas 300I DUO 使用以下方法稀疏量化
 
 ##### <span id="qwen3-vl-4b-w8a8">1.2 Qwen3-VL-4B-Instruct W8A8量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。使用 `model_type=Qwen3-VL-4B-Instruct`、`quant_type=w8a8` 即可。若需使用自定义配置（如指定保存选项），可通过 `config_path` 指定 [qwen3_vl_4b_w8a8.yaml](../../../lab_practice/qwen3_vl/qwen3_vl_4b_w8a8.yaml)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。使用 `model_type=Qwen3-VL-4B-Instruct`、`quant_type=w8a8` 即可。若需使用自定义配置（如指定保存选项），可通过 `config_path` 指定 [qwen3_vl_4b_w8a8.yaml](../../../lab_practice/qwen3_vl/qwen3_vl_4b_w8a8.yaml)。
 
 ```shell
 msmodelslim quant \
@@ -132,7 +132,7 @@ msmodelslim quant \
 
 ##### <span id="qwen3-vl-w8a8">1.3 Qwen3-VL-32B-Instruct W8A8量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/feature_guide/quick_quantization_v1/usage.md#参数说明)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。
 
 ```shell
 msmodelslim quant \
