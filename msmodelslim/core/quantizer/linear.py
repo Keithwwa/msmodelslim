@@ -61,7 +61,6 @@ class LinearQuantizer(nn.Module):
 
     @validate_call(config=dict(arbitrary_types_allowed=True))
     def setup(self, linear: nn.Linear):
-        self.weight = linear.weight
         self.bias = linear.bias
         self.weight_quantizer.init_weight(QStorage(QDType.FLOAT, value=linear.weight.detach()), self.bias)
 
