@@ -215,6 +215,21 @@ class TestMxfpPerBlockQuantize(unittest.TestCase):
 
         self.assertTrue(torch.isfinite(result.value).all())
 
+    def test_should_keep_zero_when_shared_exp_broadcast_has_nan(self):
+        """测试广播 scale 为 NaN 时输入 0 的量化结果仍为 0"""
+        x = torch.zeros(3840, 40, 32)
+        x[0, 0, 0] = 1.0
+        shared_exp = torch.full((3840, 40, 1), float("NaN"))
+
+        q_param = QParam(
+            scheme=QScheme(dtype=QDType.MXFP8, scope=QScope.PER_BLOCK, symmetric=True),
+            ext={"scale": shared_exp, "offset": torch.zeros_like(shared_exp)},
+        )
+
+        result = mxfp_per_block_quantize(QStorage(QDType.FLOAT, x), q_param)
+
+        self.assertTrue(torch.equal(result.value[x == 0], torch.zeros_like(result.value[x == 0])))
+
 
 class TestMxfpPerBlockDequantize(unittest.TestCase):
     """测试 mxfp_per_block_dequantize 函数"""
