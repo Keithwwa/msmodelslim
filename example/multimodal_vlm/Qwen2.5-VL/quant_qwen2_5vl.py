@@ -18,9 +18,11 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
 """
+
 import os
 import argparse
 import sys
+import torch
 from qwen_vl_utils import process_vision_info
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, AutoConfig
 
@@ -28,11 +30,11 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.abspath(os.path.join(current_directory, "..", "..", ".."))
 sys.path.append(parent_directory)
 
-from example.common.utils import cmd_bool
-from example.common.security.path import get_valid_read_path, get_write_directory
-from example.common.vlm_utils import VlmSafeGenerator, ModifyConfigParams, CopyTokenizerParams
-from msmodelslim.pytorch.llm_ptq.anti_outlier import AntiOutlierConfig, AntiOutlier
-from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig
+from example.common.utils import cmd_bool  # noqa: E402
+from example.common.security.path import get_valid_read_path, get_write_directory  # noqa: E402
+from example.common.vlm_utils import VlmSafeGenerator, ModifyConfigParams, CopyTokenizerParams  # noqa: E402
+from msmodelslim.pytorch.llm_ptq.anti_outlier import AntiOutlierConfig, AntiOutlier  # noqa: E402
+from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import Calibrator, QuantConfig  # noqa: E402
 
 
 CPU = "cpu"
@@ -55,8 +57,12 @@ if __name__ == '__main__':
     parser.add_argument('--is_dynamic', type=cmd_bool, default=False)
     parser.add_argument('--is_lowbit', type=cmd_bool, default=False)
     parser.add_argument('--group_size', type=int, choices=[64, 128, 256, 512], default=64)
-    parser.add_argument('--mindie_format', action="store_true", help="Compatible with quantization formats \
-                supported by MindIE")
+    parser.add_argument(
+        '--mindie_format',
+        action="store_true",
+        help="Compatible with quantization formats \
+                supported by MindIE",
+    )
     args = parser.parse_args()
 
     # check args
@@ -66,17 +72,22 @@ if __name__ == '__main__':
 
     # 1.加载模型
     device_map = CPU if args.device_type == CPU else "auto"
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(args.model_path, 
-                                                            device_map=device_map, 
-                                                            trust_remote_code=args.trust_remote_code,
-                                                            torch_dtype="auto", 
-                                                            local_files_only=True).eval()
-    config = AutoConfig.from_pretrained(args.model_path, 
-                                        trust_remote_code=args.trust_remote_code,
-                                        local_files_only=True)
-    
+    is_npu_w4a8_lowbit = (
+        args.device_type == NPU and args.w_bit == 4 and args.a_bit == 8 and args.is_lowbit and not args.is_dynamic
+    )
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(  # nosec B615
+        args.model_path,
+        device_map=device_map,
+        trust_remote_code=args.trust_remote_code,
+        torch_dtype="auto",
+        local_files_only=True,
+    ).eval()
+    config = AutoConfig.from_pretrained(  # nosec B615
+        args.model_path, trust_remote_code=args.trust_remote_code, local_files_only=True
+    )
+
     # 2.加载处理器
-    processor = AutoProcessor.from_pretrained(args.model_path, local_files_only=True)
+    processor = AutoProcessor.from_pretrained(args.model_path, local_files_only=True)  # nosec B615
 
     # 3.设置回退层
     disable_names = []
@@ -104,28 +115,34 @@ if __name__ == '__main__':
                         "type": "image",
                         "image": image_path,
                     },
-                    {
-                        "type": "text",
-                        "text": "Please describe this picture in detail."
-                    },
-                ]
+                    {"type": "text", "text": "Please describe this picture in detail."},
+                ],
             }
         ]
-        text = processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         image_inputs, video_inputs = process_vision_info(messages)
-        inputs = processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            padding=True,
-            return_tensors='pt'
-        ).to(args.device_type)
+        inputs = processor(text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors='pt').to(
+            args.device_type
+        )
 
-        calib_data.append([inputs['input_ids'], inputs['attention_mask'],
-                           None, None, None, None, None, None, None, None,
-                           inputs['pixel_values'], None, inputs['image_grid_thw'], None])
+        calib_data.append(
+            [
+                inputs['input_ids'],
+                inputs['attention_mask'],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                inputs['pixel_values'],
+                None,
+                inputs['image_grid_thw'],
+                None,
+            ]
+        )
 
     # 5.异常值抑制
     anti_config = AntiOutlierConfig(
@@ -137,6 +154,10 @@ if __name__ == '__main__':
     )
     anti_outlier = AntiOutlier(model, calib_data=calib_data, cfg=anti_config)
     anti_outlier.process()
+
+    # NPU W4A8：异常值抑制保持加载 dtype，校准前再转 float32，规避 bf16/fp32 混除
+    if is_npu_w4a8_lowbit and model.dtype != torch.float32:
+        model = model.to(torch.float32)
 
     # 6.模型量化
     quant_config = QuantConfig(
@@ -150,7 +171,7 @@ if __name__ == '__main__':
         open_outlier=args.open_outlier,
         is_dynamic=args.is_dynamic,
         is_lowbit=args.is_lowbit,
-        group_size=args.group_size
+        group_size=args.group_size,
     )
     calibrator = Calibrator(model, quant_config, calib_data=calib_data, disable_level='L0')
     calibrator.run()
@@ -159,10 +180,10 @@ if __name__ == '__main__':
     save_type = "safe_tensor" if args.mindie_format else "ascendV1"
     calibrator.save(args.save_directory, save_type=[save_type], part_file_size=args.part_file_size)
 
-    quant_type = quant_config.model_quant_type.lower()
+    quant_type = getattr(quant_config, "model_quant_type").lower()
     checker = VlmSafeGenerator()
     auto_config = checker.get_config_from_pretrained(args.model_path, trust_remote_code=args.trust_remote_code)
-    
+
     # 使用dataclass参数
     modify_params = ModifyConfigParams(
         model_dir=args.model_path,
@@ -170,12 +191,9 @@ if __name__ == '__main__':
         torch_dtype=auto_config.torch_dtype,
         quantize_type=quant_type,
         args=args,
-        quantize_config_parts=['vision_config']
+        quantize_config_parts=['vision_config'],
     )
     checker.modify_config(modify_params)
-    
-    copy_params = CopyTokenizerParams(
-        model_dir=args.model_path,
-        dest_dir=args.save_directory
-    )
+
+    copy_params = CopyTokenizerParams(model_dir=args.model_path, dest_dir=args.save_directory)
     checker.copy_tokenizer_files(copy_params)
