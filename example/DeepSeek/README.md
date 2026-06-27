@@ -14,6 +14,8 @@
 - [DeepSeek-V3](https://github.com/deepseek-ai/DeepSeek-V3) 是一款性能卓越的混合专家（MoE）语言模型，整体参数规模达到 6710
   亿，其中每个 token 激活的参数量为 37 亿。该模型在架构设计、训练框架、预训练和后训练过程中进行了多项创新和优化。
 
+- [DeepSeek-V3.1-Terminus](https://huggingface.co/deepseek-ai/DeepSeek-V3.1-Terminus) 是 DeepSeek-V3.1 系列更新模型，模型结构与 DeepSeek-V3 保持一致，在保持原有能力基础上改善语言一致性、异常字符等问题，并优化 Code Agent 与 Search Agent 能力。msModelSlim 已适配 DeepSeek-V3.1-Terminus 面向 vLLM Ascend 推理的 W8A8C8 与 W4A4C8 一键量化最佳实践。
+
 - [DeepSeek-R1](https://github.com/deepseek-ai/DeepSeek-R1) 通过纯强化学习、真实奖励机制和 GRPO
   算法，展示了在无需人类干预的情况下实现复杂任务的能力。具体来说，DeepSeek-R1 通过大规模强化学习技术，仅需少量标注数据即可显著提升模型性能。
 
@@ -26,19 +28,20 @@
 
 ## 支持的模型版本与量化策略
 
-| 模型系列               | 模型版本                       | HuggingFace链接                                                                          | W8A8 | W8A16 | W4A8 | W8A8C8 | W4A8C8 | 稀疏量化 | KV Cache | Attention | FA3量化 | MTP量化 | 量化命令                                                                                                                                                                                                                                      |
-|--------------------|----------------------------|----------------------------------------------------------------------------------------|------|-------|------|--------|--------|------|----------|-----------|-------|-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **DeepSeek-V2**    | DeepSeek-V2-Lite-Chat-16B  | [DeepSeek-V2-Lite-Chat-16B](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat)  | ✅    | ✅     |      |        |        |      |          |           |       |       | [W8A8](#deepseek-v2-w8a8-dynamic量化) / [W8A16](#deepseek-v2-w8a16量化)                                                                                                                                                                       |
-|                    | DeepSeek-V2-Lite-Chat-236B | [DeepSeek-V2-Lite-Chat-236B](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) | ✅    | ✅     |      |        |        |      |          |           |       |       | [W8A8](#deepseek-v2-w8a8-dynamic量化) / [W8A16](#deepseek-v2-w8a16量化)                                                                                                                                                                       |
-| **DeepSeek-Coder** | DeepSeek-Coder-33B         | [DeepSeek-Coder-33B](https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct)   | ✅    | ✅     |      | ✅      |        |      |          |           |       |       | [W8A8](#deepseek-coder-33b-w8a8量化) / [W8A16](#deepseek-coder-33b-w8a16量化) / [W8A8C8](#deepseek-coder-33b-w8a8c8量化)                                                                                                                        |
-| **DeepSeek-V3**    | DeepSeek-V3                | [DeepSeek-V3](https://huggingface.co/deepseek-ai/DeepSeek-V3)                          | ✅    |       |      |        |        |      |          |           | ✅     |       | [W8A8](#deepseek-v3-w8a8-混合量化mlaw8a8量化moew8a8-dynamic量化) / [FA3](#deepseek-v3-w8a8-fa3-混合量化)                                                                                                                                              |
-|                    | DeepSeek-V3.1              | [DeepSeek-V3.1](https://huggingface.co/deepseek-ai/DeepSeek-V3.1)                    | ✅    |       | ✅    | ✅      | ✅      |      |          |           |       | ✅     | [W8A8](#deepseek-v31-w8a8-混合量化--mtp-量化) / [W8A8C8](#deepseek-v31-w8a8c8-混合量化--mtp-量化) / [W4A8](#deepseek-v31-w4a8-混合量化) / [W4A8C8](#deepseek-v31-w4a8c8) / [MTP量化](#deepseek-v31-w8a8c8-混合量化--mtp-量化)                                      |
-|                    | DeepSeek-V3.2-Exp          | [DeepSeek-V3.2-Exp](https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Exp)            | ✅    |       | ✅    |        |        |      |          |           |       |       | [W8A8](#deepseek-v32-w8a8) / [W4A8](#deepseek-v32-w4a8)                                                                                                                                                                                                                |
-|                    | DeepSeek-V3.2              | [DeepSeek-V3.2](https://huggingface.co/deepseek-ai/DeepSeek-V3.2)                      | ✅    |       |      |        |        |      |          |           |       |       | [W8A8](#deepseek-v32-w8a8-quarot)                                                                                                                                                                                                                                             |
-| **DeepSeek-V4** | DeepSeek-V4-Flash         | [DeepSeek-V4-Flash](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash)   | ✅    |       |      |        |        |      |          |           |       |       | [W8A8](#deepseek-v4-w8a8-quarot)
-|                    | DeepSeek-V4-Pro           | [DeepSeek-V4-Pro](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro)     | ✅    |       | ✅    |        |        |      |          |           |       |       | [W8A8](#deepseek-v4-pro-w8a8-quarot) / [W4A8](#deepseek-v4-pro-w4a8-quarot)
-| **DeepSeek-R1**    | DeepSeek-R1                | [DeepSeek-R1](https://huggingface.co/deepseek-ai/DeepSeek-R1)                          | ✅    |       | ✅    |        |        |      |          |           | ✅     | ✅     | [W8A8](#deepseek-r1-w8a8-混合量化) / [W4A8](#deepseek-r1-w4a8-混合量化) / [W8A8动态](#deepseek-r1-w8a8-动态量化) / [FA3](#deepseek-r1-w8a8-fa3-混合量化) / [MTP量化](#deepseek-r1-w8a8-混合量化--mtp-量化)                                                          |
-|                    | DeepSeek-R1-0528           | [DeepSeek-R1-0528](https://huggingface.co/deepseek-ai/DeepSeek-R1-0528)                | ✅    |       | ✅    | ✅      | ✅      |      |          |           | ✅     | ✅     | [W8A8](#deepseek-r1-0528-w8a8-混合量化--mtp-量化) / [W4A8](#deepseek-r1-0528-w4a8-per-channel量化) / [W8A8C8](#deepseek-r1-0528-w8a8c8-混合量化--mtp-量化) / [W4A8C8](#deepseek-r1-0528-w4a8c8-per-channel量化) / [MTP量化](#deepseek-r1-0528-w8a8-混合量化--mtp-量化) |
+| 模型系列               | 模型版本                       | HuggingFace链接                                                                          | W8A8 | W8A16 | W4A8 | W8A8C8 | W4A8C8 | W4A4C8 | 稀疏量化 | KV Cache | Attention | FA3量化 | MTP量化 | 量化命令                                                                                                                                                                                                                                      |
+|--------------------|----------------------------|----------------------------------------------------------------------------------------|------|-------|------|--------|--------|--------|------|----------|-----------|-------|-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **DeepSeek-V2**    | DeepSeek-V2-Lite-Chat-16B  | [DeepSeek-V2-Lite-Chat-16B](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat)  | ✅    | ✅     |      |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v2-w8a8-dynamic量化) / [W8A16](#deepseek-v2-w8a16量化)                                                                                                                                                                       |
+|                    | DeepSeek-V2-Lite-Chat-236B | [DeepSeek-V2-Lite-Chat-236B](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) | ✅    | ✅     |      |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v2-w8a8-dynamic量化) / [W8A16](#deepseek-v2-w8a16量化)                                                                                                                                                                       |
+| **DeepSeek-Coder** | DeepSeek-Coder-33B         | [DeepSeek-Coder-33B](https://huggingface.co/deepseek-ai/deepseek-coder-33b-instruct)   | ✅    | ✅     |      | ✅      |        |        |      |          |           |       |       | [W8A8](#deepseek-coder-33b-w8a8量化) / [W8A16](#deepseek-coder-33b-w8a16量化) / [W8A8C8](#deepseek-coder-33b-w8a8c8量化)                                                                                                                        |
+| **DeepSeek-V3**    | DeepSeek-V3                | [DeepSeek-V3](https://huggingface.co/deepseek-ai/DeepSeek-V3)                          | ✅    |       |      |        |        |        |      |          |           | ✅     |       | [W8A8](#deepseek-v3-w8a8-混合量化mlaw8a8量化moew8a8-dynamic量化) / [FA3](#deepseek-v3-w8a8-fa3-混合量化)                                                                                                                                              |
+|                    | DeepSeek-V3.1              | [DeepSeek-V3.1](https://huggingface.co/deepseek-ai/DeepSeek-V3.1)                    | ✅    |       | ✅    | ✅      | ✅      |        |      |          |           |       | ✅     | [W8A8](#deepseek-v31-w8a8-混合量化--mtp-量化) / [W8A8C8](#deepseek-v31-w8a8c8-混合量化--mtp-量化) / [W4A8](#deepseek-v31-w4a8-混合量化) / [W4A8C8](#deepseek-v31-w4a8c8) / [MTP量化](#deepseek-v31-w8a8c8-混合量化--mtp-量化)                                      |
+|                    | DeepSeek-V3.1-Terminus     | [DeepSeek-V3.1-Terminus](https://huggingface.co/deepseek-ai/DeepSeek-V3.1-Terminus)    |      |       |      | ✅      |        | ✅      |      |          |           | ✅     |       | [W8A8C8](#deepseek-v31-terminus-w8a8c8量化) / [W4A4C8](#deepseek-v31-terminus-w4a4c8量化)                                                                                                                                                                  |
+|                    | DeepSeek-V3.2-Exp          | [DeepSeek-V3.2-Exp](https://huggingface.co/deepseek-ai/DeepSeek-V3.2-Exp)            | ✅    |       | ✅    |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v32-w8a8) / [W4A8](#deepseek-v32-w4a8)                                                                                                                                                                                                                |
+|                    | DeepSeek-V3.2              | [DeepSeek-V3.2](https://huggingface.co/deepseek-ai/DeepSeek-V3.2)                      | ✅    |       |      |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v32-w8a8-quarot)                                                                                                                                                                                                                                             |
+| **DeepSeek-V4** | DeepSeek-V4-Flash         | [DeepSeek-V4-Flash](https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash)   | ✅    |       |      |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v4-w8a8-quarot) |
+|                    | DeepSeek-V4-Pro           | [DeepSeek-V4-Pro](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro)     | ✅    |       | ✅    |        |        |        |      |          |           |       |       | [W8A8](#deepseek-v4-pro-w8a8-quarot) / [W4A8](#deepseek-v4-pro-w4a8-quarot) |
+| **DeepSeek-R1**    | DeepSeek-R1                | [DeepSeek-R1](https://huggingface.co/deepseek-ai/DeepSeek-R1)                          | ✅    |       | ✅    |        |        |        |      |          |           | ✅     | ✅     | [W8A8](#deepseek-r1-w8a8-混合量化) / [W4A8](#deepseek-r1-w4a8-混合量化) / [W8A8动态](#deepseek-r1-w8a8-动态量化) / [FA3](#deepseek-r1-w8a8-fa3-混合量化) / [MTP量化](#deepseek-r1-w8a8-混合量化--mtp-量化)                                                          |
+|                    | DeepSeek-R1-0528           | [DeepSeek-R1-0528](https://huggingface.co/deepseek-ai/DeepSeek-R1-0528)                | ✅    |       | ✅    | ✅      | ✅      |        |      |          |           | ✅     | ✅     | [W8A8](#deepseek-r1-0528-w8a8-混合量化--mtp-量化) / [W4A8](#deepseek-r1-0528-w4a8-per-channel量化) / [W8A8C8](#deepseek-r1-0528-w8a8c8-混合量化--mtp-量化) / [W4A8C8](#deepseek-r1-0528-w4a8c8-per-channel量化) / [MTP量化](#deepseek-r1-0528-w8a8-混合量化--mtp-量化) |
 
 **说明：**
 
@@ -267,6 +270,36 @@ DeepSeek-V3模型较大，且存在需要手动适配的点，为了避免浪费
    --quant_type w4a8c8 \
    --trust_remote_code True
   ```
+
+#### <span id="deepseek-v31-terminus-w8a8c8量化">DeepSeek-V3.1-Terminus W8A8C8 量化</span>
+
+- 生成DeepSeek-V3.1-Terminus 模型 W8A8C8 量化权重
+
+  ```shell
+  msmodelslim quant \
+   --model_path ${model_path} \
+   --save_path ${save_path} \
+   --model_type DeepSeek-V3.1-Terminus \
+   --quant_type w8a8c8 \
+   --trust_remote_code True
+  ```
+
+该一键量化命令匹配使用的量化配置文件为[deepseekv31_terminus_w8a8c8.yaml](../../lab_practice/deepseek_v3/deepseekv31_terminus_w8a8c8.yaml)，可以在其中查看具体的量化策略。
+
+#### <span id="deepseek-v31-terminus-w4a4c8量化">DeepSeek-V3.1-Terminus W4A4C8 量化</span>
+
+- 生成DeepSeek-V3.1-Terminus 模型 W4A4C8 量化权重
+
+  ```shell
+  msmodelslim quant \
+   --model_path ${model_path} \
+   --save_path ${save_path} \
+   --model_type DeepSeek-V3.1-Terminus \
+   --quant_type w4a4c8 \
+   --trust_remote_code True
+  ```
+
+该一键量化命令匹配使用的量化配置文件为[deepseekv31_terminus_w4a4c8.yaml](../../lab_practice/deepseek_v3/deepseekv31_terminus_w4a4c8.yaml)，可以在其中查看具体的量化策略。
 
 #### <span id="deepseek-v32-w8a8">DeepSeek-V3.2-Exp(含MTP层) W8A8 混合量化</span>
 
