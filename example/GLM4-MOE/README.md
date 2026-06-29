@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/getting_started/install_guide/)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/install_guide/install_guide/)。
 - transformers版本需要配置安装4.57.3版本：
 
   ```bash
@@ -27,7 +27,7 @@
 
 ## 一键量化生成量化权重
 
-一键量化命令参考[《一键量化使用指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/feature_guide/quick_quantization_v1/usage/)。
+一键量化命令参考[《一键量化使用指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/user_guide/feature_guide/quick_quantization_v1/usage/)。
 
 ### <span id="glm-47-w8a8量化">GLM-4.7 一键量化命令示例</span>
 

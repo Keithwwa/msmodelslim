@@ -2,7 +2,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/getting_started/install_guide/)。
+- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/install_guide/install_guide/)。
 - HunyuanVideo浮点推理环境与依赖请参考[魔乐 HunyuanVideo](https://modelers.cn/models/MindIE/hunyuan_video) 及 [README](https://modelers.cn/models/MindIE/hunyuan_video/blob/main/README.md)，确保在量化前可正常完成浮点推理。
 
 ## 支持的模型版本与量化策略
@@ -574,5 +574,5 @@ quant_model(model, session_cfg)
 
 - [HunyuanVideo 模型仓库（魔乐）](https://modelers.cn/models/MindIE/hunyuan_video)
 - 《[多模态生成模型接入指南（开发者）](../../../docs/zh/development_guide/integrating_multimodal_generation_model.md)》
-- [一键量化配置协议说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/feature_guide/quick_quantization_v1/usage/#%E9%87%8F%E5%8C%96%E9%85%8D%E7%BD%AE%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3)
-- [逐层量化特性说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/feature_guide/quick_quantization_v1/usage/#%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96%E5%8F%8A%E5%88%86%E5%B8%83%E5%BC%8F%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96)
+- [一键量化配置协议说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/user_guide/feature_guide/quick_quantization_v1/usage/#6-%E9%87%8F%E5%8C%96%E9%85%8D%E7%BD%AE%E5%8D%8F%E8%AE%AE%E8%AF%A6%E8%A7%A3)
+- [逐层量化特性说明](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/user_guide/feature_guide/quick_quantization_v1/usage/#51-%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96%E5%8F%8A%E5%88%86%E5%B8%83%E5%BC%8F%E9%80%90%E5%B1%82%E9%87%8F%E5%8C%96)
