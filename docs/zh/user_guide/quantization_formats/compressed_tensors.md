@@ -2,7 +2,7 @@
 
 ## 简介
 
-compressed-tensors 是面向 HuggingFace 生态的量化权重格式，对齐 [vllm-project/compressed-tensors](https://github.com/vllm-project/compressed-tensors) schema **v0.13.0**。msModelSlim 在导出侧本地 fork 了 schema 模型（无运行时 pip 依赖），推理侧加载时需安装对应版本的 `compressed-tensors` 包。
+compressed-tensors 是与 HuggingFace / vLLM 生态兼容的量化权重格式，字段约定遵循 [vllm-project/compressed-tensors](https://github.com/vllm-project/compressed-tensors) 规范。msModelSlim **导出时内置**该规范的结构定义，量化过程**无需**安装 `compressed-tensors` 包。
 
 **适用场景**：vLLM 等支持 HF `config.json` → `quantization_config` 的推理框架。
 
@@ -29,7 +29,7 @@ spec:
 ```text
 save_directory/
 ├── config.json                          # 注入 quantization_config 字段
-├── model.safetensors                    # 或 model-00001-of-0000N.safetensors（分片）
+├── model.safetensors                    # 或 model-00001-of-xxxxx.safetensors（分片）
 ├── model.safetensors.index.json         # 分片时生成
 └── （从源模型复制的 HF 辅助文件）
     └── *.json / *.py / *.txt / *.jinja
@@ -72,6 +72,7 @@ save_directory/
 | `config_groups` | 按唯一 scheme 分组，键名为 `group_0`、`group_1` 等 |
 | `format` | 根格式，如 `int-quantized`、`mixed-precision` |
 | `quantization_status` | 导出时为 `"compressed"` |
+| `global_compression_ratio` | 全局压缩率（0–1 浮点数），可选信息字段，记录量化后相对原始模型的压缩比例，**不参与推理加载**；msModelSlim 当前不计算，恒为 `null` |
 | `ignore` | 未量化但同类型层名的 regex 列表 |
 | `kv_cache_scheme` | KV Cache 量化方案，**当前不支持**，恒为 `null` |
 | `sparsity_config` / `transform_config` | 空对象占位 |
@@ -90,19 +91,20 @@ save_directory/
 
 ## QuantizationArgs 参数说明
 
-| 参数 | 类型/默认 | 说明 |
-|------|-----------|------|
-| `num_bits` | int, 8 | 量化位宽 |
-| `type` | `"int"` / `"float"` | 量化类型 |
-| `symmetric` | bool, True | 是否对称量化 |
-| `strategy` | enum | `tensor` / `channel` / `group` / `block` / `token` / `tensor_group` / `attn_head` |
-| `group_size` | int, optional | group 策略的组大小；`-1` 表示 channel |
-| `block_structure` | `[rows, cols]`, optional | block 策略专用 |
-| `dynamic` | bool / `"local"` | 动态量化；token 策略必须 `dynamic=True` |
-| `actorder` | enum/bool, optional | 激活排序（仅 weight group 策略） |
-| `scale_dtype` / `zp_dtype` | torch dtype | scale / zero-point 数据类型 |
-| `observer` | str, optional | 校准方法，如 `minmax` |
-| `observer_kwargs` | dict | observer 额外参数 |
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `num_bits` | int | `8` | 量化位宽 |
+| `type` | enum | `"int"` | 量化类型：`"int"` / `"float"` |
+| `symmetric` | bool | `true` | 是否对称量化 |
+| `strategy` | enum | 自动推断 | 量化粒度：`tensor` / `channel` / `group` / `block` / `token` / `tensor_group` / `attn_head` |
+| `group_size` | int | `null` | group 策略的组大小|
+| `block_structure` | list[int] | `null` | block 策略专用，长度为 2 的整数列表，形如 `[rows, cols]` |
+| `dynamic` | bool | `false` | 是否动态量化：`false` 静态，`true` 动态；msModelSlim 导出时由 QIR preset 显式写入，无需手动配置 |
+| `actorder` | enum | `null` | 激活排序（`group` / `weight` 等） |
+| `scale_dtype` | string | `null` | scale 张量数据类型（torch dtype 字符串） |
+| `zp_dtype` | string | 自动推断 | zero-point 张量数据类型；对称量化时导出为 `null` |
+| `observer` | string | 自动推断 | 校准方法；静态量化默认 `memoryless_minmax`，动态量化为 `null` |
+| `observer_kwargs` | object | `{}` | 传给 observer 的额外参数 |
 
 ## 当前支持的量化 Preset
 

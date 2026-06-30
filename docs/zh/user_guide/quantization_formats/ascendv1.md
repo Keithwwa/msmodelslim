@@ -21,7 +21,7 @@ spec:
 |------|------|--------|------|
 | `type` | string | `"ascendv1_saver"` | 保存器类型标识，固定值 |
 | `part_file_size` | int | `4` | 权重分片大小（GB）；`0` 表示不分片 |
-| `ext` | object | `{}` | 扩展配置 |
+| `ext` | object | `{}` | 可选扩展配置，键值对格式，键名可自定义，值为 JSON 兼容类型；当前 `AscendV1Saver` 不读取此字段，常规导出可省略。<br>示例：`ext: { custom_tag: "experiment-v1" }` |
 
 ## 导出产物
 
