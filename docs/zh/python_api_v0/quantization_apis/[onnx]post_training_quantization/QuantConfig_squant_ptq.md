@@ -22,7 +22,7 @@ QuantConfig(w_bit=8, a_bit=8, w_signed=True, a_signed=False, w_sym=True, a_sym=F
 | a_sym | 输入 | 激活值是否对称量化。| 可选。<br>数据类型：bool。<br>默认为False。|
 | input_shape | 输入 | 当输入模型支持动态shape时，用户需指定input_shape参数，用以生成量化时的校对数据。| 可选，当模型支持动态shape时必须指定。<br>数据类型：list [list]<br>默认值：[] <br>当模型有多个输入时，按照顺序指定input_shape，例如：\[[1, 3,224, 224], [1, 3, 640, 640]]。|
 | act_quant | 输入 | 是否对激活值进行量化。| 可选。<br>数据类型：bool。<br>默认为True。<br>暂不支持修改。|
-| act_method | 输入 | 激活值量化方法。| 可选。<br>数据类型：int。<br>可选值[0,1,2]，默认为0。<br>(1) 0代表Data-Free场景的量化方法（具体由sigma参数决定）<br>(2)1代表Label-Free场景的min-max observer方法。Label-Free场景推荐选1。<br>(3)2代表Label-Free场景的histogram observer方法。|
+| act_method | 输入 | 激活值量化方法。| 可选。<br>数据类型：int。<br>可选值[0,1,2]，默认为0。<br>(1) 0代表Data-Free场景的量化方法（具体由sigma参数决定）<br>(2) 1代表Label-Free场景的min-max observer方法。Label-Free场景推荐选1。<br>(3) 2代表Label-Free场景的histogram observer方法。|
 | quant_mode | 输入 | 量化模式。| 可选。<br>数据类型：int。<br>可选值为[0,1]，默认为0。<br>(1)0代表Data-Free量化模式。<br>(2)1代表Label-Free量化模式。|
 | disable_names | 输入 |需排除量化的节点名称，即手动回退的量化层名称。<br>如精度太差，推荐回退量化敏感层，如分类层、输入层、检测head层等。| 可选。<br>数据类型：list[str]。<br>默认值[]。|
 | amp_num | 输入 |混合精度量化回退层数。<br>精度降低过多时，可增加回退层数，推荐优先回退3~7层，如果精度恢复不明显，再增加回退层数。| 可选。<br>数据类型：int。<br>默认为0。|

@@ -78,7 +78,7 @@ def __init__(self, model, tokenizer, dataset, batch_size, hardware_type,
   + tokenizer_return_type_id: 当输入 Bert 类型接口时需要传入 True，具体可以根据接口运行的反馈来确定
   + shot: 精度测试时使用的shot值，当前只对MMLU数据集生效
 
-#### 3.3.2 测试结果接口
+#### 3.1.2 测试结果接口
 
 ```python
 def test(self):

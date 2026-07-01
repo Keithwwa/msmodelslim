@@ -699,7 +699,7 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
-      <td rowspan="1"><strong>GLM4-MOE-LITE系列</strong></td>
+      <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/GLM4-MOE-LITE/README.md">GLM4-MOE-LITE系列</a></strong></td>
       <td>GLM-4.7-Flash</td>
       <td>transformers==5.3.0</td>
       <td>-</td>

@@ -27,7 +27,7 @@ QatConfig(w_bit=8, a_bit=8, a_sym=False, amp_num=0, steps=1, ema=0.99, is_forwar
 |quant_mode|可选|是否开启量化模式。<br>数据类型：bool。默认值为True。<br>输入值/返回值：输入值。|
 |grad_scale|可选|梯度补偿力度。<br>数据类型：float。默认值为0.0，建议配置为0.001。<br>输入值/返回值：输入值。|
 |compressed_model_checkpoint|可选|导出ONNX模型时，保存的伪量化模型权重文件及所在路径。<br>数据类型：string。默认为None。<br>输入值/返回值：输入值。|
-|opset_version|可选|导出ONNX模型时版本号,需提前安装对应的ONNX版本。<br>数据类型：int。可选值为11和13，默认为11。<br>输入值/返回值：输入值。|
+|opset_version|可选|导出ONNX模型时版本号，需提前安装对应的ONNX版本。<br>数据类型：int。可选值为11和13，默认为11。<br>输入值/返回值：输入值。|
 |save_params|可选|导出时是否将量化相关参数保存为npy文件。<br>数据类型：bool。默认为False。<br>输入值/返回值：输入值。|
 |input_names|可选|ONNX的输入名称。<br>数据类型：list[str]。默认为None。<br>输入值/返回值：输入值。|
 |output_names|可选|ONNX的输出名称。<br>数据类型：list[str]。默认为None。<br>输入值/返回值：输入值。|

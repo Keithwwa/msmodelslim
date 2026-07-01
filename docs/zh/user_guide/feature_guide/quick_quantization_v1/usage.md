@@ -665,7 +665,7 @@ spec:
       sample_steps: 50             # 采样步数
 ```
 
-#### 6.3.6 dataset - 校准数据集配置 {#multimodal-sd-dataset}
+#### 6.3.6 dataset - 校准数据集配置
 
 **作用**: 指定校准样本，供重构路径 `handle_dataset` / Legacy 路径 `run_calib_inference` 使用。
 

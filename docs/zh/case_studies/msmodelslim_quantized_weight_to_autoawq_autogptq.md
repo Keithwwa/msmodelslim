@@ -168,11 +168,11 @@ for idx, item in enumerate(res):
     print(item)
 ```
 
-如果没有使用autoAWQ量化获取量化配置文件，直接使用msModelSlim转换的量化后模型进行推理，需要做以下步骤：
+如果没有使用AutoAWQ量化获取量化配置文件，直接使用msModelSlim转换的量化后模型进行推理，需要做以下步骤：
 
 1.将浮点模型的原始配置文件复制到msModelSlim量化后转换生成的权重文件目录中。
 2.修改量化后权重路径的 model.safetensors.index.json 文件，请将文件中的 weight_map 中的权重文件名称修改为第1.2节中的转换脚本所生成的权重文件名。
-3.修改 config.json 文件，添加 quantization_config 参数，bits为量化的权重位数，group_size 和msModelSlim量化的 group_size 对应，保持一致。可参考第2.2节使用autoAWQ量化后生成的 config.json 文件进行配置。
+3.修改 config.json 文件，添加 quantization_config 参数，bits为量化的权重位数，group_size 和msModelSlim量化的 group_size 对应，保持一致。可参考第2.2节使用AutoAWQ量化后生成的 config.json 文件进行配置。
 此处以Qwen2-7B-Instruct，W4A16+AWQ为例，在 config.json 添加 quantization_config 参数：
 
 ```json

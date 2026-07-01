@@ -85,7 +85,7 @@
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-27B --quant_type w8a8 --trust_remote_code True
   ```
 
-#### 4. Qwen3.6-27B
+#### 5. Qwen3.6-27B
 
 ##### <span id="Qwen3.6-27B-w8a8">Qwen3.6-27B W8A8量化</span>
 
