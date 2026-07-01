@@ -46,3 +46,4 @@ add_executable(compress_excutor
         ${TOOLS_PATH}/security/src/Log.cpp)
 
 target_link_libraries(compress_excutor PRIVATE ascendcl graph ge_runner graph_base ge_compiler  c_sec pthread)
+target_link_options(compress_excutor PRIVATE "-Wl,-rpath-link,${ASCEND_PATH}/lib64")
