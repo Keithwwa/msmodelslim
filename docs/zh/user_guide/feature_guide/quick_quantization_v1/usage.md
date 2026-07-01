@@ -665,7 +665,7 @@ spec:
       sample_steps: 50             # 采样步数
 ```
 
-#### 6.3.6 dataset - 校准数据集配置 {#multimodal-sd-dataset}
+#### 6.3.6 dataset - 校准数据集配置
 
 **作用**: 指定校准样本，供重构路径 `handle_dataset` / Legacy 路径 `run_calib_inference` 使用。
 
@@ -833,8 +833,8 @@ calib_data.jsonl 示例：
 
 #### 6.4.7 使用示例
 
-- Qwen2.5-Omni模型W8A8量化：[qwen2_5_omni_thinker_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)
-- Qwen3-VL-MoE模型W8A8混合量化：[qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
+- Qwen2.5-Omni模型W8A8量化：[qwen2_5_omni_thinker_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)
+- Qwen3-VL-MoE模型W8A8混合量化：[qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
 
 ### 6.5 modelslim_v0 配置说明
 

@@ -235,7 +235,7 @@ act_method：激活值量化方法
     act_method默认值为1，该参数可选1、2、3
     1代表min-max量化方式；
     2代表histogram量化方式；
-    3.代表min-max和histogram混合的量化的方式。
+    3代表min-max和histogram混合的量化的方式。
     LLM大模型场景下建议使用3。
 
 ### 3 校准集调整
@@ -261,7 +261,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
     return calib_dataset
 ```
 
-注： 需要将msmodelslim文件夹下的[precision_tool文件夹](https://gitcode.com/Ascend/msmodelslim/tree/master/precision_tool)和[security文件夹](https://gitcode.com/Ascend/msmodelslim/tree/master/security)复制一份出来，和量化脚本放置于同一目录下，再将待测试数据集放入precision_tool文件夹中，具体操作见：[Precision Tool 使用方法说明及数据集下载链接](../user_guide/feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)
+注： 需要将msmodelslim文件夹下的[precision_tool文件夹](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/precision_tool)和[security文件夹](https://gitcode.com/Ascend/msmodelslim/tree/26.1.0/security)复制一份出来，和量化脚本放置于同一目录下，再将待测试数据集放入precision_tool文件夹中，具体操作见：[Precision Tool 使用方法说明及数据集下载链接](../user_guide/feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md)
 
 ### 4 量化回退
 
