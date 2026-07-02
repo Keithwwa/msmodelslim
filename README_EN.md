@@ -175,18 +175,18 @@ The case collection provides text descriptions and code samples based on actual 
 
 ## ❓ FAQ
 
-For details about the frequently asked questions, see [FAQ](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/en/appendix/faq.md).
+For details about the frequently asked questions, see [FAQ](./docs/en/appendix/faq.md).
 
 ## 🤝 Contribution Guide
 
-For details, see [Contribution Guide](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/en/appendix/CONTRIBUTING.md).
+For details, see [Contribution Guide](./docs/en/appendix/CONTRIBUTING.md).
 
 ## 📌 Related Statements
 
 <details>
 <summary>🛡️ Security Statement</summary>
 
-Describes the security hardening information, public network address information, and communication matrix of msModelSlim. For details, see [msModelSlim Security Statement](https://gitcode.com/Ascend/msmodelslim/blob/26.1.0/docs/en/appendix/security_statement.md).
+Describes the security hardening information, public network address information, and communication matrix of msModelSlim. For details, see [msModelSlim Security Statement](./docs/en/appendix/security_statement.md).
 
 </details>
 

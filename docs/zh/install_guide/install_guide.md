@@ -12,7 +12,7 @@
 
 ### 2.1 在线安装
 
-若您的设备具备互联网访问能力，可通过一条命令自动完成工具的下载与安装。请参见昇腾社区MindStudio[下载](https://www.hiascend.com/developer/software/mindstudio/download)页面，选择对应的CANN版本，并在安装方式中选择“在线安装”，系统将引导您完成后续操作。
+若您的设备具备互联网访问能力，可通过一条命令自动完成工具的下载与安装。请参见昇腾社区MindStudio[下载](https://www.hiascend.com/developer/software/mindstudio/download?versionId=142&ids=45%2C26958bcc909e4cd48fa56d4c4a43ebec%2C90%2C49%2C)页面，选择对应的CANN版本，并在安装方式中选择“在线安装”，系统将引导您完成后续操作。
 
 ### 2.2 离线安装
 
@@ -81,7 +81,7 @@
 msmodelslim --help
 ```
 
-若输出不报错，且能显示版本信息，则表明安装成功。
+若输出不报错，且能显示帮助信息，则表明安装成功。
 
 ## 4. 卸载
 

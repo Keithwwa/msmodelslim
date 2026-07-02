@@ -49,7 +49,7 @@ msmodelslim quant [ARGS]
 
 **注意事项**：
 
-1.最佳实践库中的配置文件放在 `msmodelslim/lab_practice` 中。
+1.最佳实践库中的配置文件放在 [`msmodelslim/lab_practice`](../../../../../lab_practice/) 中。
 
 2.一键量化搜索最佳实践策略yaml的搜索优先级如下（优先级从高到低）：
 
