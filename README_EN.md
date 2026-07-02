@@ -154,39 +154,39 @@ The case collection provides text descriptions and code samples based on actual 
   <tbody>
     <tr>
       <td>v1 framework quantization accuracy tuning</td>
-      <td><a href="https://msmodelslim.readthedocs.io/zh-cn/latest/zh/case_studies/quantization_precision_tuning_guide/">v1 Framework Quantization Accuracy Tuning Guide</a></td>
+      <td><a href="./docs/en/case_studies/quantization_precision_tuning_guide.md">v1 Framework Quantization Accuracy Tuning Guide</a></td>
     </tr>
     <tr>
       <td>v1 framework Qwen3-32B accuracy tuning</td>
-      <td><a href="https://msmodelslim.readthedocs.io/zh-cn/latest/zh/case_studies/qwen3_32b_w8a8_precision_tuning_case/">v1 Framework Qwen3-32B w8a8 Accuracy Tuning Case</a></td>
+      <td><a href="./docs/en/case_studies/qwen3_32b_w8a8_precision_tuning_case.md">v1 Framework Qwen3-32B w8a8 Accuracy Tuning Case</a></td>
     </tr>
     <tr>
       <td><strong>Weight Conversion</strong></td>
       <td>Guide for Using msModelSlim Quantized Weights with AutoAWQ and AutoGPTQ</td>
-      <td><a href="https://msmodelslim.readthedocs.io/zh-cn/latest/zh/case_studies/msmodelslim_quantized_weight_to_autoawq_autogptq/">Quantized weight format conversion guide</a></td>
+      <td><a href="./docs/en/case_studies/msmodelslim_quantized_weight_to_autoawq_autogptq.md">Quantized weight format conversion guide</a></td>
     </tr>
     <tr>
       <td><strong>Inference and Deployment</strong></td>
       <td>Quantized Weight Usage Cases in Acceleration Library and MindIE-Torch Scenarios</td>
-      <td><a href="https://msmodelslim.readthedocs.io/zh-cn/latest/zh/case_studies/quantization_weight_use_cases_in_acceleration_and_mindie_torch/">Usage methods of quantized weights in inference acceleration libraries</a></td>
+      <td><a href="./docs/en/case_studies/quantization_weight_use_cases_in_acceleration_and_mindie_torch.md">Usage methods of quantized weights in inference acceleration libraries</a></td>
     </tr>
   </tbody>
 </table>
 
 ## ❓ FAQ
 
-For details about the frequently asked questions, see [FAQ](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/appendix/faq/).
+For details about the frequently asked questions, see [FAQ](./docs/en/appendix/faq.md).
 
 ## 🤝 Contribution Guide
 
-For details, see [Contribution Guide](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/en/appendix/CONTRIBUTING.md).
+For details, see [Contribution Guide](./docs/en/appendix/CONTRIBUTING.md).
 
 ## 📌 Related Statements
 
 <details>
 <summary>🛡️ Security Statement</summary>
 
-Describes the security hardening information, public network address information, and communication matrix of msModelSlim. For details, see [msModelSlim Security Statement](https://msmodelslim.readthedocs.io/zh-cn/latest/zh/appendix/security_statement/).
+Describes the security hardening information, public network address information, and communication matrix of msModelSlim. For details, see [msModelSlim Security Statement](./docs/en/appendix/security_statement.md).
 
 </details>
 
