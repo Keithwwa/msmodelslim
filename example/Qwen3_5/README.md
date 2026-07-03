@@ -23,7 +23,8 @@
 | **Qwen3.5-MoE** | Qwen3.5-122B-A10B | [Qwen3.5-122B-A10B](https://modelscope.cn/models/Qwen/Qwen3.5-122B-A10B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.5-122B-A10B-w8a8)|
 | **Qwen3.5-MoE** | Qwen3.5-35B-A3B | [Qwen3.5-35B-A3B](https://modelscope.cn/models/Qwen/Qwen3.5-35B-A3B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.5-35B-A3B-w8a8)|
 | **Qwen3.5-Dense** | Qwen3.5-27B | [Qwen3.5-27B](https://modelscope.cn/models/Qwen/Qwen3.5-27B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.5-27B-w8a8)|
-| **Qwen3.5-Dense** | Qwen3.6-27B | [Qwen3.6-27B](https://modelscope.cn/models/Qwen/Qwen3.6-27B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.6-27B-w8a8)|
+| **Qwen3.5-Dense** | Qwen3.5-4B | [Qwen3.5-4B](https://modelscope.cn/models/Qwen/Qwen3.5-4B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.5-4B-w8a8)|
+| **Qwen3.6-Dense** | Qwen3.6-27B | [Qwen3.6-27B](https://modelscope.cn/models/Qwen/Qwen3.6-27B)   | ✅ |  |    |        |   |  |   |   | [W8A8](#Qwen3.6-27B-w8a8)|
 
 **说明：**
 
@@ -85,7 +86,17 @@
   msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-27B --quant_type w8a8 --trust_remote_code True
   ```
 
-#### 5. Qwen3.6-27B
+#### 5. Qwen3.5-4B
+
+##### <span id="Qwen3.5-4B-w8a8">Qwen3.5-4B W8A8量化</span>
+
+该模型的量化已集成至《[一键量化](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
+
+  ```shell
+  msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device npu --model_type Qwen3.5-4B --quant_type w8a8 --trust_remote_code True
+  ```
+
+#### 6. Qwen3.6-27B
 
 ##### <span id="Qwen3.6-27B-w8a8">Qwen3.6-27B W8A8量化</span>
 
