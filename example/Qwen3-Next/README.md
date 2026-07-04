@@ -10,10 +10,6 @@
 - 需要安装 transformers 4.57.1：
     - pip install transformers==4.57.1
 
-## 昇腾AI处理器支持情况
-
-- 支持Atlas A2训练、推理产品，Atlas A3训练、推理产品
-
 ## 支持的模型版本与量化策略
 
 | 模型系列 | 模型版本 | HuggingFace链接                                                 | W8A8 | W8A16 | W4A8 | W4A16 | W4A4  | 稀疏量化 | KV Cache | Attention | 量化命令                                          |

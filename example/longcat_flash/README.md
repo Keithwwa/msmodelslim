@@ -9,10 +9,6 @@
 - 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../docs/zh/install_guide/install_guide.md)》。
 - 由于模型量化对显存要求较高，请确保在满足模型加载和校准数据处理需求的环境下执行。
 
-## 昇腾AI处理器支持情况
-
-- 支持 Atlas A5 推理产品。
-
 ## 支持的模型版本与量化策略
 
 | 模型系列 | 模型版本 | HuggingFace链接 | W4A4 MXFP4 | W8A8 MXFP8 | 稀疏量化 | KV Cache | 量化命令 |
