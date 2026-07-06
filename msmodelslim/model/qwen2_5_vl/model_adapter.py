@@ -48,7 +48,7 @@ from msmodelslim.utils.security import get_valid_read_path, json_safe_load, MAX_
 from msmodelslim.processor.quarot import QuaRotInterface
 
 
-@logger_setter()
+@logger_setter("msmodelslim.model.qwen2_5_vl")
 class Qwen25VLModelAdapter(  # pylint: disable=too-many-ancestors
     VLMBaseModelAdapter,
     ModelInfoInterface,
@@ -65,7 +65,7 @@ class Qwen25VLModelAdapter(  # pylint: disable=too-many-ancestors
 
     def get_model_pedigree(self) -> str:
         """Return model pedigree for best practice matching"""
-        return 'qwen25_vl'
+        return 'qwen2_5_vl'
 
     def get_model_type(self) -> str:
         """Return model type"""

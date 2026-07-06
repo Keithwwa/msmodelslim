@@ -21,10 +21,11 @@
 
 | 模型       | 原始浮点权重 | 量化方式 | 推理框架支持情况| 量化命令 |
 |------------|-------------|---------|----------------|---------|
-| Qwen2.5-VL-7B-Instruct | [Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/tree/main) | W8A8静态量化 | MindIE 2.2.RC1及之后版本支持<br>vLLM Ascend v0.10.2rc2及之后版本支持 | [W8A8静态量化(m2)](#11-qwen25-vl-w8a8静态量化-异常值抑制算法使用m2) |
-| Qwen2.5-VL-72B-Instruct | [Qwen2.5-VL-72B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/tree/main) | W8A8静态量化 | MindIE 2.2.RC1及之后版本支持<br>vLLM Ascend v0.10.2rc2及之后版本支持 | [W8A8静态量化(m2)](#11-qwen25-vl-w8a8静态量化-异常值抑制算法使用m2) |
-| Qwen2.5-VL-7B-Instruct | [Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/tree/main) | W4A8动态量化 | MindIE当前不支持<br>vLLM Ascend当前不支持 | [W4A8动态量化](#13-qwen25-vl-w4a8动态量化-异常值抑制算法使用m4) |
-| Qwen2.5-VL-72B-Instruct | [Qwen2.5-VL-72B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/tree/main) | W4A8动态量化 | MindIE当前不支持<br>vLLM Ascend当前不支持 | [W4A8动态量化](#13-qwen25-vl-w4a8动态量化-异常值抑制算法使用m4) |
+| Qwen2.5-VL-7B-Instruct | [Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/tree/main) | W8A8静态量化 | MindIE 2.2.RC1及之后版本支持<br>vLLM Ascend v0.10.2rc2及之后版本支持 | [W8A8静态量化(m2)](#1-qwen25-vl-w8a8静态量化-异常值抑制算法使用m2) |
+| Qwen2.5-VL-72B-Instruct | [Qwen2.5-VL-72B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/tree/main) | W8A8静态量化 | MindIE 2.2.RC1及之后版本支持<br>vLLM Ascend v0.10.2rc2及之后版本支持 | [W8A8静态量化(m2)](#1-qwen25-vl-w8a8静态量化-异常值抑制算法使用m2) |
+| Qwen2.5-VL-7B-Instruct | [Qwen2.5-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct/tree/main) | W4A8动态量化 | MindIE当前不支持<br>vLLM Ascend当前不支持 | [W4A8动态量化](#3-qwen25-vl-w4a8动态量化-异常值抑制算法使用m4) |
+| Qwen2.5-VL-72B-Instruct | [Qwen2.5-VL-72B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct/tree/main) | W4A8动态量化 | MindIE当前不支持<br>vLLM Ascend当前不支持 | [W4A8动态量化](#3-qwen25-vl-w4a8动态量化-异常值抑制算法使用m4) |
+| Qwen2.5-VL-32B-Instruct | [Qwen2.5-VL-32B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-32B-Instruct/tree/main) | W8A8 + MXFP8 静态量化 | MindIE 待支持<br>vLLM Ascend 已支持 | [W8A8 + MXFP8 静态量化](#4-qwen25-vl-32b-instruct-w8a8-mxfp8-静态量化) |
 
 **说明：**
 
@@ -45,9 +46,7 @@
 
 - 若加载自定义模型，调用`from_pretrained`函数时要指定`trust_remote_code=True`，让修改后的自定义代码文件能够正确地被加载。(请确保加载的自定义代码文件的安全性)
 
-### 1. Qwen2.5-VL系列
-
-#### 1.1 Qwen2.5-VL W8A8静态量化 异常值抑制算法使用m2
+### 1 Qwen2.5-VL W8A8静态量化 异常值抑制算法使用m2
 
 生成Qwen2.5-VL模型量化权重，异常值抑制使用m2算法，在NPU上运行，请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。{校准图片路径}默认为"../calibImages"，以当前"../calibImages"目录中2张图片为例，实际量化时为保证精度需要从COCO数据集中扩充到30张图片。此外，用户可根据实际场景替换为其他图片。
 
@@ -59,7 +58,7 @@
   python quant_qwen2_5vl.py  --model_path {浮点权重路径} --calib_images {校准图片路径}  --save_directory {量化权重保存路径} --w_bit 8 --a_bit 8 --device_type npu --trust_remote_code True --anti_method m2
   ```
 
-#### 1.2 Qwen2.5-VL W8A8静态量化 异常值抑制算法使用m4
+### 2 Qwen2.5-VL W8A8静态量化 异常值抑制算法使用m4
 
 生成Qwen2.5-VL模型量化权重，异常值抑制使用m4算法，在NPU上运行，请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。{校准图片路径}默认为"../calibImages"，以当前"../calibImages"目录中2张图片为例，实际量化时为保证精度需要从COCO数据集中扩充到30张图片。此外，用户可根据实际场景替换为其他图片。
 
@@ -71,13 +70,28 @@
   python quant_qwen2_5vl.py  --model_path {浮点权重路径} --calib_images {校准图片路径}  --save_directory {量化权重保存路径} --w_bit 8 --a_bit 8 --device_type npu --trust_remote_code True --anti_method m4
   ```
 
-#### 1.3 Qwen2.5-VL W4A8动态量化 异常值抑制算法使用m4
+### 3 Qwen2.5-VL W4A8动态量化 异常值抑制算法使用m4
 
 生成Qwen2.5-VL模型量化权重，使用4bit per-group量化权重，8bit per-token量化激活值，异常值抑制使用m4算法，在NPU上运行，请将{浮点权重路径}和{量化权重路径}替换为用户实际路径。{校准图片路径}默认为"../calibImages"，以当前"../calibImages"目录中2张图片为例，实际量化时为保证精度需要从COCO数据集中扩充到30张图片。此外，用户可根据实际场景替换为其他图片。
 
   ```shell
   python quant_qwen2_5vl.py  --model_path {浮点权重路径} --calib_images {校准图片路径}  --save_directory {量化权重保存路径} --w_bit 4 --a_bit 8 --act_method 1 --device_type npu --trust_remote_code True --anti_method m4 --open_outlier False --is_dynamic True --is_lowbit True --group_size 256
   ```
+
+### 4 Qwen2.5-VL-32B-Instruct W8A8 MXFP8 静态量化
+
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+
+```shell
+msmodelslim quant \
+    --model_path /path/to/qwen2_5_vl_float_weights \
+    --save_path /path/to/qwen2_5_vl_quantized_weights \
+    --device npu \
+    --model_type Qwen2.5-VL-32B-Instruct \
+    --quant_type w8a8 \
+    --tag vLLM_Ascend Atlas_350 \
+    --trust_remote_code True
+```
 
 ## 附录
 

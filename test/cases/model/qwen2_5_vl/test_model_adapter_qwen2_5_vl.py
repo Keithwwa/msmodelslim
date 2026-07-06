@@ -118,7 +118,7 @@ class TestQwen25VLModelAdapterGetModelPedigree(unittest.TestCase):
 
         result = adapter.get_model_pedigree()
 
-        self.assertEqual(result, "qwen25_vl")
+        self.assertEqual(result, "qwen2_5_vl")
 
 
 @unittest.skipUnless(_QWEN25_VL_IMPORT_OK, "Qwen2.5-VL dependencies are not available for import")
