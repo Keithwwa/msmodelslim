@@ -12,7 +12,7 @@
 
 ### 相关产品版本配套说明
 
-| msModelSlim版本 | CANN版本 | PyTorch版本         | torch_npu版本    | Python版本         | Transformers版本 |
+| msModelSlim版本 | CANN版本 | PyTorch版本         | TorchNPU版本    | Python版本         | Transformers版本 |
 |---------------|--------|-------------------|----------------|------------------|----------------|
 | 26.0.0.alpha02         | 不依赖特定版本 | 与具体模型有关，请参考相关模型资料 | 与具体模型有关，请参考相关模型资料 | Python 3.10、3.11 | 与具体模型有关，请参考[example](https://gitcode.com/Ascend/msmodelslim/tree/master/example)目录下对应模型的案例说明 |
 | 26.0.0.alpha01         | 不依赖特定版本 | 与具体模型有关，请参考相关模型资料 | 与具体模型有关，请参考相关模型资料 | Python 3.10、3.11 | 与具体模型有关，请参考[example](https://gitcode.com/Ascend/msmodelslim/tree/master/example)目录下对应模型的案例说明 |

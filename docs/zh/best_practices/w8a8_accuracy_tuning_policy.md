@@ -232,7 +232,7 @@ disable_names: 手动指定回退层（根据理论经验和日志信息）
 disable_level='L0': 自动回退
 
 act_method：激活值量化方法
-    act_method默认值为1，该参数可选1、2、3
+    act_method默认值为1，该参数可选1、2、3，具体意义如下：
     1代表min-max量化方式；
     2代表histogram量化方式；
     3代表min-max和histogram混合的量化的方式。
