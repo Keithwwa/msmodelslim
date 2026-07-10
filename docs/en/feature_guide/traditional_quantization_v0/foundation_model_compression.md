@@ -216,7 +216,7 @@ After the quantization task is complete, the model accuracy may decrease. You ca
 
 ### Code Samples in Quantization and Sparse Quantization Scenarios
 
-Code samples for other scenarios are available at [here](quantization_and_sparse_quantization_scenario_import_code_examples.md).
+Code samples for other scenarios are available at [Quantization Code Samples](quantization_and_sparse_quantization_scenario_import_code_examples.md).
 
 ### Quantized Weight Files
 

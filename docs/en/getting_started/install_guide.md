@@ -2,7 +2,7 @@
 
 ## 1. Installation Description
 
-Before installing this tool, you need to install CANN. For details, see [CANN Quick Installation](https://www.hiascend.com/cann/download) to install the Ascend NPU driver and CANN software (including the Toolkit and ops), and configure environment variables.
+Before installing this tool, you need to install CANN. For details, see [CANN Quick Installation](https://www.hiascend.com/en/cann/download) to install the Ascend NPU driver and CANN software (including the Toolkit and ops), and configure environment variables.
 
 This tool supports three installation methods: [Online Installation](#21-online-installation), [Offline Installation](#22-offline-installation), and [Installation from Source](#23-installation-from-source). Choose the method that best fits your environment.
 

@@ -6,7 +6,7 @@ The relationship between the quantization tool and MindIE is straightforward. ms
 
 ## Preparation
 
-Install MindIE by following the [MindIE Installation Guide](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0001.html), and configure MindIE LLM by following the [Configure MindIE LLM](https://www.hiascend.com/document/detail/zh/mindie/10RC3/envdeployment/instg/mindie_instg_0028.html) section in the same guide.
+Install MindIE by following the [MindIE Installation Guide](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/en/user_guide/install/installing_MindIE.md), and configure MindIE LLM by following the [Configure MindIE LLM](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/en/user_guide/install/environment_preparation.md) section in the same guide.
 
 Install msModelSlim. For details, see [msModelSlim Installation Guide](../getting_started/install_guide.md).
 
@@ -94,7 +94,7 @@ The following is a partial view of `quant_model_description_w8a8.json` after qua
 ```
 
   (4) Run inference.
-Using Llama2-13b-hf as an example, you can run a chat test with the following command. The inference prompt is "What is deep learning". For more details, see the Ascend community development guide: [MindIE LLM Development Guide](https://www.hiascend.com/document/detail/zh/mindie/10RC3/mindiellm/llmdev/mindie_llm0281.html).
+Using Llama2-13b-hf as an example, you can run a chat test with the following command. The inference prompt is "What is deep learning". For more details, see the Ascend community development guide: [MindIE LLM Development Guide](https://gitcode.com/Ascend/MindIE-LLM/blob/v3.0.0/docs/en/user_guide/feature/w8a8.md).
 
 ```shell
 # Enter the acceleration library directory.

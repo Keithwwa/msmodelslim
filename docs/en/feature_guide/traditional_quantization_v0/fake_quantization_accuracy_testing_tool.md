@@ -8,7 +8,7 @@ The Precision Tool is a fake-quantization accuracy testing utility used to valid
 
 ### Preparations
 
-1. CANN package installation: Install the Ascend AI inference driver, firmware, and CANN package in your development and runtime environments by referring to the [Ascend Documentation](https://www.hiascend.com/en/document).
+1. CANN package installation: For details, see [CANN Quick Installation](https://www.hiascend.com/en/cann/download) to install the Ascend NPU driver and CANN software (including the Toolkit and ops), and configure environment variables.
 2. Set Python environment variables.
 
     ```bash
