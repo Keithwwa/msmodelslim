@@ -726,6 +726,20 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
       <td>-</td>
     </tr>
     <tr>
+      <td rowspan="1"><strong><a href="../../../../example/Hy3/README.md">Hy3系列</a></strong></td>
+      <td>Hy3</td>
+      <td>transformers==5.6.0</td>
+      <td>-</td>
+      <td>√(一键量化)</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/HunYuan/README.md">HunYuan系列</a></strong></td>
       <td>Hunyuan-A52B-Instruct</td>
       <td>transformers>=4.48.2</td>

@@ -527,6 +527,8 @@ spec:                          # 规格定义
       part_file_size: 4        # 权重分片大小：4GB（建议大模型开启）
 ```
 
+- 腾讯混元 Hy3 模型 W8A8 量化：[hy3_w8a8.yaml](../../../../../lab_practice/hy3/hy3_w8a8.yaml)，详见《[Hy3 量化说明](../../../../../example/Hy3/README.md)》。
+
 ### 6.3 multimodal_sd_modelslim_v1 配置详解
 
 #### 6.3.1 功能说明
