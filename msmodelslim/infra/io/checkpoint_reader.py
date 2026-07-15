@@ -5,7 +5,8 @@
 CheckpointReader（convert_design.md §7.3 / infra 层）。
 
 无模型代码读 safetensors：
-  - ``read_catalog``：仅解析 index.json，O(keys) 不打开 shard（避免 6 万 key 重复 safe_open）
+  - ``read_catalog``：优先解析 index.json；无 index 且仅有 ``model.safetensors`` 时
+    打开该文件枚举 key 建 map（与 HuggingFace 小模型布局兼容）
   - ``enrich_catalog``：按 binding key 集合按需打开 shard，每 shard 最多一次
   - ``load_tensors``：按 inverse_weight_map 批量加载张量数据
 """
@@ -23,9 +24,12 @@ from msmodelslim.utils.logging import get_logger
 
 logger = get_logger()
 
+_SINGLE_MODEL_SAFETENSORS = "model.safetensors"
+_INDEX_JSON = "model.safetensors.index.json"
+
 
 class CheckpointReader(ICheckpointReader):
-    """``model_path`` 下含 ``model.safetensors.index.json`` 或单文件 ``model.safetensors``。"""
+    """``model_path`` 下含 ``model.safetensors.index.json``，或单文件 ``model.safetensors``。"""
 
     def __init__(self, model_path: str | Path) -> None:
         self.model_path = Path(model_path)
@@ -34,29 +38,45 @@ class CheckpointReader(ICheckpointReader):
         self._shard_meta: dict[str, dict[str, tuple[str, tuple[int, ...]]]] | None = None
 
     def read_weight_map(self) -> dict[str, str]:
-        """原始 index：tensor key -> shard 相对路径。"""
+        """tensor key -> shard 相对路径（与 index.json 的 weight_map 同构）。"""
         if self._weight_map is not None:
             return self._weight_map
-        index_path = self.model_path / "model.safetensors.index.json"
-        if not index_path.is_file():
-            single = self.model_path / "model.safetensors"
-            if single.is_file():
-                self._weight_map = {"__single__": str(single)}
-                return self._weight_map
-            raise FileNotFoundError(f"No safetensors index or single file under {self.model_path}")
-        data = json.loads(index_path.read_text(encoding="utf-8"))
-        self._weight_map = dict(data.get("weight_map", {}))
-        return self._weight_map
+        index_path = self.model_path / _INDEX_JSON
+        if index_path.is_file():
+            data = json.loads(index_path.read_text(encoding="utf-8"))
+            self._weight_map = dict(data.get("weight_map", {}))
+            return self._weight_map
+
+        single = self.model_path / _SINGLE_MODEL_SAFETENSORS
+        if single.is_file():
+            self._weight_map = self._weight_map_from_single_file(single)
+            return self._weight_map
+
+        raise FileNotFoundError(f"No {_INDEX_JSON} or {_SINGLE_MODEL_SAFETENSORS} under {self.model_path}")
+
+    @staticmethod
+    def _weight_map_from_single_file(single: Path) -> dict[str, str]:
+        """无 index 时从单文件枚举 key，映射到相对文件名 ``model.safetensors``。"""
+        from safetensors import safe_open
+
+        shard_name = single.name
+        with safe_open(str(single), framework="pt", device="cpu") as f:
+            weight_map = {key: shard_name for key in f.keys()}
+        logger.info(
+            "No %s; built weight_map from %s (%d keys)",
+            _INDEX_JSON,
+            shard_name,
+            len(weight_map),
+        )
+        return weight_map
 
     def read_catalog(self) -> TensorCatalog:
         """快速建 catalog：dtype/shape 为 UNKNOWN/()，由 ``enrich_catalog`` 按需填充。"""
         weight_map = self.read_weight_map()
         catalog = TensorCatalog()
         for key, shard in weight_map.items():
-            if key == "__single__":
-                continue
             catalog.add(TensorEntry(key=key, shard=shard, dtype="UNKNOWN", shape=()))
-        logger.info("Built catalog from index (%d keys), headers deferred", len(catalog))
+        logger.info("Built catalog from weight_map (%d keys), headers deferred", len(catalog))
         return catalog
 
     def _load_all_shard_metadata(self) -> dict[str, dict[str, tuple[str, tuple[int, ...]]]]:
@@ -66,7 +86,7 @@ class CheckpointReader(ICheckpointReader):
         from safetensors import safe_open
 
         weight_map = self.read_weight_map()
-        shards = sorted({s for _, s in weight_map.items() if _ != "__single__"})
+        shards = sorted(set(weight_map.values()))
         meta: dict[str, dict[str, tuple[str, tuple[int, ...]]]] = {}
         for i, shard_name in enumerate(shards, 1):
             shard_path = self.model_path / shard_name
