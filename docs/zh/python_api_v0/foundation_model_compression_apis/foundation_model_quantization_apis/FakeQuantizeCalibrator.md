@@ -32,8 +32,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from msmodelslim.pytorch.llm_ptq.llm_ptq_tools import FakeQuantizeCalibrator
 if __name__ == '__main__':
     fp16_path = './chatglm2_6b/'  # 文件路径
-    model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=fp16_path, 
-                                                 local_files_only=True, 
+    model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=fp16_path,
+                                                 local_files_only=True,
                                                  torch_dtype=torch.float32).cpu()
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=fp16_path, local_files_only=True,)
     safetensor_dic = load_file('./quant_model_weight_w8a16.safetensors')  # 使用load_file()函数读取safetensor格式文件并将其解析为字典
@@ -42,3 +42,7 @@ if __name__ == '__main__':
     fakecalibrator = FakeQuantizeCalibrator(model, None, "cpu", description_dict, safetensor_dic)
     model = fakecalibrator.model
 ```
+
+## FAQ
+
+1. 目前已知 V0 伪量化接口存在一定的精度误差。由于 V0 版本不再演进，该问题将在 V1 架构的新版伪量化中解决。
