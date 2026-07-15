@@ -21,7 +21,7 @@
 
 - **推荐场景**：常规量化前的敏感层粗筛。
 - **计算特点**：实现相对轻量，运行速度较快。
-- **模型适配**：无需模型适配器额外实现分析接口；`model_type` 支持范围参见参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
+- **模型适配**：无需模型适配器额外实现分析接口；`model_type` 支持范围参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
 
 ## 功能介绍
 

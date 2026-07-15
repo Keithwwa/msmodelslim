@@ -36,9 +36,9 @@ if __name__ == '__main__':
                                                  local_files_only=True, 
                                                  torch_dtype=torch.float32).cpu()
     tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=fp16_path, local_files_only=True,)
-    safetensor_dic = load_file('./quant_model_weight_w8a16.safetensors')  # Use the load_file() function to read a safetensor format file and parse it into a dictionary.
+    safetensor_dict = load_file('./quant_model_weight_w8a16.safetensors')  # Use the load_file() function to read a safetensor format file and parse it into a dictionary.
     with open('./quant_model_description_w8a16.json', 'r', encoding='utf-8') as file:
         description_dict = json.load(file)  # Use the json.load() function to read a file and parse it into a dictionary.
-    fakecalibrator = FakeQuantizeCalibrator(model, None, "cpu", description_dict, safetensor_dic)
+    fakecalibrator = FakeQuantizeCalibrator(model, None, "cpu", description_dict, safetensor_dict)
     model = fakecalibrator.model
 ```

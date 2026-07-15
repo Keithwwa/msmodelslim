@@ -274,7 +274,7 @@ for output in outputs:
 
 对于过大的模型（7B 及以上），如果遇到显存不足的问题，可以尝试：
 
-1. **使用逐层量化**：在一键量化中默认生效《[逐层量化](../user_guide/feature_guide/quick_quantization_v1/usage.md#51-逐层量化及分布式逐层量化)》，传统量化中不支持。
+1. **使用逐层量化**：在一键量化中默认生效《[逐层量化](../user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)》，传统量化中不支持。
 2. **使用 CPU 量化**：设置 `--device cpu`（一键量化）或 `--device_type cpu`（传统量化），速度较慢但显存占用低。
 
 ### 6.3 支持的量化算法

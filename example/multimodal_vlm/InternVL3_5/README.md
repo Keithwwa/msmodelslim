@@ -1,4 +1,4 @@
-﻿# InternVL 3.5 量化说明
+# InternVL 3.5 量化说明
 
 ## 模型介绍
 
@@ -44,5 +44,5 @@ msmodelslim quant \
 
 ### 相关资源
 
-- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#6-量化配置协议详解)
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#64-multimodal_vlm_modelslim_v1-配置详解)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#54-multimodal_vlm_modelslim_v1-配置详解)
