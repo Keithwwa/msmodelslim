@@ -12,6 +12,7 @@ metadata:
     a_bit: 4
     is_sparse: False
     fa_quant: True
+    fa_bit: 4
 
 default_w4a4_dynamic: &default_w4a4_dynamic
   act:
