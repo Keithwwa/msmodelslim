@@ -168,7 +168,7 @@ spec:
       part_file_size: 4 # 每个safetensors权重文件最大4G
 ```
 
-### 量化自有模型
+### 运行一键量化
 
 可通过如下命令完成自有模型量化，请注意`trust_remote_code`为`True`时可能执行浮点模型权重中的代码文件，请确保浮点模型来源安全可靠。其中 `${MODEL_PATH}` 为原始浮点权重路径，`${SAVE_PATH}` 为用户自定义的量化权重保存路径，`${MODEL_TYPE}` 为注册的模型名称，`${CONFIG_PATH}` 为YAML配置文件路径。
 

@@ -18,7 +18,7 @@
 ## 适用要求
 
 - **推荐场景**：需要根据激活分布的尖峰程度来识别量化敏感层，从而辅助回退或混合精度决策。
-- **模型适配**：无需模型适配器额外实现分析接口。`model_type` 支持范围参见参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
+- **模型适配**：无需模型适配器额外实现分析接口。`model_type` 支持范围参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
 
 ## 功能介绍
 

@@ -44,20 +44,17 @@
 <details>
 <summary>🗂️ 历史更新（点击展开）</summary>
 
-### 🗓️ 2026年2月
-
+**2026年2月**
 - msModelSlim 支持 Qwen3-Omni-30B-A3B-Thinking、Qwen3-Omni-30B-A3B-Instruct W8A8 量化
 - msModelSlim 支持 Qwen2.5-Omni-7B W8A8 量化
 - msModelSlim 支持 Qwen3.5-397B-A17B W8A8 量化
 - msModelSlim 支持 GLM-5 W4A8 量化
 - msModelSlim 优化一键量化场景推荐
 
-### 🗓️ 2026年1月
-
+**2026年1月**
 - msModelSlim 支持 Qwen3-VL-32B-Instruct W8A8 量化
 
-### 🗓️ 2025年12月
-
+**2025年12月**
 - msModelSlim 支持量化精度反馈自动调优，可根据精度需求自动搜索最优量化配置
 - msModelSlim 支持自主量化多模态理解模型，支持多模态理解模型的量化接入
 - msModelSlim 一键量化支持多卡量化，支持分布式逐层量化，提升大模型量化效率
@@ -65,30 +62,26 @@
 - msModelSlim 支持 DeepSeek-V3.2-Exp W4A8 量化，单卡64G显存、100G内存即可执行
 - msModelSlim 支持 Qwen3-VL-235B-A22B W8A8 量化
 
-### 🗓️ 2025年11月
-
+**2025年11月**
 - msModelSlim 模型适配支持插件化和配置注册，支持依赖预检
 
-### 🗓️ 2025年10月
-
+**2025年10月**
 - msModelSlim 支持 Qwen3-235B-A22B W4A8、Qwen3-30B-A3B W4A8 量化，vLLM-Ascend 已支持量化模型推理部署
 
-### 🗓️ 2025年9月
-
+**2025年9月**
 - msModelSlim 支持 DeepSeek-V3.2-Exp W8A8 量化，单卡64G显存、100G内存即可执行
 - msModelSlim 现已解决Qwen3-235B-A22B在W8A8量化下频繁出现"游戏副本"等异常token的问题
 - msModelSlim 支持 DeepSeek R1 W4A8 per-channel 量化【Prototype】
 - msModelSlim 支持大模型量化敏感层分析
 
-### 🗓️ 2025年8月
-
+**2025年8月**
 - msModelSlim 支持 Wan2.1 模型一键量化
 - msModelSlim 支持大模型逐层量化，显著降低大模型量化内存占用
 - msModelSlim 支持大模型 SSZ 权重量化算法，通过迭代搜索最优缩放因子和偏移量提升量化精度
 
 </details>
 
-## 📖 简介
+## ℹ️ 简介
 
 **MindStudio ModelSlim（msModelSlim）** 是昇腾生态下的高性能模型压缩工具，支持稠密LLM、MoE及多模态模型的量化与压缩，开发者可通过msModelSlim工具快速调优并导出适配MindIE、vLLM-Ascend等框架的模型，在昇腾AI处理器上实现高效部署。
 

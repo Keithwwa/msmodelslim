@@ -1,4 +1,4 @@
-﻿# GLM-4.6V 量化说明
+# GLM-4.6V 量化说明
 
 ## 模型介绍
 
@@ -46,4 +46,4 @@ msmodelslim quant \
 
 ## 附录
 
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#64-multimodal_vlm_modelslim_v1-配置详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#54-multimodal_vlm_modelslim_v1-配置详解)

@@ -20,7 +20,7 @@
 ## 适用要求
 
 - **推荐场景**：激活分布尾部较重，希望降低离群点对单层分数的主导影响，使敏感度排序更稳健。
-- **模型适配**：无需模型适配器额外实现分析接口。`model_type` 支持范围参见参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
+- **模型适配**：无需模型适配器额外实现分析接口。`model_type` 支持范围参见《[大模型支持矩阵](../../model_support/foundation_model_support_matrix.md)》。
 
 ## 功能介绍
 

@@ -34,7 +34,7 @@
 | `quant_model_weights.safetensors` | **量化权重文件**，包含实际存储的量化后的模型权重数据（若权重较大可能分片保存为多个文件，通过 `model.safetensors.index.json` 索引）。 |
 | `tokenizer_config.json` | 原始分词器的配置文件，包含特殊 token、词表大小等信息 |
 | `tokenizer.json` | 原始分词器的词汇表文件，定义 token 与 ID 的映射关系 |
-| `{model_type}_best_practice.yaml` | **量化配置协议文件**，记录本次量化所使用的完整配置信息，参考[量化配置协议详解](usage.md#6-量化配置协议详解) |
+| `{model_type}_best_practice.yaml` | **量化配置协议文件**，记录本次量化所使用的完整配置信息，参考[量化配置协议详解](usage.md#5-量化配置协议详解) |
 | `vocab.json` | 原始词汇映射文件，部分模型（如 GPT 风格模型）会包含此文件 |
 | `optional/quarot.safetensors` | **QuaRot 全局旋转矩阵文件**（仅在使用 QuaRot 且 `export_extra_info: True` 时生成），存储全局旋转矩阵 `Q`。详见[QuaRot 旋转量化](#5-quarot-旋转量化) |
 | `debug_info/` | **调试信息目录**（仅在启用 `--debug` 参数时生成），包含量化过程中的上下文信息，用于问题排查和算法分析。详见[调试信息输出](#6-调试信息输出) |
