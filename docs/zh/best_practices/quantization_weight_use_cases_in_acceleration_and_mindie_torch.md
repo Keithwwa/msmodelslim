@@ -64,7 +64,7 @@ bash examples/models/llama/generate_quant_weight.sh -src {浮点权重路径} -d
 
 以下展示了量化后权重文件quant_model_weight_w8a8.safetensors中的部分内容：
 
-```tex
+```json
 {
   "model.embed_tokens.weight": tensor([...]),
   "model.layers.0.self_attn.q_proj.weight": tensor([...]),
@@ -79,7 +79,7 @@ bash examples/models/llama/generate_quant_weight.sh -src {浮点权重路径} -d
 
 以下展示了量化后权重描述文件quant_model_description_w8a8.json中的部分内容：
 
-```tex
+```json
 {
   "model_quant_type": "W8A8",                               # 整体量化类型为W8A8量化
   "model.embed_tokens.weight": "FLOAT",                     # 来自原始浮点模型的embed_tokens权重

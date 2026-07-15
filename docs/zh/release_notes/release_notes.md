@@ -38,7 +38,7 @@
 1. 支持通过 entry point 引入自定义 practice 目录，搭建model_adapter插件化能力基础
 2. 优化自动调优功能
 3. 支持Qwen3-Coder-480B模型W4A8量化、Qwen3.5 MOE模型W8A8量化
-4. 支持GLM-4.7模型W8A8量化、GLM-5模型W4A8模型量化
+4. 支持GLM-4.7模型W8A8量化、GLM-5模型W4A8量化
 5. 支持Qwen2.5-Omni-7B模型W8A8量化、Qwen3-Omni-30B-A3B模型W8A8量化
 
 ### 26.0.0.alpha01

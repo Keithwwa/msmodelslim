@@ -138,7 +138,7 @@ python3 example/Qwen/quant_qwen.py \
 
 ### 4.1 一键量化输出目录
 
-```yaml
+```tex
 ├── config.json                          # 原始模型配置文件
 ├── generation_config.json               # 原始生成配置文件
 ├── quant_model_description.json         # 量化权重描述文件
@@ -151,7 +151,7 @@ python3 example/Qwen/quant_qwen.py \
 
 ### 4.2 传统量化输出目录
 
-```yaml
+```tex
 ├── config.json                          # 原始模型配置文件
 ├── generation_config.json               # 原始生成配置文件
 ├── quant_model_description.json         # 量化权重描述文件
@@ -177,7 +177,7 @@ python3 example/Qwen/quant_qwen.py \
 
 ### 5.1 在 vllm-ascend 中使用
 
-可参考 vllm-ascend 官方文档 [Qwen3-32B-W4A4 教程](https://docs.vllm.ai/projects/ascend/en/latest/tutorials/models/Qwen3-32B-W4A4.html)运行Docker容器。
+可参考 vllm-ascend 官方文档 [Qwen3-32B-W4A4 教程](https://docs.vllm.ai/projects/ascend/zh-cn/v0.18.0/tutorials/models/Qwen3-32B-W4A4.html)运行Docker容器。
 
 #### 5.1.1 环境准备与模型目录结构
 
