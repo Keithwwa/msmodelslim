@@ -121,6 +121,8 @@ class ConvertConfig(BaseModel):
     save_path: str
     model_family: Optional[str] = None
     dst_format: str = "ascendv1"
+    # 分片文件大小（GB）；0 表示不分片。来自 YAML ``spec.save[].part_file_size``。
+    part_file_size: int = 4
     defaults: ConvertDefaults = Field(default_factory=ConvertDefaults)
     preprocess_rules: List[WeightMappingRule] = Field(default_factory=list)
     module_rules: List[ModuleRule] = Field(default_factory=list)
@@ -132,6 +134,13 @@ class ConvertConfig(BaseModel):
     def _non_empty_path(cls, v: str) -> str:
         if not v or not str(v).strip():
             raise ValueError("path must be non-empty")
+        return v
+
+    @field_validator("part_file_size", mode="after")
+    @classmethod
+    def _non_negative_part_file_size(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("part_file_size must be >= 0 (0 means no sharding)")
         return v
 
     @model_validator(mode="after")

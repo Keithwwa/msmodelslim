@@ -252,6 +252,13 @@ def _resolve_dst_format(save: List[SaveConfig], defaults: ConvertDefaults) -> st
     return defaults.dst_format
 
 
+def _resolve_part_file_size(save: List[SaveConfig]) -> int:
+    """从 YAML ``spec.save[0].part_file_size`` 读取分片大小；未配置时默认 4GB。"""
+    if save:
+        return save[0].part_file_size
+    return 4
+
+
 def spec_to_convert_config(
     spec: Union[ModelslimConvertServiceConfig, Dict[str, Any]],
     model_path: str,
@@ -279,6 +286,7 @@ def spec_to_convert_config(
         save_path=save_path,
         model_family=model_family,
         dst_format=_resolve_dst_format(spec.save, spec.defaults),
+        part_file_size=_resolve_part_file_size(spec.save),
         defaults=spec.defaults,
         preprocess_rules=_preprocess_to_rules(spec),
         module_rules=module_rules,
