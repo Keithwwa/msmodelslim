@@ -67,7 +67,7 @@
 
 #### 代码实现
 
-- FA3 量化在 [processor.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quant/fa3/processor.py) 中实现，处理流程分三阶段。
+- FA3 量化在 [processor.py](../../../../../msmodelslim/processor/quant/fa3/processor.py) 中实现，处理流程分三阶段。
 
 #### 注入阶段
 

@@ -73,7 +73,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 
 #### 代码实现
 
-算法在 [msmodelslim/processor/anti_outlier/smooth_quant/](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/processor/anti_outlier/smooth_quant) 中实现，处理流程分两阶段。
+算法在 [msmodelslim/processor/anti_outlier/smooth_quant/](../../../../../msmodelslim/processor/anti_outlier/smooth_quant) 中实现，处理流程分两阶段。
 
 #### 预处理阶段
 
@@ -195,7 +195,7 @@ class SmoothQuantInterface(ABC):
 2. **配置子图映射**：为每层配置 norm-linear 子图映射关系。
 3. **指定模块路径**：使用完整的模块路径，如 `model.layers.{i}.input_layernorm`。
 
-**参考实现：** 可参考 [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) 中的 `Qwen3ModelAdapter` 实现。
+**参考实现：** 可参考 [msmodelslim/model/qwen3/model_adapter.py](../../../../../msmodelslim/model/qwen3/model_adapter.py) 中的 `Qwen3ModelAdapter` 实现。
 
 ### 配置示例
 
