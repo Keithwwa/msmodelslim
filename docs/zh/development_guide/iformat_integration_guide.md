@@ -18,7 +18,7 @@ flowchart LR
 
 ## IFormat 协议接口
 
-定义于 [`msmodelslim/format/interface.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/interface.py)：
+定义于 [`msmodelslim/format/interface.py`](../../../msmodelslim/format/interface.py)：
 
 | 方法 | 是否必须实现 | 职责 |
 |------|-------------|------|
@@ -38,7 +38,7 @@ flowchart LR
 
 ### QuantFormatBase（推荐基类）
 
-继承 [`QuantFormatBase`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/base.py) 可自动获得：
+继承 [`QuantFormatBase`](../../../msmodelslim/format/base.py) 可自动获得：
 
 - 模块树遍历（`named_modules` + `processed_modules` 去重）
 - `WrapperIR` 原子/非原子处理
@@ -75,7 +75,7 @@ class MyQuantFormatConfig(QuantFormatConfig):
     part_file_size: int = 4
 ```
 
-参考：[`CompressedTensorsQuantFormatConfig`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/compressed_tensors_format/compressed_tensors.py)
+参考：[`CompressedTensorsQuantFormatConfig`](../../../msmodelslim/format/compressed_tensors_format/compressed_tensors.py)
 
 ### 步骤 2：实现 IFormat 子类
 
@@ -125,11 +125,11 @@ class MyQuantFormat(QuantFormatBase):
             self.safetensors_writer.write(name, param.detach())
 ```
 
-参考：[`CompressedTensorsQuantFormat`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/compressed_tensors_format/compressed_tensors.py)
+参考：[`CompressedTensorsQuantFormat`](../../../msmodelslim/format/compressed_tensors_format/compressed_tensors.py)
 
 ### 步骤 3：注册格式绑定
 
-在 [`msmodelslim/format/registry.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/registry.py) 中注册：
+在 [`msmodelslim/format/registry.py`](../../../msmodelslim/format/registry.py) 中注册：
 
 ```python
 class QuantFormatFactory:
@@ -148,7 +148,7 @@ register_quant_format(MyQuantFormatConfig, MyQuantFormat)
 
 ### 步骤 4：加入 YAML 联合类型
 
-在 [`QuantFormatConfigUnion`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/registry.py) 中加入新 Config 类，使 Pydantic 能按 `type` 字段反序列化：
+在 [`QuantFormatConfigUnion`](../../../msmodelslim/format/registry.py) 中加入新 Config 类，使 Pydantic 能按 `type` 字段反序列化：
 
 ```python
 QuantFormatConfigUnion = Annotated[
@@ -206,7 +206,7 @@ def build_module_handler_map(self):
 
 ## 测试与验证
 
-参考 [`test/cases/format/compressed_tensors_format/`](https://gitcode.com/Ascend/msmodelslim/tree/master/test/cases/format/compressed_tensors_format/)：
+参考 [`test/cases/format/compressed_tensors_format/`](../../../test/cases/format/compressed_tensors_format)：
 
 1. 实现 `MockSafetensorsWriter` 内存 writer
 2. 构造最小 QIR 模型（W8A8 Static / Dynamic）
@@ -217,12 +217,12 @@ def build_module_handler_map(self):
 
 | 组件 | 路径 |
 |------|------|
-| IFormat 协议 | [`msmodelslim/format/interface.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/interface.py) |
-| QuantFormatBase | [`msmodelslim/format/base.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/base.py) |
-| 注册表 | [`msmodelslim/format/registry.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/format/registry.py) |
-| 保存处理器 | [`msmodelslim/processor/save/processor.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/save/processor.py) |
-| compressed-tensors 实现 | [`msmodelslim/format/compressed_tensors_format/`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/format/compressed_tensors_format) |
-| 单元测试 | [`test/cases/format/compressed_tensors_format/`](https://gitcode.com/Ascend/msmodelslim/tree/master/test/cases/format/compressed_tensors_format) |
+| IFormat 协议 | [`msmodelslim/format/interface.py`](../../../msmodelslim/format/interface.py) |
+| QuantFormatBase | [`msmodelslim/format/base.py`](../../../msmodelslim/format/base.py) |
+| 注册表 | [`msmodelslim/format/registry.py`](../../../msmodelslim/format/registry.py) |
+| 保存处理器 | [`msmodelslim/processor/save/processor.py`](../../../msmodelslim/processor/save/processor.py) |
+| compressed-tensors 实现 | [`msmodelslim/format/compressed_tensors_format/`](../../../msmodelslim/format/compressed_tensors_format) |
+| 单元测试 | [`test/cases/format/compressed_tensors_format/`](../../../test/cases/format/compressed_tensors_format) |
 
 ## 相关文档
 

@@ -1069,7 +1069,7 @@ class Wan2_2BaseModelAdapter(
             sub.bind_module(module)
             adapters[expert_name] = sub
         self._expert_adapters = adapters
-    
+
     def _create_expert_sub_adapter(self, expert_name: str) -> Wan2_2ExpertSubAdapter:
         """
         工厂方法：按 expert_name 返回子适配器实例。
@@ -1230,7 +1230,7 @@ class Wan2_2BaseModelAdapter(
 
 ### 注册模型名
 
-在 [`config/config.ini`](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) 中注册模型。多模态生成建议 **按场景拆分为独立 `model_type`**，与适配器子类的 `scene_task` 一一对应，**不要**在 YAML 里用 `task` 切换 T2V / I2V / TI2V。
+在 [`config/config.ini`](../../../config/config.ini) 中注册模型。多模态生成建议 **按场景拆分为独立 `model_type`**，与适配器子类的 `scene_task` 一一对应，**不要**在 YAML 里用 `task` 切换 T2V / I2V / TI2V。
 
 ```ini
 [ModelAdapter]
@@ -1262,7 +1262,7 @@ hunyuan_video = msmodelslim.model.hunyuan_video.loader:HunyuanVideoAdapterLoader
 
 校准数据由 YAML 的 `dataset` 字段指定，可写为：
 
-- **短名称**：在 [`lab_calib`](https://gitcode.com/Ascend/msmodelslim/tree/master/lab_calib) 下查找对应目录或文件；
+- **短名称**：在 [`lab_calib`](../../../lab_calib) 下查找对应目录或文件；
 - **绝对路径 / 相对路径**：指向自定义校准集。
 
 多模态生成复用 `VlmCalibSample` 加载逻辑，常见为 **`index.json` / `index.jsonl`**，每条样本至少包含非空 **`text`**（Prompt）。字段约定与理解模型类似，详见[一键量化使用说明 — dataset 校准数据路径配置](../user_guide/feature_guide/quick_quantization_v1/usage.md#dataset---校准数据路径配置)。
@@ -1285,7 +1285,7 @@ dataset: wan2_2_t2v   # 对应 lab_calib 下的校准集短名称
 
 ### 准备量化配置
 
-创建量化配置文件（YAML）。Wan2.2 T2V 官方示例见 [`wan2_2_w8a8f8_mxfp_t2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_t2v.yaml)；HunyuanVideo 可参考 [`hunyuan_video_w8a8f8_mxfp.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/hunyuan_video/hunyuan_video_w8a8f8_mxfp.yaml)。
+创建量化配置文件（YAML）。Wan2.2 T2V 官方示例见 [`wan2_2_w8a8f8_mxfp_t2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_t2v.yaml)；HunyuanVideo 可参考 [`hunyuan_video_w8a8f8_mxfp.yaml`](../../../lab_practice/hunyuan_video/hunyuan_video_w8a8f8_mxfp.yaml)。
 
 ```yaml
 # 量化配置（Wan2.2-T2V-A14B，W8A8 MXFP8 + QuaRot + FA3）
@@ -1361,7 +1361,7 @@ spec:
 | `save` | 多模态生成默认 `mindie_format_saver`，输出 MindIE-SD 格式 |
 | `multimodal_sd_config.inference_config` | **推理参数桥接**（Pydantic 校验），字段须与原 Wan2.2 推理仓 CLI 一致；`task` 须与当前 `model_type` 对应（T2V 为 `t2v-A14B`） |
 
-`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../user_guide/feature_guide/quick_quantization_v1/usage.md#53-multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
+`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../user_guide/feature_guide/quick_quantization_v1/usage.md#53-multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
 
 ### 执行量化
 
@@ -1391,7 +1391,7 @@ msmodelslim quant \
 
 请注意`trust_remote_code`为`True`时可能执行浮点模型权重中的代码文件，请确保浮点模型来源安全可靠。其中 `${MODEL_PATH}` 为原始浮点权重路径，`${SAVE_PATH}` 为用户自定义的量化权重保存路径，model_type对应配置为注册的模型名称，`${CONFIG_PATH}` 为YAML配置文件路径。
 
-- 更多命令示例见《[Wan2.2 量化使用说明](https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_sd/Wan2_2/README.md)》。
+- 更多命令示例见《[Wan2.2 量化使用说明](../../../example/multimodal_sd/Wan2_2/README.md)》。
 
 ## 常见问题与排障
 
@@ -1444,9 +1444,9 @@ msmodelslim quant \
 
 ## 参考实现
 
-- **多模态生成量化服务**：[quant_service.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quant_service/multimodal_sd_v1/quant_service.py)
-- **Pipeline 接口**：[pipeline_interface.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quant_service/multimodal_sd_v1/pipeline_interface.py)、[legacy_pipeline_interface.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quant_service/multimodal_sd_v1/legacy_pipeline_interface.py)
-- **配置校验**：[quant_config.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quant_service/multimodal_sd_v1/quant_config.py)（`validate_inference_config`、`resolve_inference_raw`）
-- **单网络 DiT**：[msmodelslim/model/hunyuan_video](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/model/hunyuan_video)
-- **双专家 DiT**：[msmodelslim/model/wan2_2](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/model/wan2_2)
-- **YAML 示例**：[hunyuan_video_w8a8f8_mxfp.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/hunyuan_video/hunyuan_video_w8a8f8_mxfp.yaml)、[wan2_2_w8a8f8_mxfp_t2v.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_t2v.yaml)
+- **多模态生成量化服务**：[quant_service.py](../../../msmodelslim/core/quant_service/multimodal_sd_v1/quant_service.py)
+- **Pipeline 接口**：[pipeline_interface.py](../../../msmodelslim/core/quant_service/multimodal_sd_v1/pipeline_interface.py)、[legacy_pipeline_interface.py](../../../msmodelslim/core/quant_service/multimodal_sd_v1/legacy_pipeline_interface.py)
+- **配置校验**：[quant_config.py](../../../msmodelslim/core/quant_service/multimodal_sd_v1/quant_config.py)（`validate_inference_config`、`resolve_inference_raw`）
+- **单网络 DiT**：[msmodelslim/model/hunyuan_video](../../../msmodelslim/model/hunyuan_video)
+- **双专家 DiT**：[msmodelslim/model/wan2_2](../../../msmodelslim/model/wan2_2)
+- **YAML 示例**：[hunyuan_video_w8a8f8_mxfp.yaml](../../../lab_practice/hunyuan_video/hunyuan_video_w8a8f8_mxfp.yaml)、[wan2_2_w8a8f8_mxfp_t2v.yaml](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_t2v.yaml)
