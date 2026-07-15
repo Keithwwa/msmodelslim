@@ -12,7 +12,7 @@
 
 ## 代码示例
 
-```config
+```python
 import json
 import torch
 import argparse
