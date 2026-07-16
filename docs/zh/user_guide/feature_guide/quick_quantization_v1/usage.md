@@ -632,6 +632,7 @@ spec:
 **Legacy 路径补充**：`enable_dump=False` 时不会 load/dump，各专家 `calib_data` 直接置为 `None`；Legacy 缓存文件名仍为 `calib_data_<task_config>_<expert>.pth`（与重构命名一致），不再使用单一 `calib_data.pth`。
 
 ##### 5.3.5.2 inference_config - 推理参数配置（推荐）
+
 **作用**: 配置浮点推理重放与量化桥接参数。由量化服务调用 `validate_inference_config`，使用适配器声明的 `InferenceConfig`（Pydantic，`extra="forbid"`）校验后，再经 `configure_runtime` 合并为原推理仓的 `model_args`。
 
 **配置示例**（Wan2.2-T2V-A14B）:

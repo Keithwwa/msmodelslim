@@ -80,7 +80,7 @@
 
 ### 4 Qwen2.5-VL-32B-Instruct W8A8 MXFP8 静态量化
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \

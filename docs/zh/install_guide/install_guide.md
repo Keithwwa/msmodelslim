@@ -4,7 +4,7 @@
 
 1. 本工具支持[在线安装](#21-在线安装)、[离线安装](#22-离线安装)、[源码安装](#23-源码安装)三种安装方式，请根据您的实际环境选择最合适的方案。
 
-2. 本工具依赖的Python版本不低于3.8，且不高于3.12。
+2. 本工具依赖的 Python 版本不低于3.8，且不高于3.12。
 
 3. 若使用昇腾NPU设备，则需安装TorchNPU及其对应的相关依赖，TorchNPU包的安装请参考[Ascend for PyTorch 安装](https://www.hiascend.com/document/detail/zh/Pytorch/2600/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)。
 

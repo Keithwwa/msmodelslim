@@ -73,7 +73,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -87,7 +87,7 @@ msmodelslim quant \
 
 ### <span id="qwen3-vl-moe-w8a8-mxfp8">Qwen3-VL-MoE W8A8 + MXFP8 静态量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \

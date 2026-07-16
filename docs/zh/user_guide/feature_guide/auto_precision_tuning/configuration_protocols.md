@@ -245,7 +245,7 @@ AISBench 测评工具的详细配置参数：
 
 **datasets 字段说明**:
 
-该字段指定了不同的数据集键与 AISBench 侧数据集配置的对应关系。下文示例中仅列出三个数据集（gsm8k、aime25、bfcl-simple）；更多数据集可参考 [AISBench 文档数据集支持列表](https://ais-bench-benchmark.readthedocs.io/zh-cn/latest/get_started/datasets.html) 自行扩展。
+该字段指定了不同的数据集键与 AISBench 侧数据集配置的对应关系。下文示例中仅列出三个数据集（gsm8k、aime25、bfcl-simple）；更多数据集可参考[AISBench 文档数据集支持列表](https://github.com/AISBench/benchmark/blob/master/docs/source_zh_cn/get_started/datasets.md)自行扩展。
 
 每个数据集的配置字段说明：
 

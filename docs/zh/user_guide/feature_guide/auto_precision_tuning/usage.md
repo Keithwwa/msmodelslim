@@ -13,7 +13,7 @@ toc_depth: 3
 
 1. **msModelSlim**：用于自动调优任务的启动与执行。安装方式请参考 《[安装指南](../../../install_guide/install_guide.md)》。
 2. **vLLM-Ascend**：用于量化后模型服务化启动。自动调优功能在评估量化后模型精度时，需要使用 vLLM-Ascend 将量化后的模型以服务化方式启动。建议直接使用官方提供的镜像进行安装，详细安装说明请参考 [vLLM-Ascend 安装文档](https://docs.vllm.ai/projects/vllm-ascend-cn/zh-cn/latest/installation.html)。
-3. **AISBench**：用于量化后模型测试。自动调优功能使用 [AISBench](https://github.com/AISBench/benchmark) 对量化后的模型进行精度评估和测试。完成安装后，还需要参考 [AISBench 数据集准备指南](https://yh-ais-bench-benchmark.readthedocs.io/zh-cn/latest/base_tutorials/all_params/datasets.html) 准备对应的数据集。
+3. **AISBench**：用于量化后模型测试。自动调优功能使用 [AISBench](https://github.com/AISBench/benchmark) 对量化后的模型进行精度评估和测试。完成安装后，还需要参考 [AISBench 数据集准备指南](https://github.com/AISBench/benchmark/blob/master/docs/source_zh_cn/get_started/datasets.md) 准备对应的数据集。
 
 请确保上述工具已正确安装并配置，否则自动调优功能将无法正常进行模型评估。
 

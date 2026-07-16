@@ -1361,7 +1361,7 @@ spec:
 | `save` | 多模态生成默认 `mindie_format_saver`，输出 MindIE-SD 格式 |
 | `multimodal_sd_config.inference_config` | **推理参数桥接**（Pydantic 校验），字段须与原 Wan2.2 推理仓 CLI 一致；`task` 须与当前 `model_type` 对应（T2V 为 `t2v-A14B`） |
 
-`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../user_guide/feature_guide/quick_quantization_v1/usage.md#63-multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
+`process`、`save`、`multimodal_sd_config` 的完整说明见 [multimodal_sd_modelslim_v1 配置详解](../user_guide/feature_guide/quick_quantization_v1/usage.md#53-multimodal_sd_modelslim_v1-配置详解)。I2V / TI2V 请改用 [`wan2_2_w8a8f8_mxfp_i2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_i2v.yaml)、[`wan2_2_w8a8f8_mxfp_ti2v.yaml`](../../../lab_practice/wan2_2/wan2_2_w8a8f8_mxfp_ti2v.yaml)，并匹配对应的 `model_type` 与 `dataset`。
 
 ### 执行量化
 
