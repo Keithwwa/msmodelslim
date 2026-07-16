@@ -35,7 +35,7 @@ msmodelslim quant \
   --model_path ${MODEL_PATH} \
   --save_path ${SAVE_PATH} \
   --device npu \
-  --model_type longcat_flash \
+  --model_type LongCat-Flash-Chat \
   --quant_type w4a4 \
   --tag Atlas_A5_Interface \
   --trust_remote_code True
