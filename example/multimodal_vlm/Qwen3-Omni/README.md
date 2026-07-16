@@ -49,7 +49,7 @@ Qwen3-Omni 是阿里云 Qwen 团队推出的多模态 Omni 模型，支持语音
 
 ### <span id="qwen3-omni-w8a8">Qwen3-Omni-30B-A3B-Thinking / Qwen3-Omni-30B-A3B-Instruct W8A8 量化</span>
 
-该系列模型的量化已集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。将 `--model_type` 设为对应模型名称、`--quant_type` 设为 `w8a8` 即可。
+该系列模型的量化已集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)。将 `--model_type` 设为对应模型名称、`--quant_type` 设为 `w8a8` 即可。
 
 **Qwen3-Omni-30B-A3B-Thinking：**
 

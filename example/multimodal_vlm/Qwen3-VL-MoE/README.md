@@ -73,7 +73,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ### <span id="qwen3-vl-moe-w8a8-混合量化">Qwen3-VL-235B-A22B W8A8 混合量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -87,7 +87,7 @@ msmodelslim quant \
 
 ### <span id="qwen3-vl-moe-w8a8-mxfp8">Qwen3-VL-MoE W8A8 + MXFP8 静态量化</span>
 
-该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)"章节内容，具体量化命令参考如下：
+该模型的量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -126,7 +126,7 @@ msmodelslim quant \
 
 ### 相关资源
 
-- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#54-multimodal_vlm_modelslim_v1-配置详解)
+- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#52-modelslim_v1-配置详解)
 - [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
 - [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)
 - [QuaRot 算法说明](../../../docs/zh/user_guide/quantization_algorithms/outlier_suppression_algorithms/quarot.md)

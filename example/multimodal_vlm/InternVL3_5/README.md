@@ -28,7 +28,7 @@
 
 ### <span id="internvl3_5-38b-w8a8量化">InternVL3_5-38B W8A8量化</span>
 
-该模型的量化已集成至一键量化，示例参数详见文档《一键量化完整指南》中的“[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)”章节。
+该模型的量化已集成至一键量化，示例参数详见文档《一键量化完整指南》中的“[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)”章节。
 
 ```shell
 msmodelslim quant \

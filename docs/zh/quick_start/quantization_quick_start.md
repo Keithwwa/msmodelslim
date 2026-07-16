@@ -4,8 +4,8 @@
 
 msModelSlim 提供了两种量化方式：**一键量化（V1）**和**传统量化（V0）**。
 
-- **一键量化（V1）**：面向零基础用户，通过命令行方式快速完成量化，具备“开箱即用”的特性。系统会自动匹配最佳实践配置，用户只需指定必要参数即可；此外也支持自定义精细化混合量化策略，灵活性高。
-- **传统量化（V0）**：通过 Python 脚本方式执行量化，在泛化性、可读性等方面均低于一键量化，已停止演进，通常用于一键量化尚未支持的模型。
+- **一键量化（V1）**：面向零基础用户，通过命令行方式快速完成量化，具备“开箱即用”的特性。系统会自动匹配最佳实践配置，用户只需指定必要参数即可；此外也支持自定义精细化混合量化策略，灵活性高，具体介绍请参见《[一键量化完整指南](../user_guide/feature_guide/quick_quantization_v1/usage.md)》。
+- **传统量化（V0）**：通过 Python 脚本方式执行量化，在泛化性、可读性等方面均低于一键量化，已停止演进，通常用于一键量化尚未支持的模型，具体介绍请参见《[V0框架与传统模型文档导航](../user_guide/feature_guide/traditional_quantization_v0/README.md)》。
 
 下面将以 Qwen2.5-7B-Instruct 为例完成量化并基于vllm-ascend完成一次推理。
 
@@ -13,7 +13,7 @@ msModelSlim 提供了两种量化方式：**一键量化（V1）**和**传统量
 
 ### 2.1 镜像准备
 
-vllm-ascend提供用于部署的Docker镜像，可以从镜像仓库[ascend/vllm-ascend](https://quay.io/repository/ascend/vllm-ascend?tab=tags)拉取预构建镜像，具体参考[vllm-ascend快速入门](https://docs.vllm.ai/projects/ascend/en/latest/)。
+vllm-ascend 提供用于部署的 Docker 镜像，可以从镜像仓库[ascend/vllm-ascend](https://quay.io/repository/ascend/vllm-ascend?tab=tags)拉取预构建镜像，具体参考[vllm-ascend 快速入门](https://docs.vllm.ai/projects/ascend/en/latest/)。
 
 ### 2.2 镜像内安装 msModelSlim
 
@@ -47,7 +47,7 @@ msmodelslim quant [ARGS]
 
 #### 3.1.2 参数说明
 
-参数说明可以参考《[一键量化参数说明](../user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)》
+参数说明可以参考《[一键量化参数说明](../user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)》
 
 **说明：**
 
@@ -177,7 +177,7 @@ python3 example/Qwen/quant_qwen.py \
 
 ### 5.1 在 vllm-ascend 中使用
 
-可参考 vllm-ascend 官方文档 [Qwen3-32B-W4A4 教程](https://docs.vllm.ai/projects/ascend/zh-cn/v0.18.0/tutorials/models/Qwen3-32B-W4A4.html)运行Docker容器。
+可参考 vllm-ascend 官方文档 [Qwen3-32B-W4A4 教程](https://docs.vllm.ai/projects/ascend/en/latest/tutorials/models/Qwen3-32B-W4A4.html)运行 Docker 容器。
 
 #### 5.1.1 环境准备与模型目录结构
 
@@ -314,4 +314,4 @@ A: 量化方式选择建议：
 A: 两种方式生成的权重文件格式相同，都可以用于推理。主要区别在于：
 
 - 一键量化使用最佳实践配置，可能包含一些优化。
-- 传统量化支持生成MindIE推理框架独占格式，可用于老版本兼容；一键量化支持AscendV1格式（关于该格式的更多信息，请参考 [AscendV1Config](../../../msmodelslim/core/quant_service/modelslim_v1/save/ascendv1.py) 中的说明），可用于多框架（MindIE、vllm-ascend、SGLang）使用。
+- 传统量化支持生成 MindIE 推理框架独占格式，可用于老版本兼容；一键量化支持 AscendV1 格式（关于该格式的更多信息，请参考 [AscendV1Config](../../../msmodelslim/core/quant_service/modelslim_v1/save/ascendv1.py) 中的说明），可用于多框架（MindIE、vllm-ascend、SGLang）使用。

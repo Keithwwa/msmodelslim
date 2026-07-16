@@ -57,7 +57,7 @@
 
 ### <span id="qwen25-omni-7b-w8a8-量化">Qwen2.5-Omni-7B W8A8 动态量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)。
 
 ```shell
 msmodelslim quant \

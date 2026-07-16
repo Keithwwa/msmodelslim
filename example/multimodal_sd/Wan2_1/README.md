@@ -97,7 +97,7 @@ msmodelslim quant \
 
 ### 一键量化命令参数说明
 
-一键量化参数基本说明可参考：[一键量化参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#42-参数说明)。
+一键量化参数基本说明可参考：[一键量化参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)
 
 针对Wan2.1模型，有不同的限制：
 
@@ -212,5 +212,5 @@ export ENABLE_ROPE_BF16=1
 ### 相关资源
 
 - [Wan2.1模型仓库](https://modelers.cn/models/MindIE/Wan2.1)
-- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#6-量化配置协议详解)
-- [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#51-逐层量化及分布式逐层量化)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
+- [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)
