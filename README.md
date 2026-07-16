@@ -21,6 +21,10 @@
 
 <span style="font-size:14px;">
 
+🔹 **[2026.07.15]**
+
+- 新增对 Gemma4 Dense `gemma-4-31B-it`（W8A8）、Gemma4 MoE `gemma-4-26B-A4B-it`（W8A8）模型的量化支持
+
 🔹 **[2026.07.07]**
 
 - 新增对腾讯混元 `Hy3`（W8A8）模型的量化支持
