@@ -72,3 +72,46 @@ class TestSaveProcessorAdapter:
             cfg = mock_cls.call_args[0][1]
             assert isinstance(cfg.format, CompressedTensorsQuantFormatConfig)
             assert cfg.format.part_file_size == 4
+
+    def test_save_compressed_tensors_use_part_file_size_when_config_set(self):
+        from msmodelslim.format.compressed_tensors_format.compressed_tensors import (
+            CompressedTensorsQuantFormatConfig,
+        )
+
+        tree = nn.Module()
+        config = ConvertConfig(model_path="/m", save_path="/out", dst_format="huggingface", part_file_size=0)
+        context = ConvertContext(config=config)
+        context.reader = MagicMock()
+
+        with (
+            patch.object(QuantSaveProcessor, "pre_run"),
+            patch.object(QuantSaveProcessor, "postprocess"),
+            patch.object(QuantSaveProcessor, "post_run"),
+            patch(
+                "msmodelslim.core.quant_service.modelslim_convert.impl.save_adapter.QuantSaveProcessor",
+            ) as mock_cls,
+        ):
+            SaveProcessorAdapter().save(context, tree)
+            cfg = mock_cls.call_args[0][1]
+            assert isinstance(cfg.format, CompressedTensorsQuantFormatConfig)
+            assert cfg.format.part_file_size == 0
+
+    def test_save_ascendv1_use_part_file_size_when_config_set(self):
+        tree = nn.Module()
+        config = ConvertConfig(model_path="/m", save_path="/out", dst_format="ascendv1", part_file_size=8)
+        context = ConvertContext(config=config)
+        context.reader = MagicMock()
+
+        with (
+            patch("msmodelslim.core.quant_service.modelslim_v1.save.ascendv1.AscendV1Saver") as mock_saver_cls,
+            patch(
+                "msmodelslim.core.quant_service.modelslim_convert.impl.save_adapter._lazy_init_unsaved_modules",
+            ),
+        ):
+            mock_saver = MagicMock()
+            mock_saver_cls.return_value = mock_saver
+            SaveProcessorAdapter().save(context, tree)
+            saver_cfg = mock_saver_cls.call_args.kwargs["config"]
+            assert saver_cfg.part_file_size == 8
+            mock_saver.pre_run.assert_called_once()
+            mock_saver.post_run.assert_called_once()

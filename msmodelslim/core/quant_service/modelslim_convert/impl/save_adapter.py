@@ -83,7 +83,8 @@ class SaveProcessorAdapter(ISaveProcessorAdapter):
         save_dir: str,
         adapter: IModel,
     ) -> None:
-        format_cfg = parse_format_config({"type": "compressed_tensors", "part_file_size": 4})
+        part_file_size = context.config.part_file_size
+        format_cfg = parse_format_config({"type": "compressed_tensors", "part_file_size": part_file_size})
         cfg = QuantSaveProcessorConfig(type="saver", format=format_cfg)
         cfg.set_save_directory(save_dir)
         _lazy_init_unsaved_modules(context, tree)
@@ -95,7 +96,11 @@ class SaveProcessorAdapter(ISaveProcessorAdapter):
             if name:
                 saver.postprocess(BatchProcessRequest(name=name, module=module, datas=None, outputs=None))
         saver.post_run()
-        logger.info("Saved HF/compressed_tensors checkpoint to %s", save_dir)
+        logger.info(
+            "Saved HF/compressed_tensors checkpoint to %s (part_file_size=%s)",
+            save_dir,
+            part_file_size,
+        )
 
     @staticmethod
     def _save_ascendv1(
@@ -106,9 +111,14 @@ class SaveProcessorAdapter(ISaveProcessorAdapter):
     ) -> None:
         from msmodelslim.core.quant_service.modelslim_v1.save.ascendv1 import AscendV1Config, AscendV1Saver
 
+        part_file_size = context.config.part_file_size
         _lazy_init_unsaved_modules(context, tree)
-        cfg = AscendV1Config(save_directory=save_dir, part_file_size=4)
+        cfg = AscendV1Config(save_directory=save_dir, part_file_size=part_file_size)
         saver = AscendV1Saver(model=tree, config=cfg, adapter=adapter)
         saver.pre_run()
         saver.post_run()
-        logger.info("Saved AscendV1 checkpoint to %s", save_dir)
+        logger.info(
+            "Saved AscendV1 checkpoint to %s (part_file_size=%s)",
+            save_dir,
+            part_file_size,
+        )

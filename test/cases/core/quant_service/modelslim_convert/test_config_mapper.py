@@ -74,8 +74,25 @@ class TestSpecToConvertConfig:
         assert len(cfg.convert_rules) == 2
         assert cfg.convert_rules[0].target_ir == IRKind.W8A8_MXFP8
         assert cfg.dst_format == "ascendv1"
+        assert cfg.part_file_size == 4
         assert cfg.parallel.max_workers == 8
         assert cfg.model_family == "qwen3_5_moe"
+
+    def test_spec_to_convert_config_map_part_file_size_when_save_given(self):
+        spec = ModelslimConvertServiceConfig.model_validate(
+            {
+                "linears": [],
+                "save": [{"type": "huggingface", "part_file_size": 0}],
+            }
+        )
+        cfg = spec_to_convert_config(spec, model_path="/m", save_path="/o")
+        assert cfg.dst_format == "huggingface"
+        assert cfg.part_file_size == 0
+
+    def test_spec_to_convert_config_default_part_file_size_when_save_empty(self):
+        spec = ModelslimConvertServiceConfig.model_validate({"linears": []})
+        cfg = spec_to_convert_config(spec, model_path="/m", save_path="/o")
+        assert cfg.part_file_size == 4
 
     def test_spec_to_convert_config_auto_route_infer_source_ir_from_catalog_later(self):
         spec = ModelslimConvertServiceConfig.model_validate(
