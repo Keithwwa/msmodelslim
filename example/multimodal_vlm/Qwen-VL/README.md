@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 - 为避免出现类似[读取不到模型目录下的 SimSun.ttf 文件](https://github.com/QwenLM/Qwen-VL/issues/319)的问题，建议手动下载[SimSun.ttf](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/SimSun.ttf)并移动到原始浮点权重路径中，并修改tokenization_qwen.py中FONT_PATH，例如：
 
   ```python

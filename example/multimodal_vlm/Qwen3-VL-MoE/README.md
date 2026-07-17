@@ -11,7 +11,7 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 - 注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为2.7.1版本
 - 针对 Qwen3-VL-MoE，transformers 版本需要 4.57.1：
 
@@ -126,9 +126,9 @@ msmodelslim quant \
 
 ### 相关资源
 
-- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#52-modelslim_v1-配置详解)
+- [multimodal_vlm_modelslim_v1 配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#54-multimodal_vlm_modelslim_v1-配置详解)
 - [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
 - [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)
-- [QuaRot 算法说明](../../../docs/zh/user_guide/quantization_algorithms/outlier_suppression_algorithms/quarot.md)
-- [Iterative Smooth 算法说明](../../../docs/zh/user_guide/quantization_algorithms/outlier_suppression_algorithms/iterative_smooth.md)
-- [LinearQuantProcess 线性层量化处理器说明](../../../docs/zh/user_guide/quantization_algorithms/quantization_algorithms/linear_quant.md)
+- 《[QuaRot 算法说明](../../../docs/zh/user_guide/quantization_algorithms/outlier_suppression_algorithms/quarot.md)》
+- 《[Iterative Smooth 算法说明](../../../docs/zh/user_guide/quantization_algorithms/outlier_suppression_algorithms/iterative_smooth.md)》
+- 《[LinearQuantProcess 线性层量化处理器说明](../../../docs/zh/user_guide/quantization_algorithms/quantization_algorithms/linear_quant.md)》

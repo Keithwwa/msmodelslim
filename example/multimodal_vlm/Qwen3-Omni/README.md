@@ -9,7 +9,7 @@ Qwen3-Omni 是阿里云 Qwen 团队推出的多模态 Omni 模型，支持语音
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 - 注意：由于高版本 transformers 的特殊性，PyTorch 及 torch_npu 需按安装指南配置为兼容版本。
 - 针对 Qwen3-Omni，transformers 版本需为 **4.57.3**：
 

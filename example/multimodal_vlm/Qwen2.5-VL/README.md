@@ -11,7 +11,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 - 还需要执行以下命令安装qwen_vl_utils依赖
     - pip install qwen_vl_utils
 - 针对Qwen2.5-VL，transformers版本需要配置安装为4.49.0

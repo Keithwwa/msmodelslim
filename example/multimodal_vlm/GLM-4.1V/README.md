@@ -6,7 +6,7 @@
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
 - 针对GLM-4.1V，transformers版本需要安装为4.53.0：
     - pip install transformers==4.53.0
 
