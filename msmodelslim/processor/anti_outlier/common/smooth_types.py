@@ -17,12 +17,11 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
-"""
 
-"""
-Smooth quantization types and configurations
+Smooth quantization types and configurations.
 
-This module contains data classes for smooth quantization algorithms including:
+Data classes for smooth quantization algorithms including:
+- OASQ: Outlier-Aware Smoothing Quantization algorithm
 - IterSmooth: Iterative Smooth algorithm types
 - FlexSmoothQuant: Flex Smooth Quantization algorithm types
 - FlexAWQSSZ: Flex AWQ SSZ algorithm types
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
 @dataclass
 class SmoothQuantContext:
     """SmoothQuant runtime context"""
+
     version: int
     a_smooth_scale: torch.Tensor
     shift: torch.Tensor
@@ -48,6 +48,7 @@ class SmoothQuantContext:
 @dataclass
 class SmoothQuantConfig:
     """SmoothQuant algorithm configuration"""
+
     version: int = 1
     alpha: float = 0.5
     shift: bool = False
@@ -58,6 +59,13 @@ class IterSmoothContext:
     version: int
     a_smooth_scale: torch.Tensor
     shift: torch.Tensor
+
+
+@dataclass
+class OASQContext:
+    version: int
+    a_smooth_scale: torch.Tensor
+    shift: Optional[torch.Tensor] = None
 
 
 @dataclass
@@ -74,6 +82,13 @@ class IterSmoothConfig:
     alpha: float = 0.9
     shift: bool = False
     scale_min: float = 1e-5
+
+
+@dataclass
+class OASQConfig:
+    max_iters: Optional[int] = None
+    shift: bool = False
+    version: int = 1
 
 
 @dataclass
@@ -119,5 +134,10 @@ class FlexAWQSSZConfig:
     qconfig: Optional['LinearQConfig'] = None
 
 
-SmoothContext = Union[SmoothQuantContext, IterSmoothContext, FlexSmoothQuantContext, FlexAWQSSZContext]
-
+SmoothContext = Union[
+    SmoothQuantContext,
+    IterSmoothContext,
+    OASQContext,
+    FlexSmoothQuantContext,
+    FlexAWQSSZContext,
+]

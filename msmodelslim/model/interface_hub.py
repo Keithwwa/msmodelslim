@@ -50,6 +50,7 @@ from msmodelslim.processor.analysis.binary_operator.metrics.attention_mse.interf
 )
 from msmodelslim.processor.anti_outlier.flex_smooth.interface import FlexSmoothQuantInterface
 from msmodelslim.processor.anti_outlier.iter_smooth.interface import IterSmoothInterface
+from msmodelslim.processor.anti_outlier.oasq.interface import OASQInterface
 from msmodelslim.processor.anti_outlier.smooth_quant.interface import SmoothQuantInterface
 from msmodelslim.processor.kv_smooth import KVSmoothFusedInterface
 from msmodelslim.processor.quant.fa3.interface import FA3QuantAdapterInterface, FA3QuantPlaceHolder
@@ -77,6 +78,7 @@ __all__ = [
     'KVSmoothFusedInterface',  # For KV Smooth, describing the architecture of model.
     'SmoothQuantInterface',  # For Smooth Quant, describing the architecture of model.
     'IterSmoothInterface',  # For Iter Smooth, describing the architecture of model.
+    'OASQInterface',  # For Outlier-Aware Smoothing Quantization, describing the architecture of model.
     'FlexSmoothQuantInterface',  # For Flex Smooth Quant, describing the architecture of model.
     # remaining interface
     'ModelSlimPipelineInterfaceV0',  # For ModelSlim V0 quant service, describing the pipeline of model inference.

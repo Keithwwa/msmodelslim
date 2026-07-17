@@ -17,33 +17,14 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
+
+Anti-outlier processor module.
+
+Provides processors for outlier suppression algorithms. Config classes are imported
+for registration with AutoProcessorConfig; API imports register quantization helpers.
 """
 
-"""
-Anti-outlier processor module
-
-This module provides processors for outlier suppression algorithms.
-Config classes must be imported immediately for registration with AutoProcessorConfig.
-Processor classes are lazily loaded to avoid importing unused algorithms.
-"""
-
-__all__ = [
-    # Processors
-    "SmoothQuantProcessor",
-    "SmoothQuantProcessorConfig",
-    "IterSmoothProcessor",
-    "IterSmoothProcessorConfig",
-    "FlexSmoothQuantProcessor",
-    "FlexSmoothQuantProcessorConfig",
-    "FlexAWQSSZProcessor",
-    "FlexAWQSSZProcessorConfig",
-    "AWQProcessor",
-    "AWQProcessorConfig",
-    "SubgraphRegistry",
-    "HookManager",
-    "StatsCollector"
-]
-
+from .awq import AWQProcessorConfig, AWQProcessor
 from .common import HookManager, StatsCollector, SubgraphRegistry
 from .flex_smooth import (
     FlexSmoothQuantProcessorConfig,
@@ -54,6 +35,30 @@ from .flex_smooth import (
 from .flex_smooth.api import flex_smooth_quant, flex_awq_ssz
 from .iter_smooth import IterSmoothProcessorConfig, IterSmoothProcessor
 from .iter_smooth.api import iter_smooth
+from .oasq import OASQProcessorConfig, OASQProcessor
 from .smooth_quant import SmoothQuantProcessorConfig, SmoothQuantProcessor
 from .smooth_quant.api import smooth_quant
-from .awq import AWQProcessorConfig, AWQProcessor
+
+__all__ = [
+    # Processors
+    "SmoothQuantProcessor",
+    "SmoothQuantProcessorConfig",
+    "IterSmoothProcessor",
+    "IterSmoothProcessorConfig",
+    "OASQProcessor",
+    "OASQProcessorConfig",
+    "FlexSmoothQuantProcessor",
+    "FlexSmoothQuantProcessorConfig",
+    "FlexAWQSSZProcessor",
+    "FlexAWQSSZProcessorConfig",
+    "AWQProcessor",
+    "AWQProcessorConfig",
+    "SubgraphRegistry",
+    "HookManager",
+    "StatsCollector",
+    # API registration side-effects (exported for explicit re-export)
+    "flex_smooth_quant",
+    "flex_awq_ssz",
+    "iter_smooth",
+    "smooth_quant",
+]

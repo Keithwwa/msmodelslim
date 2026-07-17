@@ -17,11 +17,48 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 -------------------------------------------------------------------------
+
+Anti-outlier common utilities.
 """
 
-"""
-Anti-outlier common utilities
-"""
+from .fused_linear import VirtualVModuleFromQKVFused, VirtualVModuleFromKVFused
+from .smooth_components import HookManager, StatsCollector, SubgraphRegistry, StatKey
+from .smooth_types import (
+    SmoothQuantContext,
+    SmoothQuantConfig,
+    IterSmoothContext,
+    IterSmoothConfig,
+    OASQConfig,
+    OASQContext,
+    FlexSmoothQuantContext,
+    FlexSmoothQuantConfig,
+    FlexAWQSSZContext,
+    FlexAWQSSZConfig,
+    SmoothContext,
+)
+from .scale_computation import (
+    BaseScaleCalculator,
+    FlexAWQSSZScaleCalculator,
+    FlexSmoothScaleCalculator,
+    IterSmoothScaleCalculator,
+    OASQScaleCalculator,
+    MQGAScaleParams,
+    apply_smooth_scale_shift,
+    compute_multi_weight_scale,
+    compute_weight_scale,
+    prepare_mqga_parameters,
+    reduce_scales_for_mqga_max,
+    reduce_scales_for_mqga_mean,
+    validate_and_process_tensors,
+)
+from .subgraph_fusion import (
+    LinearLinearSubgraphFusion,
+    NormLinearSubgraphFusion,
+    OVSubgraphFusion,
+    SubgraphFusionFactory,
+    SubgraphFusionStrategy,
+    UpDownSubgraphFusion,
+)
 
 __all__ = [
     # Fused Linear
@@ -37,6 +74,8 @@ __all__ = [
     'SmoothQuantConfig',
     'IterSmoothContext',
     'IterSmoothConfig',
+    'OASQConfig',
+    'OASQContext',
     'FlexSmoothQuantContext',
     'FlexSmoothQuantConfig',
     'FlexAWQSSZContext',
@@ -44,6 +83,7 @@ __all__ = [
     'SmoothContext',
     # Scale Computation
     'IterSmoothScaleCalculator',
+    'OASQScaleCalculator',
     'FlexSmoothScaleCalculator',
     'FlexAWQSSZScaleCalculator',
     'BaseScaleCalculator',
@@ -63,45 +103,3 @@ __all__ = [
     'LinearLinearSubgraphFusion',
     'NormLinearSubgraphFusion',
 ]
-
-from .fused_linear import VirtualVModuleFromQKVFused, VirtualVModuleFromKVFused
-from .smooth_components import (
-    HookManager,
-    StatsCollector,
-    SubgraphRegistry,
-    StatKey
-)
-from .smooth_types import (
-    SmoothQuantContext,
-    SmoothQuantConfig,
-    IterSmoothContext,
-    IterSmoothConfig,
-    FlexSmoothQuantContext,
-    FlexSmoothQuantConfig,
-    FlexAWQSSZContext,
-    FlexAWQSSZConfig,
-    SmoothContext
-)
-from .scale_computation import (
-    BaseScaleCalculator,
-    FlexAWQSSZScaleCalculator,
-    FlexSmoothScaleCalculator,
-    IterSmoothScaleCalculator,
-    MQGAScaleParams,
-    apply_smooth_scale_shift,
-    compute_multi_weight_scale,
-    compute_weight_scale,
-    prepare_mqga_parameters,
-    reduce_scales_for_mqga_max,
-    reduce_scales_for_mqga_mean,
-    validate_and_process_tensors
-)
-from .subgraph_fusion import (
-    LinearLinearSubgraphFusion,
-    NormLinearSubgraphFusion,
-    OVSubgraphFusion,
-    SubgraphFusionFactory,
-    SubgraphFusionStrategy,
-    UpDownSubgraphFusion
-)
-
