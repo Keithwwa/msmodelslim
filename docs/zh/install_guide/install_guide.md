@@ -6,7 +6,7 @@
 
 2. 本工具依赖的 Python 版本不低于3.8，且不高于3.12。
 
-3. 若使用昇腾NPU设备，则需安装TorchNPU及其对应的相关依赖，TorchNPU包的安装请参考[Ascend for PyTorch 安装](https://www.hiascend.com/document/detail/zh/Pytorch/2600/configandinstg/instg/docs/zh/installation_guide/installation_via_binary_package.md)。
+3. 若使用昇腾NPU设备，则需安装TorchNPU及其对应的相关依赖，TorchNPU包的安装请参考《[Ascend for PyTorch 安装](https://gitcode.com/Ascend/pytorch/blob/v2.7.1-26.1.0/docs/zh/installation_guide/installation_via_binary_package.md)》。
 
 ## 2. 安装方式
 
@@ -25,7 +25,7 @@
 1. git clone msmodelslim代码。
 
    ```shell
-   git clone https://gitcode.com/Ascend/msmodelslim.git
+   git clone https://gitcode.com/Ascend/msmodelslim.git -b 26.1.0
    ```
 
 2. 进入到msmodelslim目录并运行安装脚本。
@@ -90,7 +90,7 @@ msmodelslim --help
 1. 下载脚本。
 
    ```bash
-   curl -O https://inst.obs.cn-north-4.myhuaweicloud.com/26.0.0/ms_install.py
+   curl -O https://inst.obs.cn-north-4.myhuaweicloud.com/26.1.0/ms_install.py
    ```
 
    > [!NOTE]

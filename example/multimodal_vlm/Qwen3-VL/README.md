@@ -6,7 +6,7 @@
 
 ## 环境配置
 
-- 基础环境配置请参考[安装指南](../../../docs/zh/install_guide/install_guide.md)，注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为≥2.2版本。
+- 基础环境配置请参考《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》，注意：由于高版本transformers的特殊性，PyTorch及TorchNPU需要配置安装为≥2.2版本。
 - 针对 Qwen3-VL，transformers 版本需要 4.57.1：
 
   ```bash

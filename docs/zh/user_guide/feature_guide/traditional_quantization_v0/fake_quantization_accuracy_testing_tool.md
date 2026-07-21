@@ -2,7 +2,7 @@
 
 ## 1. 简介
 
-Precision Tool为伪量化精度测试工具，在torch_npu路线下进行精度测试。
+Precision Tool为伪量化精度测试工具，在TorchNPU路线下进行精度测试。
 
 ## 2. 使用前准备
 
