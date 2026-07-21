@@ -11,8 +11,8 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 
 ## 使用前准备
 
-- 安装 msModelSlim 工具，详情请参见[《msModelSlim工具安装指南》](../../../docs/zh/install_guide/install_guide.md)。
-- 注意：由于高版本transformers的特殊性，PyTorch及torch_npu需要配置安装为2.7.1版本
+- 安装 msModelSlim 工具，详情请参见《[msModelSlim工具安装指南](../../../docs/zh/install_guide/install_guide.md)》。
+- 注意：由于高版本transformers的特殊性，PyTorch及TorchNPU需要配置安装为2.7.1版本
 - 针对 Qwen3-VL-MoE，transformers 版本需要 4.57.1：
 
   ```bash
