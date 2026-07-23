@@ -1,6 +1,3 @@
----
-toc_depth: 3
----
 # Quantization Algorithm Overview
 
 msModelSlim supports multiple advanced quantization algorithms, covering all aspects from outlier suppression to low-bit optimization. The following tables summarize the currently supported core algorithms and their primary characteristics by category.

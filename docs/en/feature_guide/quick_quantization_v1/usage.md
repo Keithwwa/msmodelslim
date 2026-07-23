@@ -1,25 +1,4 @@
----
-toc_depth: 3
----
 # Quick Quantization Guide
-
-## Contents
-
-- [Overview](#overview)
-- [Preparations](#preparations)
-- [Quick Start](#quick-start)
-  - [Syntax](#syntax)
-  - [Parameters](#parameters)
-  - [Examples](#examples)
-- [Advanced Features](#advanced-features)
-  - [Layer-wise and DP Layer-wise Quantization](#layer-wise-and-dp-layer-wise-quantization)
-- [Quantization Configuration Protocol](#quantization-configuration-protocol)
-  - [Configuration Protocol Overview](#configuration-protocol-overview)
-  - [modelslim_v1 Configuration](#modelslim_v1-configuration)
-  - [multimodal_sd_modelslim_v1 Configuration](#multimodal_sd_modelslim_v1-configuration)
-  - [multimodal_vlm_modelslim_v1 Configuration](#multimodal_vlm_modelslim_v1-configuration)
-  - [modelslim_v0 Configuration](#modelslim_v0-configuration)
-- [Appendixes](#appendixes)
 
 ## Overview
 

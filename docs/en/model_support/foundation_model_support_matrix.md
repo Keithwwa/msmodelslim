@@ -25,8 +25,9 @@ The format of the quantization mode name is `W{weight_bit}A{activation_bit}[C{ca
 
 ## Supported LLMs
 
-!!! info "Note"
-    This table contains a large amount of data. If it is not fully visible, use the **scroll bar** at the bottom or **hold the mouse wheel** to scroll horizontally.
+>[!NOTE]
+>
+>This table contains a large amount of data. If it is not fully visible, use the **scroll bar** at the bottom or **hold the mouse wheel** to scroll horizontally.
 
 <div class="custom-table">
 

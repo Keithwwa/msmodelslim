@@ -1,6 +1,3 @@
----
-toc_depth: 3
----
 # Automatic Tuning Usage Guide
 
 ## Overview

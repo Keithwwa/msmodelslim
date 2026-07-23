@@ -1,6 +1,3 @@
----
-toc_depth: 3
----
 # Quantization Sensitive Layer Analysis Tool Guide
 
 ## Introduction
