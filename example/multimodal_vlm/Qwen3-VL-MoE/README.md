@@ -30,10 +30,10 @@ Qwen3-VL-MoE 是阿里云 Qwen 团队推出的大规模多模态视觉语言 Mix
 | 模型 | 原始浮点权重 | 量化方式 | 推理框架支持情况 | 量化命令 |
 |------|-------------|---------|----------------|---------|
 | Qwen3-VL-235B-A22B | [Qwen3-VL-235B-A22B](https://huggingface.co/Qwen/Qwen3-VL-235B-A22B-Instruct/tree/main) | W8A8 混合量化 | MindIE 待支持<br>vLLM Ascend 支持中 | [W8A8 混合量化](#qwen3-vl-moe-w8a8-混合量化) |
-| Qwen3-VL-30B-A3B | [Qwen3-VL-30B-A3B](https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct/tree/main) | W8A8 + MXFP8 混合量化 | MindIE 待支持<br>vLLM Ascend 支持中 | [W8A8 + MXFP8 混合量化](#qwen3-vl-moe-w8a8-mxfp8) |
-| Qwen3-VL-235B-A22B | [Qwen3-VL-235B-A22B](https://huggingface.co/Qwen/Qwen3-VL-235B-A22B-Instruct/tree/main) | W8A8 + MXFP8 混合量化 | MindIE 待支持<br>vLLM Ascend 支持中 | [W8A8 + MXFP8 混合量化](#qwen3-vl-moe-w8a8-mxfp8)|
+| Qwen3-VL-30B-A3B | [Qwen3-VL-30B-A3B](https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct/tree/main) | W8A8 + MXFP8 混合量化 | MindIE 待支持<br>vLLM Ascend 支持中 | [W8A8 + MXFP8 混合量化](#qwen3-vl-moe-30b-A3b-w8a8-mxfp8) |
+| Qwen3-VL-235B-A22B | [Qwen3-VL-235B-A22B](https://huggingface.co/Qwen/Qwen3-VL-235B-A22B-Instruct/tree/main) | W8A8 + MXFP8 混合量化 | MindIE 待支持<br>vLLM Ascend 支持中 | [W8A8 + MXFP8 混合量化](#qwen3-vl-moe-235b-a22b-w8a8-mxfp8)|
 
-注：[Qwen3-VL-30B-A3B](https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct/tree/main) 的 W8A8 混合量化尚未验证过量化精度，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证；其 W8A8 + MXFP8 混合量化已完成验证。
+注：[Qwen3-VL-30B-A3B](https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct/tree/main) 的 W8A8 混合量化尚未验证过量化精度，用户可根据实际需求进行配置尝试，但量化效果和功能稳定性无法得到官方保证。
 
 **说明：**
 
@@ -86,11 +86,9 @@ msmodelslim quant \
     --trust_remote_code True
 ```
 
-### <span id="qwen3-vl-moe-w8a8-mxfp8">Qwen3-VL-MoE W8A8 + MXFP8 静态量化</span>
+### <span id="qwen3-vl-moe-30b-A3b-w8a8-mxfp8">Qwen3-VL-30B-A3B W8A8 + MXFP8 混合量化</span>
 
-该量化方式支持 Qwen3-VL-235B-A22B 和 Qwen3-VL-30B-A3B 两个模型，两者使用的 `--model_type` 不同，请根据实际量化的模型选择对应命令。该量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
-
-Qwen3-VL-30B-A3B：
+该量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
@@ -103,7 +101,9 @@ msmodelslim quant \
     --trust_remote_code True
 ```
 
-Qwen3-VL-235B-A22B：
+### <span id="qwen3-vl-moe-235b-a22b-w8a8-mxfp8">Qwen3-VL-235B-A22B W8A8 + MXFP8 混合量化</span>
+
+该量化已经集成至《一键量化》文档中的"[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)"章节内容，具体量化命令参考如下：
 
 ```shell
 msmodelslim quant \
