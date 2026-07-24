@@ -1,0 +1,46 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+apiversion: multimodal_vlm_modelslim_v1
+metadata:
+  config_id: gemma4_moe_w8a8
+  score: 90
+  verified_tags:
+    gemma-4-26B-A4B-it:
+      - - vLLM_Ascend
+        - Atlas_A2_Inference
+      - - vLLM_Ascend
+        - Atlas_A3_Inference
+      - - vLLM_Ascend
+        - Atlas_A5_Interface
+  label:
+    w_bit: 8
+    a_bit: 8
+    is_sparse: False
+    kv_cache: False
+
+default_w8a8_dynamic: &default_w8a8_dynamic
+  act:
+    scope: per_token
+    dtype: int8
+    symmetric: true
+    method: minmax
+  weight:
+    scope: per_channel
+    dtype: int8
+    symmetric: true
+    method: minmax
+
+spec:
+  process:
+  - type: linear_quant
+    qconfig: *default_w8a8_dynamic
+    include:
+    - '*experts*'
+    exclude:
+    - '*vision_tower*'
+    - '*embed_vision*'
+    - '*router*'
+  save:
+  - type: ascendv1_saver
+    part_file_size: 4
+  dataset: calibImages
+  default_text: Describe this image in detail.

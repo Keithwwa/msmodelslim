@@ -1222,6 +1222,17 @@ msmodelslim quant --model_path ${MODEL_PATH} --save_path ${SAVE_PATH} --device n
     <td>-</td>
     </tr>
     <tr>
+      <td rowspan="1"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_vlm/Gemma4-MoE/README.md">Gemma4-MoE系列</a></strong></td>
+      <td>gemma-4-26B-A4B-it</td>
+      <td>transformers==5.5.3</td>
+      <td>√</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
       <td rowspan="7"><strong><a href="https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_sd/README.md">多模态生成模型</a></strong></td>
       <td>SD3-Medium</td>
       <td>diffusers</td>
