@@ -49,7 +49,7 @@ model = AutoModelForCausalLM.from_pretrained(
 
 ### Usage Examples
 
-[Deepseek w8a8 Quantization Examples](https://gitcode.com/Ascend/msmodelslim/blob/master/example/DeepSeek/README.md)
+[Deepseek w8a8 Quantization Examples](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/DeepSeek/README.md)
 
 ## Usage of Mixed Calibration Datasets
 
@@ -590,8 +590,8 @@ For details about the current FA quantization scripts and commands, see the code
 
 | Script File                                         | Reference                                                    |
 | ------------------------------------------------- | ------------------------------------------------------------ |
-| [quant_qwen.py](https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen/quant_qwen.py)    | [Attention Quantization Supported by Qwen2.5-72B](https://gitcode.com/Ascend/msmodelslim/blob/master/example/Qwen/README.md#attention-quantization-supported-by-qwen2.5-72b)|
-| [quant_llama.py](https://gitcode.com/Ascend/msmodelslim/blob/master/example/Llama/quant_llama.py) | [Llama3.1-70B W8A8 Quantization Combined with Attention Quantization](https://gitcode.com/Ascend/msmodelslim/blob/master/example/Llama/README.md#llama31-70b-w8a8-quantization-combined-with-attention-quantization)|
+| [quant_qwen.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/Qwen/quant_qwen.py)    | [Attention Quantization Supported by Qwen2.5-72B](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/Qwen/README.md#attention-quantization-supported-by-qwen2.5-72b)|
+| [quant_llama.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/Llama/quant_llama.py) | [Llama3.1-70B W8A8 Quantization Combined with Attention Quantization](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/Llama/README.md#llama31-70b-w8a8-quantization-combined-with-attention-quantization)|
 
 #### This document provides only the recommended quantization configurations for Llama3.1-70B and Qwen2.5-72B in FA3 scenarios. You can adjust the parameters based on the actual situation. For details, see [Accuracy Tuning Strategies](../../case_studies/w8a8_accuracy_tuning_policy.md)
 
@@ -708,4 +708,4 @@ fa_quant(fa_amp=5)
 
 ### Key Steps for Multimodal FA3 Quantization
 
-For details, see usage instructions in [Flux FA3 Quantization](https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_sd/Flux/README.md#flux-fa3-quantization) and [HunyuanVideo FA3 Quantization](https://gitcode.com/Ascend/msmodelslim/blob/master/example/multimodal_sd/HunYuanVideo/README.md#hunyuanvideo-fa3-quantization).
+For details, see usage instructions in [Flux FA3 Quantization](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/multimodal_sd/Flux/README.md#flux-fa3-quantization) and [HunyuanVideo FA3 Quantization](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/multimodal_sd/HunYuanVideo/README.md#hunyuanvideo-fa3-quantization).

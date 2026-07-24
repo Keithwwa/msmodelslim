@@ -24,7 +24,7 @@ Weights are quantized layer by layer and column by column. Unquantized weights a
 
 ### Implementation
 
-The algorithm is implemented in [`msmodelslim/core/quantizer/impl/gptq.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quantizer/impl/gptq.py):
+The algorithm is implemented in [`msmodelslim/core/quantizer/impl/gptq.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/core/quantizer/impl/gptq.py):
 
   - `per_channel` implementation class: `WeightPerChannelGPTQ`
   - `per_group` implementation class: `WeightPerGroupGPTQ`

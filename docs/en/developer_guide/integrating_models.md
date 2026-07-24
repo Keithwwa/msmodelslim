@@ -13,7 +13,7 @@ A model adapter describes the model. It combines interface implementations and e
 
 * Interfaces are defined in quantization mechanisms and algorithms. They describe what each component expects from the model. See the corresponding component documentation and code for interface definitions and usage.
 * You only need to implement an interface when you use the corresponding component.
-* Interface summary: [`msmodelslim/model/interface_hub.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/interface_hub.py)
+* Interface summary: [`msmodelslim/model/interface_hub.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/interface_hub.py)
 
 ### Model Adapters
 
@@ -23,15 +23,15 @@ A model adapter describes the model. It combines interface implementations and e
 
 ## Model Integration
 
-The following uses the [Qwen3-32B](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) W8A8 dynamic quantization scenario, referred to as the "scenario example", as the model integration example.
+The following uses the [Qwen3-32B](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3/model_adapter.py) W8A8 dynamic quantization scenario, referred to as the "scenario example", as the model integration example.
 
 ### Creating a Model Adapter `.py` File
 
-You are advised to place it in [`msmodelslim/model/`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/model) and name it `qwen3.py`, for example.
+You are advised to place it in [`msmodelslim/model/`](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/model) and name it `qwen3.py`, for example.
 
 ### Identifying the Components Involved in the Quantization Process and Define the Adapter Class by Combining Component Interfaces
 
-The model adapter class must inherit from [`BaseModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/base.py).
+The model adapter class must inherit from [`BaseModelAdapter`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/base.py).
    
 Based on experience, W8A8 dynamic quantization usually causes only a small accuracy loss, so it does not need an outlier suppression algorithm and rarely requires fallback. Therefore, in the scenario example, we only need to support quantization scheduling. We do not need outlier quantization, sensitive-layer analysis, or other extra functions. If you need to integrate other algorithms, refer to [`Algorithm Overview`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/docs/en/quantization_algorithms/README.md)
 
@@ -90,7 +90,7 @@ class Qwen3ModelAdapter(TransformersModel,
 
 ### Registering the Model
 
-Register the model name in the configuration file [`config.ini`](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini) so that models in the same series can reuse one model adapter.
+Register the model name in the configuration file [`config.ini`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/config/config.ini) so that models in the same series can reuse one model adapter.
 
 ```ini
 # Register the Qwen3-32B model in the qwen3 series in ModelAdapter. qwen3 maps to Qwen3ModelAdapter below.

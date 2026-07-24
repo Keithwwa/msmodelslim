@@ -55,7 +55,7 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
 
 #### Code Implementation
 
-- FA3 quantization is implemented in [processor.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quant/fa3/processor.py). The processing flow consists of three phases.
+- FA3 quantization is implemented in [processor.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/processor/quant/fa3/processor.py). The processing flow consists of three phases.
 
 #### Injection phase
 
@@ -141,7 +141,7 @@ class ModelAdapter(FA3QuantAdapterInterface):
     - The adapter can access the attention module of the model and modify the `forward` method.
 
 - **Procedure**
-  For details, see the implementation of [model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/deepseek_v3/model_adapter.py) for DeepSeek.
+  For details, see the implementation of [model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/deepseek_v3/model_adapter.py) for DeepSeek.
     1. Inherit the `FA3QuantAdapterInterface` for the model adapter.
     2. Traverse the model and selectively inject the `FA3QuantPlaceHolder` as a submodule within the attention layer by using `should_inject`.
     3. Locate the critical position where the `Q`, `K`, and `V` activation values flow into attention computation. This position indicates the node where FA3 quantization must be inserted.

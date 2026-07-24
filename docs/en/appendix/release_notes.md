@@ -14,9 +14,9 @@
 
 | msModelSlim Version| CANN Version| PyTorch Version         | torch_npu Version   | Python Version        | Transformers Version|
 |---------------|--------|-------------------|----------------|------------------|----------------|
-| 26.0.0.alpha02         | No specific version requirement| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/master/example) directory.|
-| 26.0.0.alpha01         | No specific version requirement| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/master/example) directory.|
-| 8.3.0         | 8.2.RC1 or later| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/master/example) directory.|
+| 26.0.0.alpha02         | No specific version requirement| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/example) directory.|
+| 26.0.0.alpha01         | No specific version requirement| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/example) directory.|
+| 8.3.0         | 8.2.RC1 or later| Depends on the specific model. See the corresponding model documentation.| Depends on the specific model. See the corresponding model documentation.| Python 3.10 and 3.11| Depends on the specific model. See the corresponding case description in the [example](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/example) directory.|
 
 ### Wheel Package Downloads
 

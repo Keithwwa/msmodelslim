@@ -50,7 +50,7 @@ It also needs to implement the `ModelSlimPipelineInterfaceV1` interface. The mai
 
 ## Multimodal Model Integration
 
-The following uses the [Qwen3-VL-MoE](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/model_adapter.py) W8A8 hybrid quantization scenario, referred to as the "scenario example", as the model integration example.
+The following uses the [Qwen3-VL-MoE](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/model_adapter.py) W8A8 hybrid quantization scenario, referred to as the "scenario example", as the model integration example.
 
 **Qwen3-VL-MoE loading strategy:**
 
@@ -61,11 +61,11 @@ The following uses the [Qwen3-VL-MoE](https://gitcode.com/Ascend/msmodelslim/blo
 
 ### Creating a Model Adapter Directory and Files
 
-You are advised to create a separate directory in [`msmodelslim/model/`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/model), such as `qwen3_vl_moe/`, with the following files:
+You are advised to create a separate directory in [`msmodelslim/model/`](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/model), such as `qwen3_vl_moe/`, with the following files:
 
-- [`model_adapter.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/model_adapter.py): main model adapter file
-- [`__init__.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/__init__.py): exported adapter class
-- [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/moe_utils.py) (optional): helper conversion tools for special structures such as MoE fused weights
+- [`model_adapter.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/model_adapter.py): main model adapter file
+- [`__init__.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/__init__.py): exported adapter class
+- [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/moe_utils.py) (optional): helper conversion tools for special structures such as MoE fused weights
 
 ### Defining the Adapter Class and Inheriting the Required Interfaces
 
@@ -92,7 +92,7 @@ class Qwen3VLMoeModelAdapter(VlmBaseModelAdapter,  # Provides common multimodal 
 
 #### `handle_dataset`: Processing Multimodal Calibration Data
 
-Convert calibration data (`VlmCalibSample`) into inputs supported by the multimodal understanding model. See [`vlm_dataset_loader.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/dataset_loader/vlm_dataset_loader.py) for the definition of `VlmCalibSample`.
+Convert calibration data (`VlmCalibSample`) into inputs supported by the multimodal understanding model. See [`vlm_dataset_loader.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/infra/dataset_loader/vlm_dataset_loader.py) for the definition of `VlmCalibSample`.
 
 **Key points:**
 
@@ -180,7 +180,7 @@ The initialization of a multimodal understanding model requires the following at
 - Temporarily set `num_hidden_layers=1` to load only one language decoder layer.
 - The vision part is loaded in full, including all blocks, `patch_embed`, `merger`, and `deepstack_merger_list`.
 - Use `from_pretrained` instead of loading weights manually.
-- If the first layer is an MoE layer, perform 3D weight conversion. See [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/moe_utils.py).
+- If the first layer is an MoE layer, perform 3D weight conversion. See [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/moe_utils.py).
 
 ```python
 def init_model(self, device: DeviceType = DeviceType.NPU) -> nn.Module:
@@ -456,7 +456,7 @@ def generate_model_forward(self, model: nn.Module, inputs: Any) -> Generator[Pro
 
 ### Registering the Model Name
 
-Register the model in [`config/config.ini`](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini):
+Register the model in [`config/config.ini`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/config/config.ini):
 
 ```ini
 [ModelAdapter]
@@ -474,7 +474,7 @@ Calibration data is specified by the YAML `dataset` field. `dataset` can be conf
 
 ### Preparing the Quantization Configuration
 
-Create a quantization config file in YAML format, for example [`qwen3_vl_moe_w8a8.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml):
+Create a quantization config file in YAML format, for example [`qwen3_vl_moe_w8a8.yaml`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml):
 
 ```yaml
 apiversion: multimodal_vlm_modelslim_v1
@@ -579,7 +579,7 @@ If `trust_remote_code` is set to `True`, code files in the weights directory of 
 **Solution**
 
 - Refer to `_convert_single_moe_layer` in [Auxiliary Method: Dynamically Loading Weights of the Language Part](#auxiliary-method-dynamically-loading-weights-of-the-language-part) and implement the logic to split 3D weights into multiple linear layers.
-- Refer to the underlying equivalent replacement logic in [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/moe_utils.py).
+- Refer to the underlying equivalent replacement logic in [`moe_utils.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/moe_utils.py).
 
 ### Calibration Data Format Error
 
@@ -686,8 +686,8 @@ For details, see [QuaRot Adaptation](../quantization_algorithms/outlier_suppress
 ### References
 
 - [Model Integration Guide](integrating_models.md): basic guidance for integrating models
-- [Qwen2.5-Omni model adapter](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen2_5_omni_thinker/model_adapter.py): end-to-end multimodal adaptation example for text, images, audio, and video
-- [Qwen3-VL-MoE model adapter](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3_vl_moe/model_adapter.py): complete implementation example
-- [VLM dataset loader](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/dataset_loader/vlm_dataset_loader.py) and [dataset_loader](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/infra/dataset_loader/): calibration data loading and processing
-- [Multimodal VLM quantization service](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/core/quant_service/multimodal_vlm_v1): service layer implementation
+- [Qwen2.5-Omni model adapter](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen2_5_omni_thinker/model_adapter.py): end-to-end multimodal adaptation example for text, images, audio, and video
+- [Qwen3-VL-MoE model adapter](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3_vl_moe/model_adapter.py): complete implementation example
+- [VLM dataset loader](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/infra/dataset_loader/vlm_dataset_loader.py) and [dataset_loader](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/infra/dataset_loader/): calibration data loading and processing
+- [Multimodal VLM quantization service](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/core/quant_service/multimodal_vlm_v1): service layer implementation
 - [Quick Quantization Guide](../feature_guide/quick_quantization_v1/usage.md): CLI parameter details

@@ -31,7 +31,7 @@ $Q_{max}$ and $Q_{min}$ are the maximum and minimum values of the target data ty
 
 ### Implementation
 
-The algorithm is implemented in [`msmodelslim/core/quantizer/impl/minmax.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quantizer/impl/minmax.py).
+The algorithm is implemented in [`msmodelslim/core/quantizer/impl/minmax.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/core/quantizer/impl/minmax.py).
 
 ## Function Description
 

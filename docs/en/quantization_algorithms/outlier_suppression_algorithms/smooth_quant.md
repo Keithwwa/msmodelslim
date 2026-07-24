@@ -73,7 +73,7 @@ y = torch.cat([linear(x) for linear in linears], dim=-1)
 
 #### Code Implementation
 
-The algorithm is implemented in [msmodelslim/processor/anti_outlier/smooth_quant/](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/processor/anti_outlier/smooth_quant). The processing flow consists of two phases.
+The algorithm is implemented in [msmodelslim/processor/anti_outlier/smooth_quant/](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/processor/anti_outlier/smooth_quant). The processing flow consists of two phases.
 
 #### Preprocessing
 
@@ -195,7 +195,7 @@ class SmoothQuantInterface(ABC):
 2. **Configure subgraph mappings**: Configure `norm-linear` subgraph mapping relationships for each layer.
 3. **Specify module paths**: Use absolute module paths, such as `model.layers.{i}.input_layernorm`.
 
-**Reference implementation**: For details, see the `Qwen3ModelAdapter` implementation in [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py).
+**Reference implementation**: For details, see the `Qwen3ModelAdapter` implementation in [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3/model_adapter.py).
 
 ### Configuration Example
 

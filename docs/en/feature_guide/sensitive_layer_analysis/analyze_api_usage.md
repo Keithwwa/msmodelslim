@@ -63,7 +63,7 @@ Different analysis metrics support different `model_type` values. Check the corr
 
 **Supported `model_type` values for linear-layer metrics (`std` / `quantile` / `kurtosis`)**
 
-The `model_type` values currently supported by the linear-layer metrics are the same as those for ModelslimV1 quantization. For details, see the `[ModelAdapter]` section in [config.ini](https://gitcode.com/Ascend/msmodelslim/blob/master/config/config.ini).
+The `model_type` values currently supported by the linear-layer metrics are the same as those for ModelslimV1 quantization. For details, see the `[ModelAdapter]` section in [config.ini](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/config/config.ini).
 
 **Supported `model_type` values for the attention-structure metric (`attention_mse`)**
 

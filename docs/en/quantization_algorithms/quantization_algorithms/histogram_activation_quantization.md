@@ -18,7 +18,7 @@ The histogram activation quantization algorithm automatically searches for the o
 
 ### Implementation
 
-- The algorithm is implemented in [`msmodelslim/core/quantizer/impl/histogram.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quantizer/impl/histogram.py) and [`msmodelslim/core/observer/histogram.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/observer/histogram.py). The processing flow consists of four steps.
+- The algorithm is implemented in [`msmodelslim/core/quantizer/impl/histogram.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/core/quantizer/impl/histogram.py) and [`msmodelslim/core/observer/histogram.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/core/observer/histogram.py). The processing flow consists of four steps.
 
 1. **Histogram statistics**
    - Divide the value range of the input tensor into a fixed number of bins (default `2048`).
@@ -272,7 +272,7 @@ class SearchMethod(str, Enum):
      method: "minmax" # Histogram weight quantization is not supported. Do not set it to "histogram" here.
 ```
 
-- Check whether `AutoActQuantizer` exists during the initialization of the corresponding quantizer. You can find the quantizer name by using the `type` field in the `process` list in the YAML file and view the corresponding code in [`msmodelslim/core/quantizer`](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/core/quantizer).
+- Check whether `AutoActQuantizer` exists during the initialization of the corresponding quantizer. You can find the quantizer name by using the `type` field in the `process` list in the YAML file and view the corresponding code in [`msmodelslim/core/quantizer`](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/core/quantizer).
 
 ```python
 class LinearQuantizer(nn.Module):

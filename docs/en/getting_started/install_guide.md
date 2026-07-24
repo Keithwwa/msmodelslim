@@ -10,11 +10,11 @@ This tool supports three installation methods: [Online Installation](#21-online-
 
 ### 2.1 Online Installation
 
-If your device has Internet access, you can run a single command to automatically download and install the tool. Visit the [Ascend community](https://www.hiascend.com/developer/software/mindstudio/download), select the target CANN version, and choose "Online Installation". The system will guide you through the subsequent operations.
+If your device has Internet access, you can run a single command to automatically download and install the tool. Visit the [Ascend community](https://www.hiascend.com/en/developer/software/mindstudio/download?versionId=143&ids=45%2C42671e3507254c1fb6f56b379948506f%2C129%2C49%2C), select the target CANN version, and choose "Online Installation". The system will guide you through the subsequent operations.
 
 ### 2.2 Offline Installation
 
-For devices that are not connected to the Internet, such as those on an enterprise intranet, download the complete offline installation package on a device that has Internet access and then transfer the package to the target device for installation. Visit the [Ascend community](https://www.hiascend.com/developer/software/mindstudio/download), select the target CANN version, and choose "offline installation". The system will guide you through the subsequent operations.
+For devices that are not connected to the Internet, such as those on an enterprise intranet, download the complete offline installation package on a device that has Internet access and then transfer the package to the target device for installation. Visit the [Ascend community](https://www.hiascend.com/en/developer/software/mindstudio/download?versionId=143&ids=45%2C42671e3507254c1fb6f56b379948506f%2C129%2C50%2C), select the target CANN version, and choose "offline installation". The system will guide you through the subsequent operations.
 
 ### 2.3 Installation from Source
 

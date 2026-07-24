@@ -170,7 +170,7 @@ searched_config = cache_adaptor.search(
 )
 ```
 
-A complete search script example is available in [dit_cache_search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/dit_cache_search_t2v_sp.sh):
+A complete search script example is available in [dit_cache_search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/osp1_2/dit_cache_search_t2v_sp.sh):
 
 ```bash
 #!/bin/bash
@@ -254,7 +254,7 @@ Cache configuration file code sample (`dit_cache_config.json`):
 
 ##### 5.3 Complete Inference Script
 
-A complete inference script example is available in [dit_cache_sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/dit_cache_sample_t2v_sp.sh):
+A complete inference script example is available in [dit_cache_sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/osp1_2/dit_cache_sample_t2v_sp.sh):
 
 ```bash
 #!/bin/bash
@@ -319,7 +319,7 @@ bash scripts/text_condition/gpu/sample_t2v_sp.sh
 
 #### 2. Searching for Timesteps
 
-After obtaining the model pipeline object, set the sampling optimization parameters, pass the generated calibration video directory, and call the `ReStepAdaptor` class to execute the `timestep` search. A complete script code sample is available in [search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/search_t2v_sp.sh):
+After obtaining the model pipeline object, set the sampling optimization parameters, pass the generated calibration video directory, and call the `ReStepAdaptor` class to execute the `timestep` search. A complete script code sample is available in [search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/osp1_2/search_t2v_sp.sh):
 
 ```python3
 # Load pipeline, for example
@@ -345,7 +345,7 @@ scheduler_timestep = restep_adaptor.search()
 
 #### 3. Performing Inference Using the Timesteps Obtained by Search
 
-Inference command example (for a complete script code sample, see [sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/sample_t2v_sp.sh)):
+Inference command example (for a complete script code sample, see [sample_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/osp1_2/sample_t2v_sp.sh)):
 
 ```shell
 torchrun --nnodes=1 --nproc_per_node 8  --master_port 29503 \
@@ -362,4 +362,4 @@ torchrun --nnodes=1 --nproc_per_node 8  --master_port 29503 \
 ```
 
 In the preceding command, `--schedule_timestep` indicates the path of the timestep file obtained through search.
-You can modify the model parameter path and the optimized timestep file path by referring to [search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/master/example/osp1_2/search_t2v_sp.sh), and then execute inference with sampling optimization.
+You can modify the model parameter path and the optimized timestep file path by referring to [search_t2v_sp.sh](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/osp1_2/search_t2v_sp.sh), and then execute inference with sampling optimization.

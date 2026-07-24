@@ -25,9 +25,9 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
 
 The specific implementation components are located as follows:
 
-- Quantization calibration: `ActPDMixMinmax` in [`msmodelslim/core/quantizer/impl/minmax.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/core/quantizer/impl/minmax.py)
-- Quantization mode IR: `W8A8PDMixFakeQuantLinear` in [`msmodelslim/ir/w8a8_pdmix.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/ir/w8a8_pdmix.py)
-- Related constants: `int8_pd_mix_asym` defined in [`msmodelslim/ir/const.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/ir/const.py)
+- Quantization calibration: `ActPDMixMinmax` in [`msmodelslim/core/quantizer/impl/minmax.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/core/quantizer/impl/minmax.py)
+- Quantization mode IR: `W8A8PDMixFakeQuantLinear` in [`msmodelslim/ir/w8a8_pdmix.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/ir/w8a8_pdmix.py)
+- Related constants: `int8_pd_mix_asym` defined in [`msmodelslim/ir/const.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/ir/const.py)
 
 ## Application Requirements
 

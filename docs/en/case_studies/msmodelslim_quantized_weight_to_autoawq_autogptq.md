@@ -69,7 +69,7 @@ calibrator.save(output_path, safetensors_name=None, json_name=None, save_type=No
 
 ### Conversion Script Instructions
 
-The conversion script is located at [`ms_to_vllm.py`](https://gitcode.com/Ascend/msmodelslim/blob/master/example/ms_to_vllm.py).
+The conversion script is located at [`ms_to_vllm.py`](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/example/ms_to_vllm.py).
 
 After you quantize the weights with msModelSlim in step 1.1 and generate `quant_model_description_w4a16.json` and `quant_model_weight_w4a16.safetensors`, run `ms_to_vllm.py` to convert the weight format and generate the converted `safetensors` file. Use the command as follows:
 

@@ -259,7 +259,7 @@ def get_calib_dataset(tokenizer, calib_list, device=f"npu:{device_id}"):
     return calib_dataset
 ```
 
-Note: You need to copy the [precision_tool folder](https://gitcode.com/Ascend/msmodelslim/tree/master/precision_tool) and [security folder](https://gitcode.com/Ascend/msmodelslim/tree/master/security) from the `msmodelslim` directory, place them in the same directory as the quantization script, and then put the test dataset into the `precision_tool` folder. For details, see [Precision Tool usage and dataset download links](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md).
+Note: You need to copy the [precision_tool folder](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/precision_tool) and [security folder](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/security) from the `msmodelslim` directory, place them in the same directory as the quantization script, and then put the test dataset into the `precision_tool` folder. For details, see [Precision Tool usage and dataset download links](../feature_guide/traditional_quantization_v0/fake_quantization_accuracy_testing_tool.md).
 
 ### 4. Quantization Rollback
 

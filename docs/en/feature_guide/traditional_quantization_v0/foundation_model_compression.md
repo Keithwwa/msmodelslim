@@ -69,7 +69,7 @@ The key steps are as follows:
 
 5. Call `run()` provided by the generated quantization calibration object to quantize the original model.
 
-6. Call `save()` provided by the generated quantization calibration object to save the quantized model (including model quantization weights and related parameters) for subsequent deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/document/detail/zh/mindie/20RC1/modellist/mindie_modellist_0001.html) in the MindIE documentation.
+6. Call `save()` provided by the generated quantization calibration object to save the quantized model (including model quantization weights and related parameters) for subsequent deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/developer/models?tab=infer) in the MindIE documentation.
 
 ### Quantization Procedure (Using ChatGLM2-6B as an Example)
 
@@ -614,7 +614,7 @@ compressor.export(compress_index, index_root)
 compressor.export(compress_info, info_root, dtype=np.int64)
 ```
 
-Run the compression script to save the compressed weight files to the specified output directory for subsequent inference and deployment tasks. For details about the models supported for quantization, see [Models Supported by MindIE](https://www.hiascend.com/document/detail/zh/mindie/10RC3/whatismindie/mindie_what_0003.html).
+Run the compression script to save the compressed weight files to the specified output directory for subsequent inference and deployment tasks. For details about the models supported for quantization, see [Models Supported by MindIE](https://www.hiascend.com/developer/models?tab=infer).
 
 ```bash
 python3 compress.py
@@ -889,7 +889,7 @@ Call `RACompressConfig` to generate a compression configuration, and then create
 
 Execute the `RACompressor` compression algorithm to start the long-sequence compression task and perform long-sequence compression.
 
-Call `get_alibi_windows` to export the compression windows and obtain the `.pt` file from the specified path. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/document/detail/zh/mindie/20RC1/modellist/mindie_modellist_0001.html) in the MindIE documentation.
+Call `get_alibi_windows` to export the compression windows and obtain the `.pt` file from the specified path. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/developer/models?tab=infer) in the MindIE documentation.
 
 #### Compression Procedure (Using baichuan2-13b as an Example)
 
@@ -940,7 +940,7 @@ ra.get_alibi_windows(save_path)
 
 Run the following command to start the long-sequence compression task and save the `.pt` file to the `baichuan2-13b` directory:
 python3 run.py
-The `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/document/detail/zh/mindie/20RC1/modellist/mindie_modellist_0001.html) in the MindIE documentation.
+The `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/developer/models?tab=infer) in the MindIE documentation.
 
 ### Introduction to RoPE Encoding
 
@@ -995,7 +995,7 @@ Call `get_compress_heads` to export the attention head information to be retaine
 
 Perform compression based on the generated `.pt` file.
 
-The compressed `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/document/detail/zh/mindie/20RC1/modellist/mindie_modellist_0001.html) in the MindIE documentation.
+The compressed `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by the Acceleration Library](https://www.hiascend.com/developer/models?tab=infer) in the MindIE documentation.
 
 ### Compression Procedure (Using Qwen2-72b-instruct as an Example)
 
@@ -1050,7 +1050,7 @@ Start the long-sequence compression task and save the `.pt` file containing the 
 
 Perform compression based on the generated `.pt` file.
 
-The compressed `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by MindIE](https://www.hiascend.com/document/detail/zh/mindie/20RC1/modellist/mindie_modellist_0001.html).
+The compressed `.pt` file can be used for subsequent inference and deployment tasks. For details about models supported for quantization, see [Models Supported by MindIE](https://www.hiascend.com/developer/models?tab=infer).
 
 ```bash
 python3 run.py

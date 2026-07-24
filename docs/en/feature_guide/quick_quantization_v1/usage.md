@@ -560,7 +560,7 @@ Configuration of the calibration dataset through the `dataset` field is not supp
 
 #### Example
 
-- W8A8 dynamic quantization for the Wan2.1 model: [wan2_1_w8a8_dynamic.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/wan2_1/wan2_1_w8a8_dynamic.yaml)
+- W8A8 dynamic quantization for the Wan2.1 model: [wan2_1_w8a8_dynamic.yaml](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/lab_practice/wan2_1/wan2_1_w8a8_dynamic.yaml)
 
 ### `multimodal_vlm_modelslim_v1` Configuration
 
@@ -704,8 +704,8 @@ Configuration example: `dataset: "calibImages"` or the corresponding path.
 
 #### Example
 
-- W8A8 quantization for the Qwen2.5-Omni model: [qwen2_5_omni_thinker_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)
-- W8A8 mixed quantization for the Qwen3-VL-MoE model: [qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/master/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
+- W8A8 quantization for the Qwen2.5-Omni model: [qwen2_5_omni_thinker_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/lab_practice/qwen2_5_omni_thinker/qwen2_5_omni_thinker_w8a8.yaml)
+- W8A8 mixed quantization for the Qwen3-VL-MoE model: [qwen3_vl_moe_w8a8.yaml](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/lab_practice/qwen3_vl_moe/qwen3_vl_moe_w8a8.yaml)
 
 ### `modelslim_v0` Configuration
 

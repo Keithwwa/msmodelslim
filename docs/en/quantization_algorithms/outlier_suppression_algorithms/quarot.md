@@ -31,7 +31,7 @@ Install msModelSlim. For details, see [msModelSlim Installation Guide](../../get
 
 #### Code Implementation
 
-The algorithm is implemented in [msmodelslim/processor/quarot/offline_quarot/quarot.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quarot/offline_quarot/quarot.py).
+The algorithm is implemented in [msmodelslim/processor/quarot/offline_quarot/quarot.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/processor/quarot/offline_quarot/quarot.py).
 
 #### Processing Sequence
 
@@ -368,7 +368,7 @@ class LAOSOnlineRotationInterface:
         - Implement `get_ln_fuse_map()` to return the fusion mapping between the LayerNorm and Linear layers.
         - Implement `get_bake_names()` to return the list of names of Linear layers that require mean fusion. Generally, an empty list is returned.
         - Implement `get_rotate_map(block_size)` to return the rotation mapping pairs, including the rotation configurations in the `pre_run` and `preprocess` phases.
-        - For details, see the implementation of [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) or [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/deepseek_v3/model_adapter.py).
+        - For details, see the implementation of [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3/model_adapter.py) or [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/deepseek_v3/model_adapter.py).
 
     2. **(Optional) Implement `LAOSOnlineRotationInterface` (only when online rotation is required)**
         - If `online: True` is configured, `LAOSOnlineRotationInterface` must be implemented.
@@ -383,7 +383,7 @@ class LAOSOnlineRotationInterface:
 
 **Symptom**: The input dimension of the model is not supported, causing the creation of the rotation matrix to fail.
 
-**Solution**: Ensure that the Hadamard matrix of the specified dimension exists. Add the matrix of the specified dimension by referring to [msmodelslim/processor/quarot/common/hadamard_txt](https://gitcode.com/Ascend/msmodelslim/tree/master/msmodelslim/processor/quarot/common/hadamard_txt), and supplement it in [msmodelslim/processor/quarot/common/hadamard.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/processor/quarot/common/hadamard.py).
+**Solution**: Ensure that the Hadamard matrix of the specified dimension exists. Add the matrix of the specified dimension by referring to [msmodelslim/processor/quarot/common/hadamard_txt](https://gitcode.com/Ascend/msmodelslim/tree/26.0.0/msmodelslim/processor/quarot/common/hadamard_txt), and supplement it in [msmodelslim/processor/quarot/common/hadamard.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/processor/quarot/common/hadamard.py).
 
 ### TP Configuration Error
 
@@ -418,4 +418,4 @@ class LAOSOnlineRotationInterface:
 
 - Ensure that the model is based on the Transformer decoder architecture.
 - Check whether the adapter correctly implements all `QuaRotInterface` methods. If online rotation is enabled, `LAOSOnlineRotationInterface` must also be implemented.
-- For details, see the implementation examples in [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/qwen3/model_adapter.py) or [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/master/msmodelslim/model/deepseek_v3/model_adapter.py).
+- For details, see the implementation examples in [msmodelslim/model/qwen3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/qwen3/model_adapter.py) or [msmodelslim/model/deepseek_v3/model_adapter.py](https://gitcode.com/Ascend/msmodelslim/blob/26.0.0/msmodelslim/model/deepseek_v3/model_adapter.py).
