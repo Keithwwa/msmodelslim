@@ -77,7 +77,7 @@ msmodelslim quant \
 
 与 W8A8 配置的主要差异：
 
-- **linear_quant**：采用 **DualScale** 双尺度量化（`scope: dual_scale`、`method: dualscale`），权重与激活均为 `mxfp4`，`dual_block_size` 为 512；详见 [DualScale 量化方案说明](../../../docs/zh/user_guide/quantization_algorithms/quantization_algorithms/dual_scale.md)。
+- **linear_quant**：采用 **DualScale** 双尺度量化（`scope: dual_scale`、`method: dualscale`），权重与激活均为 `mxfp4`，`dual_block_size` 为 512；详见 [DualScale 量化方案说明](../../../docs/zh/knowledge_base/quantization_algorithms/dual_scale/dual_scale.md)。
 - **fa3_quant**：FA3 路径同样使用 `mxfp4`（`per_block` + `minmax`），与 W8A8 方案中的 `fp8_e4m3` 不同。
 
 ### 关键配置参数
@@ -118,7 +118,7 @@ msmodelslim quant \
   - `img_paths`：输入图像路径（多图可用逗号分隔等约定，以推理仓为准）。
   - `prompt_file`：提示词文件路径。
 
-更细的协议说明见：[一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)。
+更细的协议说明见：[一键量化配置协议说明](../../../docs/zh/user_guide/usage_quick_quantization.md#5-量化配置协议详解)。
 
 ## FAQ
 
@@ -134,5 +134,5 @@ msmodelslim quant \
 
 - [Qwen-Image-Edit-2509（Hugging Face）](https://huggingface.co/Qwen/Qwen-Image-Edit-2509)
 - [Qwen-Image-Edit-2509模型仓库](https://modelers.cn/models/MindIE/Qwen-Image-Edit-2509)
-- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
-- [逐层量化特性说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/usage_quick_quantization.md#5-量化配置协议详解)
+- [逐层量化特性说明](../../../docs/zh/user_guide/usage_quick_quantization.md#41-逐层量化及分布式逐层量化)

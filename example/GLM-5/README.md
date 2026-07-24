@@ -28,7 +28,7 @@
 
 ## 一键量化生成量化权重
 
-一键量化命令参考《[一键量化使用指南](../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
+一键量化命令参考《[一键量化使用指南](../../docs/zh/user_guide/usage_quick_quantization.md)》。
 
 ### GLM-5 一键量化命令示例
 

@@ -27,7 +27,7 @@ Gemma4 是多模态视觉语言模型，支持图像与文本联合输入。msMo
 
 ### <span id="gemma4-31b-dense-w8a8量化">gemma-4-31B-it W8A8量化</span>
 
-该模型的量化已集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)。使用 `model_type=gemma-4-31B-it`、`quant_type=w8a8` 即可。
+该模型的量化已集成至[一键量化](../../../docs/zh/user_guide/usage_quick_quantization.md#32-参数说明)。使用 `model_type=gemma-4-31B-it`、`quant_type=w8a8` 即可。
 
 ```shell
 msmodelslim quant \
@@ -53,5 +53,5 @@ msmodelslim quant \
 
 ## 附录
 
-- [一键量化配置协议说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#5-量化配置协议详解)
-- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#54-multimodal_vlm_modelslim_v1-配置详解)
+- [一键量化配置协议说明](../../../docs/zh/user_guide/usage_quick_quantization.md#5-量化配置协议详解)
+- [multimodal_vlm_modelslim_v1 量化服务配置详解](../../../docs/zh/user_guide/usage_quick_quantization.md#54-multimodal_vlm_modelslim_v1-配置详解)

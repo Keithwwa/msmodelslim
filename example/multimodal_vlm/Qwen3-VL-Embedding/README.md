@@ -1,4 +1,4 @@
-﻿# Qwen3-VL-Embedding & Reranker 量化案例
+# Qwen3-VL-Embedding & Reranker 量化案例
 
 ## 模型介绍
 
@@ -55,7 +55,7 @@ msmodelslim quant --model_path /path/to/Qwen3-VL-Reranker-2B \
 --quant_type w8a8
   ```
 
-- 更多参数配置要求，请参考《[参数说明](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md)》。
+- 更多参数配置要求，请参考《[参数说明](../../../docs/zh/user_guide/usage_quick_quantization.md)》。
 
 > [!Note]
 >

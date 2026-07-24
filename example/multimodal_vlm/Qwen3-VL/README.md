@@ -1,4 +1,4 @@
-﻿# Qwen3-VL 量化案例
+# Qwen3-VL 量化案例
 
 ## 模型介绍
 
@@ -96,12 +96,12 @@ Atlas 300I DUO 使用以下方法稀疏量化
 | sigma_factor | sigma功能中sigma的系数 | 3.0 | 数据类型为float，默认值为3.0，取值范围为[1.0, 3.0]。<br>说明：仅当use_sigma为True时生效。 |
 | torch_dtype | 设置加载权重的数据类型 | bf16 | 可选值：['bf16', 'fp16']。默认值为bf16。 |
 
-- 更多参数配置要求，请参考量化过程中配置的参数 [QuantConfig](../../../docs/zh/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_QuantConfig.md)
-  以及量化参数配置类 [Calibrator](../../../docs/zh/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)。
+- 更多参数配置要求，请参考量化过程中配置的参数 [QuantConfig](../../../docs/zh/api_reference/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_QuantConfig.md)
+  以及量化参数配置类 [Calibrator](../../../docs/zh/api_reference/python_api_v0/foundation_model_compression_apis/foundation_model_quantization_apis/pytorch_Calibrator.md)。
 
 ##### <span id="qwen3-vl-4b-w8a8">1.2 Qwen3-VL-4B-Instruct W8A8量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)。使用 `model_type=Qwen3-VL-4B-Instruct`、`quant_type=w8a8` 即可。若需使用自定义配置（如指定保存选项），可通过 `config_path` 指定 [qwen3_vl_4b_w8a8.yaml](../../../lab_practice/qwen3_vl/qwen3_vl_4b_w8a8.yaml)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/usage_quick_quantization.md#32-参数说明)。使用 `model_type=Qwen3-VL-4B-Instruct`、`quant_type=w8a8` 即可。若需使用自定义配置（如指定保存选项），可通过 `config_path` 指定 [qwen3_vl_4b_w8a8.yaml](../../../lab_practice/qwen3_vl/qwen3_vl_4b_w8a8.yaml)。
 
 ```shell
 msmodelslim quant \
@@ -132,7 +132,7 @@ msmodelslim quant \
 
 ##### <span id="qwen3-vl-w8a8">1.3 Qwen3-VL-32B-Instruct W8A8量化</span>
 
-该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)。
+该模型的量化已经集成至[一键量化](../../../docs/zh/user_guide/usage_quick_quantization.md#32-参数说明)。
 
 ```shell
 msmodelslim quant \

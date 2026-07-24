@@ -106,7 +106,7 @@
 | **自动调优** | 根据精度目标自动迭代搜索量化配置，量化与评估全流程自动化，无需人工反复调参。 |
 | **权重转换** | 无需校准集，离线对已有量化权重做格式与精度变换（如 FP8→BF16、BF16→MXFP8）。 |
 
-> **模型支持情况概览**：各功能所适配的模型及其量化类型详见《[模型支持矩阵](./docs/zh/user_guide/model_support/foundation_model_support_matrix.md)》。
+> **模型支持情况概览**：各功能所适配的模型及其量化类型详见《[模型支持矩阵](./docs/zh/knowledge_base/model/README.md)》。
 
 ## 🚀 快速入门
 
@@ -118,11 +118,15 @@
 
 ## 📘 使用指南
 
-工具的详细使用方法，请参见《[msModelSlim 使用指南](./docs/zh/user_guide/msmodelslim_user_guide.md)》。
+工具的详细使用方法，请参见《[msModelSlim 使用指南](./docs/zh/user_guide/README.md)》。
+
+## 📚 知识库
+
+工具相关的术语和概念，请参见《[推理加速知识库](./docs/zh/knowledge_base/README.md)》。
 
 ## 💡 典型案例
 
-通过典型问题场景帮助用户理解并掌握工具使用，请参见《[msModelSlim 典型案例](./docs/zh/best_practices/basic_cases.md)》。
+通过典型问题场景帮助用户理解并掌握工具使用，请参见《[msModelSlim 典型案例](./docs/zh/best_practices/README.md)》。
 
 ## ❓ FAQ
 

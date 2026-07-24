@@ -27,11 +27,11 @@
 
 遵循我们的 Pull Request《[模板与规范](../../../.gitcode/PULL_REQUEST_TEMPLATE.md)》。
 
-参考开发者文档 《[LLM 大模型接入指南](../development_guide/integrating_models.md)》。
+参考开发者文档 《[LLM 大模型接入指南](../knowledge_base/model/integrating_models.md)》。
 
-参考开发者文档 《[编码规范](../common/coding_standards.md)》。
+参考开发者文档 《[编码规范](development_guide/coding_standards.md)》。
 
-提交代码前须在本地通过 pre-commit 检查（首次开发请执行 `pre-commit install`，详见《[编码规范](../common/coding_standards.md)》）。
+提交代码前须在本地通过 pre-commit 检查（首次开发请执行 `pre-commit install`，详见《[编码规范](development_guide/coding_standards.md)》）。
 
 对涉及用户端功能的改动，请同步更新对应的用户和开发者文档
 
@@ -122,7 +122,7 @@ git push --force-with-lease origin your-branch-name
 
 ### 3.3 单元测试指南
 
-如果您需要运行或编写 msModelSlim 单元测试，请参阅详细的《[开发者测试指南](../common/testing_guide.md)》。该指南涵盖了：
+如果您需要运行或编写 msModelSlim 单元测试，请参阅详细的《[开发者测试指南](development_guide/testing_guide.md)》。该指南涵盖了：
 
 - 准备环境与安装依赖。
 - **单元测试执行**：运行 modelslim_v1 模块测试。

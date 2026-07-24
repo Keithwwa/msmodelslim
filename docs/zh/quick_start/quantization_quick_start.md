@@ -47,7 +47,7 @@ msmodelslim quant [ARGS]
 
 #### 3.1.2 参数说明
 
-参数说明可以参考《[一键量化参数说明](../user_guide/feature_guide/quick_quantization_v1/usage.md#32-参数说明)》
+参数说明可以参考《[一键量化参数说明](../user_guide/usage_quick_quantization.md#32-参数说明)》
 
 **说明：**
 
@@ -265,7 +265,7 @@ for output in outputs:
 
 ### 6.1 支持的模型和量化类型
 
-可通过《[大模型支持矩阵](../user_guide/model_support/foundation_model_support_matrix.md)》查看不同模型的支持情况：
+可通过《[大模型支持矩阵](../knowledge_base/model/README.md)》查看不同模型的支持情况：
 
 - 标记了`一键量化`的模型支持一键量化方式。
 - 所有在 [`example/`](../../../example/) 目录下有量化脚本的模型都支持传统量化方式。
@@ -274,12 +274,12 @@ for output in outputs:
 
 对于过大的模型（7B 及以上），如果遇到显存不足的问题，可以尝试：
 
-1. **使用逐层量化**：在一键量化中默认生效《[逐层量化](../user_guide/feature_guide/quick_quantization_v1/usage.md#41-逐层量化及分布式逐层量化)》，传统量化中不支持。
+1. **使用逐层量化**：在一键量化中默认生效《[逐层量化](../user_guide/usage_quick_quantization.md#41-逐层量化及分布式逐层量化)》，传统量化中不支持。
 2. **使用 CPU 量化**：设置 `--device cpu`（一键量化）或 `--device_type cpu`（传统量化），速度较慢但显存占用低。
 
 ### 6.3 支持的量化算法
 
-对于一键量化支持的多种算法，可以参考《[一键量化 V1 架构支持的算法](../user_guide/quantization_algorithms/README.md)》。
+对于一键量化支持的多种算法，可以参考《[一键量化 V1 架构支持的算法](../knowledge_base/quantization_algorithms/README.md)》。
 
 ### 6.4 常见问题
 
@@ -296,7 +296,7 @@ A: 可以尝试：
 
 1. 使用更高精度的量化类型（如从 w4a8 改为 w8a8）。
 2. 参考 [`msmodelslim/lab_practice`](../../../lab_practice/) 路径下模型对应的最佳实践配置。
-3. 检查离群值抑制算法、量化策略、校准数据集等是否合适，参考《[量化精度调优指南](../best_practices/quantization_precision_tuning_guide.md)》。
+3. 检查离群值抑制算法、量化策略、校准数据集等是否合适，参考《[量化精度调优指南](../user_guide/guide_quantization_precision_tuning.md)》。
 
 **Q: 如何验证量化效果？**
 
